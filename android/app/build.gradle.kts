@@ -59,7 +59,11 @@ android {
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                // rootProject.file(...) kullanıyoruz (düz file(...) değil) -
+                // bu, yolu android/app/ değil android/ klasörüne göre
+                // çözer; keystore dosyası ve key.properties ikisi de
+                // android/ kökünde duruyor (bkz. KURULUM.md).
+                storeFile = rootProject.file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
                 keyAlias = keystoreProperties.getProperty("keyAlias")
                 keyPassword = keystoreProperties.getProperty("keyPassword")

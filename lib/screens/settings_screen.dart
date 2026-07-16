@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
 import '../services/call_service.dart';
@@ -8,6 +9,16 @@ import '../services/messaging_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+
+// GitHub Pages üzerinde barındırılan statik sayfalar (bkz. proje kökündeki
+// docs/ klasörü). Play Store yayını öncesi GERÇEK içerikle
+// (docs/privacy.html, docs/community-rules.html) doldurulup GitHub
+// Pages'te yayınlanmış olmaları gerekiyor - bkz. KURULUM.md "Play Store
+// Yayın Hazırlığı" bölümü.
+const String privacyPolicyUrl =
+    'https://snnydin-byte.github.io/merhaba-app/privacy.html';
+const String communityRulesUrl =
+    'https://snnydin-byte.github.io/merhaba-app/community-rules.html';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -279,11 +290,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 _sectionTitle('Hakkında'),
                 _navTile(
-                    icon: Icons.description_outlined,
-                    title: 'Topluluk Kuralları'),
+                  icon: Icons.description_outlined,
+                  title: 'Topluluk Kuralları',
+                  onTap: () => _openUrl(communityRulesUrl),
+                ),
                 _navTile(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Gizlilik Politikası'),
+                  icon: Icons.privacy_tip_outlined,
+                  title: 'Gizlilik Politikası',
+                  onTap: () => _openUrl(privacyPolicyUrl),
+                ),
                 _navTile(
                     icon: Icons.info_outline,
                     title: 'Uygulama Hakkında',
@@ -420,8 +435,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _navTile(
-      {required IconData icon, required String title, String? subtitle}) {
+  Widget _navTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -437,8 +456,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Colors.white.withValues(alpha: 0.4), fontSize: 12))
             : null,
         trailing: const Icon(Icons.chevron_right, color: Colors.white38),
-        onTap: () {},
+        onTap: onTap ?? () {},
       ),
     );
+  }
+
+  /// Bir URL'yi cihazın varsayılan tarayıcısında açar. Sayfa henüz
+  /// yayınlanmadıysa ya da cihazda hiçbir tarayıcı bulunamazsa (çok nadir)
+  /// kullanıcıya sessizce hiçbir şey olmamış gibi görünmesin diye bir
+  /// snackbar ile bilgilendiriyoruz.
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sayfa açılamadı, tekrar dene.')),
+      );
+    }
   }
 }
