@@ -1,0 +1,319 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../services/auth_service.dart';
+import '../services/call_service.dart';
+import '../services/call_ui_controller.dart';
+import '../services/messaging_service.dart';
+import '../services/push_notification_service.dart';
+import '../theme/app_theme.dart';
+import 'home_screen.dart';
+
+/// Giriş ve kayıt için tek bir ekran; ikisi arasında geçiş yapılabilir.
+/// Gerçek kimlik doğrulama sinyalleşme sunucusundaki /auth/* uçlarıyla
+/// yapılır (bkz. AuthService). Kullanıcı isterse hesap oluşturmadan
+/// "Misafir olarak devam et" diyerek doğrudan ana ekrana geçebilir.
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _authService = AuthService();
+  final _formKey = GlobalKey<FormState>();
+
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  bool _isRegisterMode = false;
+  bool _loading = false;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _loading = true;
+      _errorText = null;
+    });
+
+    try {
+      if (_isRegisterMode) {
+        await _authService.register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          displayName: _nameController.text.trim(),
+        );
+      } else {
+        await _authService.login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
+      }
+      // Giriş/kayıt başarılı - push token'ı bu hesaba bağlıyoruz (Firebase
+      // henüz yapılandırılmadıysa sessizce no-op, bkz.
+      // push_notification_service.dart).
+      unawaited(PushNotificationService().registerTokenWithServer());
+      // Mesajlaşma ve arama sinyal bağlantılarını da burada kuruyoruz -
+      // splash_screen.dart yalnızca uygulama açılışında ZATEN girişli olan
+      // oturumlar için bunu yapar; burada (yeni giriş/kayıt) da aynı kurulum
+      // gerekiyor. Artık ekran bazlı değil, uygulama boyunca kalıcılar
+      // (bkz. messaging_service.dart, call_service.dart).
+      final token = _authService.token;
+      if (token != null) {
+        MessagingService().connectIfNeeded(token);
+        CallService().connectIfNeeded(token);
+        CallUiController().wire();
+      }
+      if (!mounted) return;
+      _goToHome();
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorText = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+            () => _errorText = 'Beklenmeyen bir hata oluştu, tekrar dene.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _continueAsGuest() => _goToHome();
+
+  void _goToHome() {
+    Navigator.of(context).pushReplacement(
+      AppPageRoute(builder: (_) => const HomeScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: AppBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 12),
+                  _buildHeader(),
+                  const SizedBox(height: 32),
+                  if (_errorText != null) _buildError(),
+                  if (_isRegisterMode) ...[
+                    _buildNameField(),
+                    const SizedBox(height: 14),
+                  ],
+                  _buildEmailField(),
+                  const SizedBox(height: 14),
+                  _buildPasswordField(),
+                  const SizedBox(height: 22),
+                  _buildSubmitButton(),
+                  const SizedBox(height: 14),
+                  _buildModeToggle(),
+                  const SizedBox(height: 20),
+                  _buildDivider(),
+                  const SizedBox(height: 16),
+                  _buildGuestButton(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: AppGradients.liveAccent,
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.35),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child:
+              const Icon(Icons.videocam_rounded, color: Colors.white, size: 32),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          _isRegisterMode ? 'Hesap oluştur' : 'Tekrar hoş geldin',
+          style: AppText.heading.copyWith(fontSize: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _isRegisterMode
+              ? 'Sohbetlerine devam etmek için birkaç bilgi gir.'
+              : 'Devam etmek için giriş yap.',
+          textAlign: TextAlign.center,
+          style: AppText.body,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildError() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: AppColors.danger.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AppColors.danger, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _errorText!,
+              style: const TextStyle(color: AppColors.danger, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameField() {
+    return TextFormField(
+      controller: _nameController,
+      textCapitalization: TextCapitalization.words,
+      style: const TextStyle(color: Colors.white),
+      decoration: _fieldDecoration('İsim', Icons.person_outline),
+      validator: (v) => (v == null || v.trim().isEmpty) ? 'İsmini gir' : null,
+    );
+  }
+
+  Widget _buildEmailField() {
+    return TextFormField(
+      controller: _emailController,
+      keyboardType: TextInputType.emailAddress,
+      style: const TextStyle(color: Colors.white),
+      decoration: _fieldDecoration('E-posta', Icons.mail_outline),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return 'E-posta adresini gir';
+        final ok = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(v.trim());
+        return ok ? null : 'Geçerli bir e-posta gir';
+      },
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextFormField(
+      controller: _passwordController,
+      obscureText: true,
+      style: const TextStyle(color: Colors.white),
+      decoration: _fieldDecoration('Şifre', Icons.lock_outline),
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Şifreni gir';
+        if (_isRegisterMode && v.length < 6) return 'En az 6 karakter olmalı';
+        return null;
+      },
+    );
+  }
+
+  InputDecoration _fieldDecoration(String label, IconData icon) {
+    // Doldurma rengi/köşe yuvarlaklığı/hata rengi artık MaterialApp'in
+    // InputDecorationTheme'inden geliyor (bkz. theme/app_theme.dart) - burada
+    // yalnızca bu alana özgü olanları (etiket, ikon) belirtiyoruz.
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+      prefixIcon: Icon(icon, color: Colors.white38, size: 20),
+      errorStyle: const TextStyle(color: AppColors.danger, fontSize: 11),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return GradientButton(
+      onPressed: _loading ? null : _submit,
+      height: 54,
+      child: _loading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2.5, color: Colors.white),
+            )
+          : Text(
+              _isRegisterMode ? 'Hesap Oluştur' : 'Giriş Yap',
+              style: AppText.button,
+            ),
+    );
+  }
+
+  Widget _buildModeToggle() {
+    return Center(
+      child: TextButton(
+        onPressed: _loading
+            ? null
+            : () => setState(() {
+                  _isRegisterMode = !_isRegisterMode;
+                  _errorText = null;
+                }),
+        child: Text(
+          _isRegisterMode
+              ? 'Zaten hesabın var mı? Giriş yap'
+              : 'Hesabın yok mu? Hesap oluştur',
+          style: const TextStyle(color: AppColors.primaryLight, fontSize: 13),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: AppColors.divider)),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text('veya', style: AppText.caption),
+        ),
+        Expanded(child: Divider(color: AppColors.divider)),
+      ],
+    );
+  }
+
+  Widget _buildGuestButton() {
+    return SizedBox(
+      height: 50,
+      child: OutlinedButton(
+        onPressed: _loading ? null : _continueAsGuest,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white70,
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg)),
+        ),
+        child: const Text('Misafir olarak devam et'),
+      ),
+    );
+  }
+}

@@ -1,0 +1,309 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'webrtc_service.dart' show signalingServerUrl;
+
+/// Sinyalleşme sunucusundaki bir hesabı temsil eder (bkz.
+/// signaling_server/userStore.js publicUser()). Şifre burada tutulmaz.
+class AppUser {
+  final String id;
+  final String email;
+  final String displayName;
+  final String bio;
+  final String? gender; // 'erkek' | 'kadın' | null (belirtilmemiş)
+  final List<String> interests;
+  final String? country;
+  final String? language;
+  final int? age;
+  final bool verified;
+  final bool online;
+  final DateTime? lastSeen;
+
+  const AppUser({
+    required this.id,
+    required this.email,
+    required this.displayName,
+    this.bio = '',
+    this.gender,
+    this.interests = const [],
+    this.country,
+    this.language,
+    this.age,
+    this.verified = false,
+    this.online = false,
+    this.lastSeen,
+  });
+
+  factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
+        id: json['id'] as String,
+        email: json['email'] as String,
+        displayName: json['displayName'] as String,
+        bio: json['bio'] as String? ?? '',
+        gender: json['gender'] as String?,
+        interests: (json['interests'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+        country: json['country'] as String?,
+        language: json['language'] as String?,
+        age: json['age'] as int?,
+        verified: json['verified'] as bool? ?? false,
+        online: json['online'] as bool? ?? false,
+        lastSeen: json['lastSeen'] != null ? DateTime.tryParse(json['lastSeen'] as String) : null,
+      );
+}
+
+/// Sunucudan dönen kullanıcıya-gösterilebilir bir hata (ör. "şifre en az 6
+/// karakter olmalı", "e-posta veya şifre hatalı").
+class AuthException implements Exception {
+  final String message;
+  AuthException(this.message);
+
+  @override
+  String toString() => message;
+}
+
+/// Uygulamanın kimlik doğrulama durumunu ve sinyalleşme sunucusundaki
+/// /auth/* + /profile uçlarıyla haberleşmeyi yönetir.
+///
+/// Oturum bilgisi (token + kullanıcı) cihazda shared_preferences ile
+/// saklanır. Token bir JWT olduğu için doğrulaması sunucu tarafında
+/// durumsuz (stateless) yapılır - sunucu yeniden başlatılsa bile (ki
+/// geliştirme sırasında sık olur, users.json'a yazıldığı için veri
+/// kaybolmaz) token geçerliliğini korur.
+///
+/// Basit bir singleton: uygulama boyunca tek bir örnek kullanılır ki
+/// splash/login/home/profile ekranları aynı oturum durumunu görsün.
+class AuthService {
+  AuthService._internal();
+  static final AuthService instance = AuthService._internal();
+  factory AuthService() => instance;
+
+  static const _tokenKey = 'auth_token';
+  static const _userIdKey = 'auth_user_id';
+  static const _userEmailKey = 'auth_user_email';
+  static const _userNameKey = 'auth_user_name';
+
+  String? _token;
+  AppUser? _currentUser;
+
+  String? get token => _token;
+  AppUser? get currentUser => _currentUser;
+  bool get isLoggedIn => _token != null && _currentUser != null;
+
+  /// Cihazda daha önce saklanmış bir oturum var mı diye bakar (sunucuya
+  /// gitmeden). Splash ekranında sunucuya sormadan önce hızlı bir "muhtemelen
+  /// giriş yapılmış" durumu vermek için kullanılır.
+  Future<bool> restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    final userId = prefs.getString(_userIdKey);
+    final email = prefs.getString(_userEmailKey);
+    final name = prefs.getString(_userNameKey);
+    if (token == null || userId == null || email == null || name == null) {
+      return false;
+    }
+    _token = token;
+    _currentUser = AppUser(id: userId, email: email, displayName: name);
+    return true;
+  }
+
+  /// Sunucudan /auth/me çağırarak token'ın hâlâ geçerli olduğunu ve
+  /// kullanıcı bilgisinin güncel olduğunu doğrular.
+  ///
+  /// Sunucuya ulaşılamazsa (ör. kapalıysa) oturumu KAPATMAZ - kullanıcıyı
+  /// yalnızca sunucu o an ayaktayken atılamadığı için dışarı atmamak adına
+  /// cihazdaki bilgiyle devam edilir. Sunucu token'ı gerçekten geçersiz
+  /// (401) bulursa çıkış yapılır.
+  Future<bool> verifySession() async {
+    if (_token == null) return false;
+    try {
+      final response = await http.get(
+        Uri.parse('$signalingServerUrl/auth/me'),
+        headers: {'Authorization': 'Bearer $_token'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+        await _persist();
+        return true;
+      }
+      if (response.statusCode == 401) {
+        await logout();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      // Sunucuya ulaşılamıyor (ör. henüz başlatılmadı) - cihazdaki oturumla devam.
+      return true;
+    }
+  }
+
+  Future<AppUser> register({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    final response = await _post('/auth/register', {
+      'email': email,
+      'password': password,
+      'displayName': displayName,
+    });
+    return _applyAuthResponse(response);
+  }
+
+  Future<AppUser> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await _post('/auth/login', {
+      'email': email,
+      'password': password,
+    });
+    return _applyAuthResponse(response);
+  }
+
+  Future<void> updateDisplayName(String displayName) async {
+    await updateProfile(displayName: displayName);
+  }
+
+  /// Profil alanlarını günceller. [displayName] verilmezse mevcut isim
+  /// korunur (sunucu her zaman bir isim bekliyor). Diğer alanlardan
+  /// yalnızca verilenler değiştirilir - null geçilen bir alan sunucu
+  /// tarafında olduğu gibi bırakılır (bkz. userStore.updateProfileFields).
+  /// Bir alanı BOŞALTMAK için (ör. cinsiyeti kaldırmak) o alana açıkça
+  /// null yerine boş string/uygun "temizle" değeri geçmek gerekir - bio
+  /// için boş string, gender/country/language için null zaten "değiştirme"
+  /// anlamına geldiğinden bu üçünü temizlemek şu an desteklenmiyor.
+  Future<void> updateProfile({
+    String? displayName,
+    String? bio,
+    String? gender,
+    List<String>? interests,
+    String? country,
+    String? language,
+    int? age,
+  }) async {
+    if (_token == null) throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+
+    final body = <String, dynamic>{
+      'displayName': displayName ?? _currentUser?.displayName ?? '',
+    };
+    if (bio != null) body['bio'] = bio;
+    if (gender != null) body['gender'] = gender;
+    if (interests != null) body['interests'] = interests;
+    if (country != null) body['country'] = country;
+    if (language != null) body['language'] = language;
+    if (age != null) body['age'] = age;
+
+    final http.Response response;
+    try {
+      response = await http
+          .put(
+            Uri.parse('$signalingServerUrl/profile'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_token',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException(
+          'Sunucuya ulaşılamıyor. Sinyalleşme sunucusunun çalıştığından emin ol.');
+    }
+
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  /// Hesabı sunucudan kalıcı olarak siler (geri alınamaz) ve ardından yerel
+  /// oturumu temizler. Çağıran taraf (Ayarlar ekranı) bu metottan önce
+  /// kullanıcıya bir onay diyaloğu göstermeli.
+  Future<void> deleteAccount() async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+
+    final http.Response response;
+    try {
+      response = await http.delete(
+        Uri.parse('$signalingServerUrl/profile'),
+        headers: {'Authorization': 'Bearer $_token'},
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException(
+          'Sunucuya ulaşılamıyor. Sinyalleşme sunucusunun çalıştığından emin ol.');
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String message = 'Hesap silinemedi, tekrar dene.';
+      try {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        message = data['error'] as String? ?? message;
+      } catch (_) {
+        // Yanıt JSON değilse varsayılan mesajı kullan.
+      }
+      throw AuthException(message);
+    }
+
+    await logout();
+  }
+
+  Future<void> logout() async {
+    _token = null;
+    _currentUser = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_userIdKey);
+    await prefs.remove(_userEmailKey);
+    await prefs.remove(_userNameKey);
+  }
+
+  Future<http.Response> _post(String path, Map<String, dynamic> body) async {
+    try {
+      return await http
+          .post(
+            Uri.parse('$signalingServerUrl$path'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException(
+          'Sunucuya ulaşılamıyor. Sinyalleşme sunucusunun (signaling_server) '
+          'çalıştığından ve doğru adrese ayarlandığından emin ol.');
+    }
+  }
+
+  Future<AppUser> _applyAuthResponse(http.Response response) async {
+    final data = _decodeOrThrow(response);
+    _token = data['token'] as String;
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+    return _currentUser!;
+  }
+
+  Map<String, dynamic> _decodeOrThrow(http.Response response) {
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw AuthException('Sunucudan beklenmeyen bir yanıt geldi.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AuthException(data['error'] as String? ?? 'Bir şeyler ters gitti.');
+    }
+    return data;
+  }
+
+  Future<void> _persist() async {
+    if (_token == null || _currentUser == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, _token!);
+    await prefs.setString(_userIdKey, _currentUser!.id);
+    await prefs.setString(_userEmailKey, _currentUser!.email);
+    await prefs.setString(_userNameKey, _currentUser!.displayName);
+  }
+}
