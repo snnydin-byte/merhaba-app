@@ -68,7 +68,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openProfile() async {
-    await pushAppRoute(context, (_) => const ProfileScreen());
+    await Navigator.of(context).push(
+      AppPageRoute(builder: (_) => const ProfileScreen()),
+    );
     // Profil ekranından dönünce (ör. çıkış yapılmış olabilir) üst çubuğun
     // güncel oturum durumunu göstermesi için yeniden çiziyoruz.
     if (mounted) setState(() {});
@@ -87,9 +89,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 _buildFriendsEntry(context),
                 const Spacer(),
-                const _FloatingIllustration(),
+                _buildCenterIllustration(),
                 const SizedBox(height: 28),
-                const Text('Yeni biriyle tanış', style: AppText.display),
+                Text(
+                  'Yeni biriyle tanış',
+                  style: AppText.heading.copyWith(fontSize: 24),
+                ),
                 const SizedBox(height: 10),
                 Text(
                   'Dünyanın her yerinden insanlarla\nrastgele görüntülü sohbet et.',
@@ -102,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   'Devam ederek Topluluk Kurallarını kabul etmiş olursun.',
                   textAlign: TextAlign.center,
-                  style: AppText.caption.copyWith(color: AppColors.textFaint),
+                  style: AppText.caption,
                 ),
                 const SizedBox(height: 8),
               ],
@@ -122,14 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             _serverReachable
-                ? const PulsingDot(color: Colors.greenAccent, size: 8)
+                ? const PulsingDot(color: AppColors.secondary, size: 8)
                 : Container(
-                    width: 8,
-                    height: 8,
+                    width: 10,
+                    height: 10,
                     decoration: const BoxDecoration(
-                        color: Colors.grey, shape: BoxShape.circle),
+                      color: Colors.grey,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             Text(
               onlineCountLabel(_serverReachable ? _onlineCount : null),
               style: AppText.caption.copyWith(fontSize: 13),
@@ -144,25 +151,32 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                child: user != null
-                    ? Text(
-                        user.displayName.isNotEmpty
-                            ? user.displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      )
-                    : const Icon(Icons.person_outline,
-                        color: Colors.white70, size: 18),
+                backgroundImage: user?.photoUrl != null
+                    ? NetworkImage(user!.photoUrl!)
+                    : null,
+                child: user?.photoUrl != null
+                    ? null
+                    : (user != null
+                        ? Text(
+                            user.displayName.isNotEmpty
+                                ? user.displayName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          )
+                        : const Icon(Icons.person_outline,
+                            color: Colors.white70, size: 18)),
               ),
             ),
             const SizedBox(width: 4),
             IconButton(
               onPressed: () {
-                pushAppRoute(context, (_) => const SettingsScreen());
+                Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => const SettingsScreen()),
+                );
               },
               icon: const Icon(Icons.settings_outlined, color: Colors.white70),
             ),
@@ -180,22 +194,30 @@ class _HomeScreenState extends State<HomeScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: GestureDetector(
-        onTap: () => pushAppRoute(context, (_) => const FriendsScreen()),
+        onTap: () {
+          Navigator.of(context).push(
+            AppPageRoute(builder: (_) => const FriendsScreen()),
+          );
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(AppRadius.pill),
+            border: Border.all(color: AppColors.surfaceBorder),
           ),
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.people_alt_rounded,
+              const Icon(Icons.people_alt_rounded,
                   color: AppColors.primaryLight, size: 16),
-              SizedBox(width: 6),
-              Text('Arkadaşlar', style: AppText.subheading),
-              SizedBox(width: 4),
-              Icon(Icons.chevron_right_rounded,
+              const SizedBox(width: 6),
+              Text(
+                'Arkadaşlar',
+                style: AppText.subheading.copyWith(fontSize: 13),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded,
                   color: Colors.white38, size: 16),
             ],
           ),
@@ -204,76 +226,42 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStartButton(BuildContext context) {
-    return GradientButton(
-      onPressed: () => pushAppRoute(context, (_) => const PreCallScreen()),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.videocam_rounded, color: Colors.white),
-          SizedBox(width: 10),
-          Text('Sohbete Başla', style: AppText.button),
-        ],
+  Widget _buildCenterIllustration() {
+    return Container(
+      width: 180,
+      height: 180,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withValues(alpha: 0.25),
+            AppColors.secondary.withValues(alpha: 0.15),
+          ],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.public_rounded,
+            color: AppColors.primaryLight, size: 80),
       ),
     );
   }
-}
 
-/// Ana ekrandaki dünya ikonu - önceden sabit duran bir daireydi, artık
-/// yavaşça yukarı-aşağı süzülüp hafifçe nefes alır gibi büyüyüp küçülüyor.
-/// Bu, "Sohbete Başla" ekranının canlı/davetkar hissetmesine küçük ama
-/// etkili bir katkı sağlıyor.
-class _FloatingIllustration extends StatefulWidget {
-  const _FloatingIllustration();
-
-  @override
-  State<_FloatingIllustration> createState() => _FloatingIllustrationState();
-}
-
-class _FloatingIllustrationState extends State<_FloatingIllustration>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 3),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final t = Curves.easeInOut.transform(_controller.value);
-        final dy = -8 * t;
-        final scale = 1.0 + (0.03 * t);
-        return Transform.translate(
-          offset: Offset(0, dy),
-          child: Transform.scale(scale: scale, child: child),
+  Widget _buildStartButton(BuildContext context) {
+    return GradientButton(
+      onPressed: () {
+        Navigator.of(context).push(
+          AppPageRoute(builder: (_) => const PreCallScreen()),
         );
       },
-      child: Container(
-        width: 180,
-        height: 180,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.primary.withValues(alpha: 0.25),
-              AppColors.secondary.withValues(alpha: 0.15),
-            ],
-          ),
-        ),
-        child: const Center(
-          child: Icon(Icons.public_rounded,
-              color: AppColors.primaryLight, size: 80),
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.videocam_rounded, color: Colors.white),
+          const SizedBox(width: 10),
+          Text('Sohbete Başla', style: AppText.button),
+        ],
       ),
     );
   }

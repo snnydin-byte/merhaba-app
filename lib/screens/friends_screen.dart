@@ -117,11 +117,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Arkadaşlıktan çıkar',
-            style: TextStyle(color: Colors.white)),
+        title: Text('Arkadaşlıktan çıkar', style: AppText.subheading),
         content: Text(
           '${friend.displayName} arkadaş listenden kaldırılacak.',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -130,8 +129,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Kaldır',
-                style: TextStyle(color: AppColors.danger)),
+            child: const Text('Kaldır', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -162,13 +160,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Arkadaşlar'),
+        title: Text('Arkadaşlar', style: AppText.subheading),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: AppBackground(
-        child: SafeArea(child: _buildBody()),
-      ),
+      body: AppBackground(child: SafeArea(child: _buildBody())),
     );
   }
 
@@ -201,34 +197,29 @@ class _FriendsScreenState extends State<FriendsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline, color: Colors.white24, size: 56),
+            Icon(Icons.people_outline, color: AppColors.textFaint, size: 56),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Arkadaş eklemek için giriş yapmalısın',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600),
+              style: AppText.subheading,
             ),
             const SizedBox(height: 8),
             Text(
               'Misafir olarak arkadaş listesi tutulamaz. Bir hesap oluştur '
               'ya da giriş yap.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+              style: AppText.body,
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: 200,
-              child: GradientButton(
-                height: 48,
-                onPressed: () {
-                  pushAppRoute(context, (_) => const LoginScreen());
-                },
-                child: const Text('Giriş Yap', style: AppText.button),
-              ),
+            GradientButton(
+              height: 48,
+              onPressed: () {
+                Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => const LoginScreen()),
+                );
+              },
+              child: Text('Giriş Yap', style: AppText.button),
             ),
           ],
         ),
@@ -243,20 +234,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: Colors.white24, size: 48),
+            Icon(Icons.error_outline, color: AppColors.textFaint, size: 48),
             const SizedBox(height: 12),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+              style: AppText.body,
             ),
             const SizedBox(height: 16),
             OutlinedButton(
               onPressed: _load,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white38),
+                foregroundColor: AppColors.textPrimary,
+                side: BorderSide(color: AppColors.divider),
               ),
               child: const Text('Tekrar Dene'),
             ),
@@ -273,23 +263,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person_search_rounded,
-                color: Colors.white24, size: 56),
+            Icon(Icons.person_search_rounded,
+                color: AppColors.textFaint, size: 56),
             const SizedBox(height: 16),
-            const Text(
-              'Henüz arkadaşın yok',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600),
-            ),
+            Text('Henüz arkadaşın yok', style: AppText.subheading),
             const SizedBox(height: 8),
             Text(
               'Görüntülü sohbette eşleştiğin kişilere arkadaşlık isteği '
               'gönderebilirsin.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+              style: AppText.body,
             ),
           ],
         ),
@@ -300,92 +283,102 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget _buildFriendTile(AppUser friend) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.surfaceBorder),
-      ),
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                child: Text(
-                  friend.displayName.isNotEmpty
-                      ? friend.displayName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-              // Çevrimiçi durumu avatarın sağ-alt köşesinde küçük, hafifçe
-              // titreşen bir noktayla gösteriliyor - birçok mesajlaşma
-              // uygulamasındaki tanıdık desen, artık statik değil canlı.
-              if (friend.online)
-                const Positioned(
-                  right: -1,
-                  bottom: -1,
-                  child: PulsingDot(color: Colors.greenAccent, size: 12),
-                ),
-            ],
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                Text(
-                  friend.displayName,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                  backgroundImage: friend.photoUrl != null
+                      ? NetworkImage(friend.photoUrl!)
+                      : null,
+                  child: friend.photoUrl != null
+                      ? null
+                      : Text(
+                          friend.displayName.isNotEmpty
+                              ? friend.displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                        ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  lastSeenLabel(
-                      online: friend.online,
-                      lastSeen: friend.lastSeen,
-                      now: DateTime.now()),
-                  style: TextStyle(
-                    color: friend.online
-                        ? Colors.greenAccent
-                        : Colors.white.withValues(alpha: 0.4),
-                    fontSize: 11,
-                    fontWeight:
-                        friend.online ? FontWeight.w600 : FontWeight.normal,
+                // Çevrimiçi durumu avatarın sağ-alt köşesinde küçük bir
+                // noktayla gösteriliyor - birçok mesajlaşma uygulamasındaki
+                // tanıdık desen.
+                if (friend.online)
+                  Positioned(
+                    right: -1,
+                    bottom: -1,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.surface, width: 2),
+                      ),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
               ],
             ),
-          ),
-          _friendActionIcon(
-            icon: Icons.chat_bubble_outline_rounded,
-            onTap: () {
-              pushAppRoute(context, (_) => ChatScreen(friend: friend));
-            },
-          ),
-          _friendActionIcon(
-            icon: Icons.call_outlined,
-            onTap: () => _startCall(friend, 'audio'),
-          ),
-          _friendActionIcon(
-            icon: Icons.videocam_outlined,
-            onTap: () => _startCall(friend, 'video'),
-          ),
-          IconButton(
-            onPressed: () => _confirmRemove(friend),
-            icon: const Icon(Icons.person_remove_outlined,
-                color: Colors.white38, size: 20),
-            tooltip: 'Arkadaşlıktan çıkar',
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    friend.displayName,
+                    style: AppText.subheading.copyWith(fontSize: 15),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    lastSeenLabel(
+                        online: friend.online,
+                        lastSeen: friend.lastSeen,
+                        now: DateTime.now()),
+                    style: TextStyle(
+                      color: friend.online
+                          ? AppColors.secondary
+                          : AppColors.textMuted,
+                      fontSize: 11,
+                      fontWeight:
+                          friend.online ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            _friendActionIcon(
+              icon: Icons.chat_bubble_outline_rounded,
+              onTap: () {
+                Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => ChatScreen(friend: friend)),
+                );
+              },
+            ),
+            _friendActionIcon(
+              icon: Icons.call_outlined,
+              onTap: () => _startCall(friend, 'audio'),
+            ),
+            _friendActionIcon(
+              icon: Icons.videocam_outlined,
+              onTap: () => _startCall(friend, 'video'),
+            ),
+            IconButton(
+              onPressed: () => _confirmRemove(friend),
+              icon: const Icon(Icons.person_remove_outlined,
+                  color: Colors.white38, size: 20),
+              tooltip: 'Arkadaşlıktan çıkar',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -394,7 +387,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       {required IconData icon, required VoidCallback onTap}) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon, color: Colors.white70, size: 20),
+      icon: Icon(icon, color: AppColors.textSecondary, size: 20),
     );
   }
 }

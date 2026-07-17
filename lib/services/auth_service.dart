@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +21,7 @@ class AppUser {
   final bool verified;
   final bool online;
   final DateTime? lastSeen;
+  final String? photoUrl;
 
   const AppUser({
     required this.id,
@@ -34,6 +36,7 @@ class AppUser {
     this.verified = false,
     this.online = false,
     this.lastSeen,
+    this.photoUrl,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -49,6 +52,10 @@ class AppUser {
         verified: json['verified'] as bool? ?? false,
         online: json['online'] as bool? ?? false,
         lastSeen: json['lastSeen'] != null ? DateTime.tryParse(json['lastSeen'] as String) : null,
+        // Sunucu (bkz. signaling_server/server.js publicUser()) fotoğraf
+        // varsa kendi GET /avatars/:userId ucuna işaret eden tam bir URL
+        // döner, yoksa null - foto yoksa ekranlar isim baş harfini gösterir.
+        photoUrl: json['photoUrl'] as String?,
       );
 }
 
@@ -211,6 +218,56 @@ class AuthService {
     } catch (_) {
       throw AuthException(
           'Sunucuya ulaşılamıyor. Sinyalleşme sunucusunun çalıştığından emin ol.');
+    }
+
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  /// Profil fotoğrafını yükler/değiştirir. Sunucu bunu Firebase Storage'a
+  /// kaydeder (bkz. signaling_server/photoStorage.js) - burada yalnızca
+  /// dosyayı multipart/form-data ile gönderiyoruz. Var olan fotoğraf varsa
+  /// sunucu tarafında otomatik olarak üzerine yazılır (bkz. photoStorage.js
+  /// uploadAvatar - sabit dosya adı kullanır).
+  Future<void> uploadProfilePhoto(File file) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$signalingServerUrl/profile/photo'))
+          ..headers['Authorization'] = 'Bearer $_token'
+          ..files.add(await http.MultipartFile.fromPath('photo', file.path));
+
+    final http.Response response;
+    try {
+      final streamed = await request.send().timeout(const Duration(seconds: 20));
+      response = await http.Response.fromStream(streamed);
+    } catch (_) {
+      throw AuthException(
+          'Sunucuya ulaşılamıyor. Fotoğraf yüklenemedi, tekrar dene.');
+    }
+
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  /// Profil fotoğrafını kaldırır - ekranlar tekrar isim baş harfini gösterir.
+  Future<void> removeProfilePhoto() async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+
+    final http.Response response;
+    try {
+      response = await http.delete(
+        Uri.parse('$signalingServerUrl/profile/photo'),
+        headers: {'Authorization': 'Bearer $_token'},
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
 
     final data = _decodeOrThrow(response);

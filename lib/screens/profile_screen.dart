@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../services/auth_service.dart';
 import '../services/call_service.dart';
@@ -31,6 +34,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _error;
   String? _gender; // 'erkek' | 'kadın' | null
   List<String> _interests = [];
+
+  bool _uploadingPhoto = false;
 
   @override
   void dispose() {
@@ -68,6 +73,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _interests.add(tag);
       _interestController.clear();
     });
+  }
+
+  /// Avatara dokunulunca açılan seçenek listesi. Foto zaten varsa "Kaldır"
+  /// seçeneği de gösterilir. Galeriden seçim yeterli - kamerayla çekme
+  /// PreCallScreen'de zaten kullanılan permission_handler akışıyla
+  /// karışmasın diye şimdilik eklenmedi, istenirse ayrı bir görev olur.
+  Future<void> _showPhotoOptions(AppUser user) async {
+    if (_uploadingPhoto) return;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined,
+                  color: Colors.white70),
+              title: const Text('Galeriden Seç',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(sheetContext).pop('pick'),
+            ),
+            if (user.photoUrl != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline,
+                    color: AppColors.danger),
+                title: const Text('Fotoğrafı Kaldır',
+                    style: TextStyle(color: AppColors.danger)),
+                onTap: () => Navigator.of(sheetContext).pop('remove'),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (choice == 'pick') {
+      await _pickAndUploadPhoto();
+    } else if (choice == 'remove') {
+      await _removePhoto();
+    }
+  }
+
+  // Profil GÖRÜNTÜLEME ekranında ayrı bir hata metni alanı yok (o sadece
+  // düzenleme formunda var, bkz. _buildEditBody/_error) - foto işlemleri
+  // view modundan tetiklendiği için hataları kısa bir SnackBar ile
+  // gösteriyoruz.
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final XFile? picked;
+    try {
+      // maxWidth/imageQuality ile sıkıştırma - profil fotoğrafı için 1024px
+      // ve %85 kalite fazlasıyla yeterli, hem yükleme hem sunucu tarafındaki
+      // Cloudinary kullanımını (bkz. photoStorage.js) makul tutuyor.
+      picked = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      _showSnack('Fotoğraf seçilemedi, tekrar dene.');
+      return;
+    }
+    if (picked == null) return; // kullanıcı seçim yapmadan vazgeçti
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      await _authService.uploadProfilePhoto(File(picked.path));
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      _showSnack('Fotoğraf yüklenemedi, tekrar dene.');
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  Future<void> _removePhoto() async {
+    setState(() => _uploadingPhoto = true);
+    try {
+      await _authService.removeProfilePhoto();
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      _showSnack('Fotoğraf kaldırılamadı, tekrar dene.');
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -110,9 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted) {
+      if (mounted)
         setState(() => _error = 'Beklenmeyen bir hata oluştu, tekrar dene.');
-      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -132,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _authService.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      AppPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
@@ -171,31 +273,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.person_outline, color: Colors.white38, size: 56),
-            const SizedBox(height: 16),
-            const Text(
+            const SizedBox(height: AppSpacing.md),
+            Text(
               'Misafir olarak geziniyorsun',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600),
+              style: AppText.subheading.copyWith(fontSize: 17),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'Profilini görmek ve düzenlemek için giriş yap ya da bir hesap oluştur.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+              style: AppText.body,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.lg),
             GradientButton(
               height: 52,
               onPressed: () {
-                pushAppRoute(context, (_) => const LoginScreen());
+                Navigator.of(context)
+                    .push(AppPageRoute(builder: (_) => const LoginScreen()));
               },
-              child: const Text(
-                'Giriş Yap / Hesap Oluştur',
-                style: AppText.button,
-              ),
+              child: Text('Giriş Yap / Hesap Oluştur', style: AppText.button),
             ),
           ],
         ),
@@ -207,30 +303,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Center(
       child: Column(
         children: [
-          CircleAvatar(
-            radius: 44,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-            child: Text(
-              user.displayName.isNotEmpty
-                  ? user.displayName[0].toUpperCase()
-                  : '?',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold),
+          GestureDetector(
+            onTap: () => _showPhotoOptions(user),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                  backgroundImage: user.photoUrl != null
+                      ? NetworkImage(user.photoUrl!)
+                      : null,
+                  child: user.photoUrl != null
+                      ? null
+                      : Text(
+                          user.displayName.isNotEmpty
+                              ? user.displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold),
+                        ),
+                ),
+                // Sağ-altta küçük bir kamera rozeti - foto değiştirilebilir
+                // olduğunu gösteren tanıdık bir işaret (WhatsApp/Instagram
+                // profil düzenleme deseniyle aynı).
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: _uploadingPhoto
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.camera_alt_rounded,
+                            color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                user.displayName,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600),
-              ),
+              Text(user.displayName, style: AppText.subheading),
               if (user.verified) ...[
                 const SizedBox(width: 6),
                 const Icon(Icons.verified_rounded,
@@ -238,19 +364,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            user.email,
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
-          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(user.email, style: AppText.caption),
           if (user.verified) ...[
-            const SizedBox(height: 6),
-            const PillBadge(
-              label: 'Onaylı hesap',
-              color: AppColors.secondary,
-              icon: Icons.verified_rounded,
-            ),
+            const SizedBox(height: AppSpacing.xs),
+            PillBadge(label: 'Onaylı hesap', color: AppColors.secondary),
           ],
         ],
       ),
@@ -259,15 +377,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _infoCard({required String label, required String value}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: GlassCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: AppText.caption),
-            const SizedBox(height: 8),
-            Text(value,
-                style: const TextStyle(color: Colors.white, fontSize: 15)),
+            const SizedBox(height: AppSpacing.xs),
+            Text(value, style: const TextStyle(color: Colors.white, fontSize: 15)),
           ],
         ),
       ),
@@ -282,7 +399,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.all(20),
       children: [
         _avatarHeader(user),
-        const SizedBox(height: 32),
+        const SizedBox(height: AppSpacing.xl),
         _infoCard(
             label: 'Hakkımda',
             value: user.bio.isEmpty ? 'Henüz bir şey yazılmamış.' : user.bio),
@@ -304,7 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.language?.isNotEmpty == true
                 ? user.language!
                 : 'Belirtilmemiş'),
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.md),
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -314,7 +431,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               foregroundColor: AppColors.danger,
               side: const BorderSide(color: AppColors.danger),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             child: const Text('Çıkış Yap'),
           ),
@@ -324,18 +441,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   InputDecoration _fieldDecoration(String label, {String? hint}) {
+    // Doldurma rengi/köşe yuvarlaklığı MaterialApp'in InputDecorationTheme'inden
+    // geliyor (bkz. theme/app_theme.dart) - burada yalnızca bu alana özgü
+    // olanları (etiket, ipucu) belirtiyoruz.
     return InputDecoration(
       labelText: label,
       hintText: hint,
       labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
       hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.06),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
     );
   }
 
@@ -358,10 +471,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _fieldDecoration('Hakkımda', hint: 'Kendinden kısaca bahset...'),
         ),
         const SizedBox(height: 6),
-        Text('Cinsiyet',
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-        const SizedBox(height: 8),
+        Text('Cinsiyet', style: AppText.caption),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: 8,
           children: [
@@ -390,10 +501,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           decoration: _fieldDecoration('Dil', hint: 'ör. Türkçe'),
         ),
         const SizedBox(height: 14),
-        Text('İlgi Alanları (en fazla 10)',
-            style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
-        const SizedBox(height: 8),
+        Text('İlgi Alanları (en fazla 10)', style: AppText.caption),
+        const SizedBox(height: AppSpacing.sm),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -409,7 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
             Expanded(
@@ -430,9 +539,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!,
-              style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+              style: const TextStyle(color: AppColors.danger, fontSize: 12)),
         ],
-        const SizedBox(height: 20),
+        const SizedBox(height: AppSpacing.md),
         Row(
           children: [
             Expanded(
@@ -441,17 +550,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _saving ? null : () => setState(() => _editing = false),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.white70,
-                  side: const BorderSide(color: Colors.white24),
+                  side: BorderSide(color: AppColors.divider),
                 ),
                 child: const Text('Vazgeç'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: ElevatedButton(
+              child: GradientButton(
+                height: 48,
                 onPressed: _saving ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary),
                 child: _saving
                     ? const SizedBox(
                         width: 16,
@@ -459,7 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Kaydet'),
+                    : Text('Kaydet', style: AppText.button),
               ),
             ),
           ],
