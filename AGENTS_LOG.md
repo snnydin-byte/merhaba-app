@@ -222,8 +222,7 @@ görev-bazlı bir blok ekler.)_
   kökteki geçici dosya silindi. İçerikte hiçbir gizli/hassas bilgi
   olmadığı (JWT_SECRET/METERED_API_KEY gibi değerler değil, sadece isimleri
   geçiyor) doğrulanıp `merhaba-app` (PUBLIC) reposuna commit'lendi ve
-  push'landı. Commit hash'i bir sonraki AGENTS_LOG.md güncellemesinde
-  işlenecek.
+  push'landı. Commit: `f78202e`.
 
 _(başka bekleyen görev yok)_
 
@@ -287,4 +286,4 @@ _(başka bekleyen görev yok)_
   `SKILL_merhaba-project.md`, `.claude/skills/merhaba-project/SKILL.md`
   olarak (içerik birebir korunarak) taşındı, geçici kök dosyası silindi,
   `merhaba-app` (PUBLIC) reposuna commit'lenip push'landı. Detaylar için
-  Görev #3'ün Sonuç/commit alanına bak.
+  Görev #3'ün Sonuç/commit alanına bak. Commit: `f78202e`.
