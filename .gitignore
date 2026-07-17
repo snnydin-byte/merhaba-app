@@ -61,3 +61,12 @@ android/key.properties
 flutter_log*.txt
 logcat.txt
 NOTLAR *.txt
+
+# Claude (bulut) + gstack arasındaki geliştirme-süreci koordinasyon/otomasyon
+# araçları - uygulama koduna dahil değiller, public repoda görünmemeli
+# (Görev #4, 17 Temmuz 2026).
+AGENTS_LOG.md
+agents-watcher.js
+start-agents-watcher.bat
+agents-watcher.code-workspace
+.claude/skills/
