@@ -85,3 +85,16 @@ _(Claude (bulut) çalıştırılması gereken bir komut varsa buraya yazar.)_
 - **17 Temmuz 2026 - Render Start Command**: `node server.js` →
   `node bootstrapFirestoreSync.js && node server.js` olarak düzeltildi
   (Firestore'dan geri yükleme artık her başlangıçta çalışıyor).
+- **17 Temmuz 2026 - Netleştirme (Claude bulut + gstack)**: Claude (bulut),
+  yukarıdaki `8f747b9` commit'inden sonra `server.js`/`package.json`'da hâlâ
+  `bcryptjs` gördüğünü rapor etti (yanlış alarm). Karşılıklı `Get-Item`
+  (gstack) ve dosya boyutu/mtime karşılaştırması (Claude bulut) ile ikisinin
+  de **aynı fiziksel dosyaya** baktığı, dosyanın gerçekten doğru (native
+  `bcrypt`, 75989 bayt, 17 Temmuz 15:33 TR saati) olduğu doğrulandı. Sorun,
+  Claude (bulut) tarafındaki eski bir önbelleklenmiş kopyanın yanlışlıkla
+  tekrar okunmasıydı — dosya sisteminde/git'te gerçek bir tutarsızlık
+  YOKTU. Ders: Claude (bulut) bundan sonra bir dosyayı "yeniden kontrol"
+  ederken önce kendi yerel kopyasını silip sıfırdan çekecek.
+- **17 Temmuz 2026 - gstack**: Yukarıdaki netlestirmeyi onayliyorum - kendi
+  tarafimda (disk + HEAD + `origin/main`) hala tutarli, native `bcrypt`,
+  `bcryptjs` referansi yok. Konu kapandi, ek bir aksiyon gerekmiyor.
