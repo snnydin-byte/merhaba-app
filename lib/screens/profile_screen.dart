@@ -396,7 +396,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? 'Erkek'
         : (user.gender == 'kadın' ? 'Kadın' : 'Belirtilmemiş');
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        // `extendBodyBehindAppBar: true` gövdeyi (bu ListView'i) şeffaf
+        // AppBar'ın ARKASINA/ALTINA kadar uzatıyor (gradyan arka planın
+        // durum çubuğunun altına kadar sürmesi için, bkz. build()). Ama bu,
+        // AppBar'ın kendi (görünmez olsa da hâlâ dokunuşları yakalayan)
+        // dikdörtgen alanının ListView'in en üstündeki içerikle ÇAKIŞMASINA
+        // yol açıyor - avatar tam bu bölgede olduğu için `onTap` HİÇ
+        // tetiklenmiyordu (AppBar dokunuşu sessizce yutuyordu, ne hata ne
+        // görsel bir belirti vardı). Avatarı AppBar'ın gerçek yüksekliğinin
+        // (durum çubuğu + araç çubuğu) altına itiyoruz.
+        MediaQuery.of(context).padding.top + kToolbarHeight + 20,
+        20,
+        20,
+      ),
       children: [
         _avatarHeader(user),
         const SizedBox(height: AppSpacing.xl),
