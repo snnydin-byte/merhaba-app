@@ -308,6 +308,40 @@ class AuthService {
     await logout();
   }
 
+  /// Bir arkadaşı şikayet eder (bkz. signaling_server/reportStore.js
+  /// VALID_REASONS - [reason] bunlardan biri olmalı: 'uygunsuz-goruntu',
+  /// 'taciz', 'kucuk-yasta' (reşit olmayan biri gibi görünüyor), 'spam',
+  /// 'sahte-hesap', 'diger'). Şikayet sunucuda saklanır - bu metot ayrıca
+  /// engelleme/arkadaşlıktan çıkarma YAPMAZ, çağıran ekran isterse bunu
+  /// ayrıca (kendi akışıyla) başlatır.
+  Future<void> reportFriend(String friendId, String reason, {String? note}) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('$signalingServerUrl/friends/$friendId/report'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_token',
+            },
+            body: jsonEncode({
+              'reason': reason,
+              if (note != null) 'note': note,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException(
+          'Sunucuya ulaşılamıyor. Şikayet gönderilemedi, tekrar dene.');
+    }
+
+    _decodeOrThrow(response);
+  }
+
   Future<void> logout() async {
     _token = null;
     _currentUser = null;

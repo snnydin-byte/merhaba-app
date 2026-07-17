@@ -155,6 +155,70 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
   }
 
+  /// Bir arkadaşı bildirir - nedenler sunucunun kabul ettiği sabit liste
+  /// (bkz. signaling_server/reportStore.js VALID_REASONS), video sohbet
+  /// ekranındaki (video_chat_screen.dart _showReportDialog) diyalogla aynı
+  /// desen. 'Reşit olmayan biri gibi görünüyor' seçeneği özellikle önemli -
+  /// bu tür şikayetler sunucuda (bkz. GET /admin/reports) öncelikli olarak
+  /// işaretlenir.
+  Future<void> _showReportDialog(AppUser friend) async {
+    const reasons = [
+      ('uygunsuz-goruntu', 'Uygunsuz görüntü/içerik'),
+      ('taciz', 'Taciz veya kötüye kullanım'),
+      ('kucuk-yasta', 'Reşit olmayan biri gibi görünüyor'),
+      ('spam', 'Spam / reklam'),
+      ('sahte-hesap', 'Sahte hesap'),
+      ('diger', 'Diğer'),
+    ];
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Text('Kullanıcıyı bildir', style: AppText.subheading),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: reasons
+              .map((r) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(r.$2,
+                        style: TextStyle(color: AppColors.textPrimary)),
+                    onTap: () => Navigator.pop(context, r.$1),
+                  ))
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Vazgeç'),
+          ),
+        ],
+      ),
+    );
+
+    if (reason == null || !mounted) return;
+
+    try {
+      await AuthService().reportFriend(friend.id, reason);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Şikayetin alındı, teşekkürler.')),
+      );
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bir şeyler ters gitti, tekrar dene.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -377,11 +441,43 @@ class _FriendsScreenState extends State<FriendsScreen> {
               icon: Icons.videocam_outlined,
               onTap: () => _startCall(friend, 'video'),
             ),
-            IconButton(
-              onPressed: () => _confirmRemove(friend),
-              icon: const Icon(Icons.person_remove_outlined,
-                  color: Colors.white38, size: 20),
-              tooltip: 'Arkadaşlıktan çıkar',
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white38, size: 20),
+              color: AppColors.surfaceElevated,
+              tooltip: 'Diğer seçenekler',
+              onSelected: (value) {
+                if (value == 'report') {
+                  _showReportDialog(friend);
+                } else if (value == 'remove') {
+                  _confirmRemove(friend);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_outlined,
+                          color: AppColors.warning, size: 18),
+                      const SizedBox(width: 10),
+                      Text('Bildir',
+                          style: TextStyle(color: AppColors.textPrimary)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'remove',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.person_remove_outlined,
+                          color: AppColors.danger, size: 18),
+                      const SizedBox(width: 10),
+                      Text('Arkadaşlıktan çıkar',
+                          style: TextStyle(color: AppColors.danger)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),

@@ -335,6 +335,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     const reasons = [
       ('uygunsuz-goruntu', 'Uygunsuz görüntü/içerik'),
       ('taciz', 'Taciz veya kötüye kullanım'),
+      ('kucuk-yasta', 'Reşit olmayan biri gibi görünüyor'),
       ('spam', 'Spam / reklam'),
       ('sahte-hesap', 'Sahte hesap'),
       ('diger', 'Diğer'),
