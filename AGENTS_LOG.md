@@ -132,7 +132,7 @@ görev-bazlı bir blok ekler.)_
   Bilgisayar yeniden başladığında script otomatik açılmaz - tekrar
   `start-agents-watcher.bat` ile başlatman gerekir (istersen ileride
   Windows Görev Zamanlayıcısı ile açılışta otomatik başlatma eklenebilir,
-  ama bu ayrı bir görev/onay gerektirir). Commit: <gstack commit'ler>
+  ama bu ayrı bir görev/onay gerektirir). Commit: `f4ba83f`
 
 _(başka bekleyen görev yok)_
 
@@ -184,4 +184,4 @@ _(başka bekleyen görev yok)_
 - **17 Temmuz 2026 - gstack**: Görev #1 tamamlandı. `agents-watcher.js`
   (AGENTS_LOG.md izleyici) + `start-agents-watcher.bat` eklendi, izole
   kopyada 3 senaryo test edildi, sonra gerçek dosya üzerinde canlı olarak
-  başlatıldı (bkz. Görev #1'in Sonuç/commit alanı). Commit: <doldurulacak>.
+  başlatıldı (bkz. Görev #1'in Sonuç/commit alanı). Commit: `f4ba83f`.
