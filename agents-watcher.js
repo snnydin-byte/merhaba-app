@@ -24,8 +24,22 @@ const POLL_INTERVAL_MS = 2000;
 
 // AGENTS_LOG.md'deki "Otomatik Onaylı Güvenli Komutlar" tablosunun birebir
 // karşılığı. Anahtar = "Ne yapılmalı" alanının trim'lenmiş metni.
+//
+// "uygulamayı başlat" artık `flutter run`'ı doğrudan gizli/arka planda
+// başlatmıyor (Sinan görüp hot-reload yapamıyordu - Görev #2). Bunun yerine
+// `agents-watcher.code-workspace` dosyasını yeni bir VS Code penceresinde
+// açıyor; o workspace'in kendi tasks.json'ı ("runOptions": {"runOn":
+// "folderOpen"}) pencere açılır açılmaz `flutter run`ı görünür, etkileşimli
+// bir entegre terminalde otomatik başlatıyor (r/R ile hot-reload yapılabilir).
+// Bu davranış SADECE bu özel workspace dosyası üzerinden tetiklenir - Sinan
+// projeyi normal şekilde (bu workspace dosyası olmadan) açtığında hiçbir şey
+// otomatik çalışmaz.
 const APPROVED_COMMANDS = {
-  'uygulamayı başlat': { cmd: 'flutter', args: ['run'], cwd: __dirname },
+  'uygulamayı başlat': {
+    cmd: 'code',
+    args: ['--new-window', path.join(__dirname, 'agents-watcher.code-workspace')],
+    cwd: __dirname,
+  },
 };
 
 let processing = false;
@@ -88,8 +102,12 @@ function updateLogFields(lines, block, updates) {
   }
 }
 
+function quoteArgIfNeeded(arg) {
+  return /\s/.test(arg) ? `"${arg}"` : arg;
+}
+
 function runApprovedCommand(commandDef) {
-  const fullCommand = [commandDef.cmd, ...commandDef.args].join(' ');
+  const fullCommand = [commandDef.cmd, ...commandDef.args.map(quoteArgIfNeeded)].join(' ');
   log(`Komut tetikleniyor: ${fullCommand}`);
   // Tüm komut tek bir sabit string olarak shell'e veriliyor (args ayrı
   // geçilmiyor) - Node'un "shell:true + args dizisi" kombinasyonuna dair
@@ -102,7 +120,7 @@ function runApprovedCommand(commandDef) {
     shell: process.platform === 'win32',
   });
   child.unref();
-  return child.pid;
+  return { pid: child.pid, fullCommand };
 }
 
 function processFile() {
@@ -127,11 +145,11 @@ function processFile() {
       const approved = APPROVED_COMMANDS[neYapilmali.toLowerCase()];
 
       if (approved) {
-        const pid = runApprovedCommand(approved);
+        const { pid, fullCommand } = runApprovedCommand(approved);
         const now = new Date().toLocaleString('tr-TR');
         updateLogFields(lines, block, {
           Durum: 'Tamamlandı',
-          'Sonuç/commit': `${now} - agents-watcher.js tarafından otomatik çalıştırıldı (\`${approved.cmd} ${approved.args.join(' ')}\`, pid ${pid}).`,
+          'Sonuç/commit': `${now} - agents-watcher.js tarafından otomatik çalıştırıldı (\`${fullCommand}\`, pid ${pid}).`,
         });
         log(`Görev #${block.number} tamamlandı olarak işaretlendi.`);
         changed = true;

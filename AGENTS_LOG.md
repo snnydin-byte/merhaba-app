@@ -65,7 +65,7 @@ görev-bazlı bir blok ekler.)_
 
 | Tetik ifadesi (Sinan'ın Claude'a söylediği) | Gerçekte çalışacak komut |
 | --- | --- |
-| "uygulamayı başlat" | `flutter run` |
+| "uygulamayı başlat" | `code --new-window agents-watcher.code-workspace` (bu workspace'in tasks.json'ı pencere açılınca `flutter run`'ı görünür/etkileşimli bir VS Code terminalinde otomatik başlatır - Görev #2) |
 
 **Şablon** (yeni görev eklerken kopyala):
 
@@ -134,6 +134,55 @@ görev-bazlı bir blok ekler.)_
   Windows Görev Zamanlayıcısı ile açılışta otomatik başlatma eklenebilir,
   ama bu ayrı bir görev/onay gerektirir). Commit: `f4ba83f`
 
+### Görev #2
+- Durum: Tamamlandı
+- Otomatik: Hayır (script değişikliği - kod değişikliği sayılır)
+- Ekleyen: Claude (bulut)
+- Tarih: 17 Temmuz 2026
+- Etkilenen dosya(lar): agents-watcher.js
+- Ne yapılmalı: `runApprovedCommand()` fonksiyonunu değiştir - şu an
+  `flutter run`'ı sessiz/arka planda (`detached: true, stdio: 'ignore'`)
+  başlatıyor, görünmez. Bunun yerine, komut VS Code'un içinde görünen,
+  içine yazı yazılabilen (hot-reload için `r`/`R` tuşlarını basabileceğin)
+  bir entegre terminalde açılmalı. VS Code CLI (`code` komutu PATH'te
+  kuruluysa) veya VS Code'un tasks.json/terminal API'si üzerinden bunu
+  başarmanın en güvenilir yolunu sen (gstack) araştır ve dene - kesin bir
+  yöntem dikte etmiyorum, VS Code sürümüne göre en sağlam çalışan yaklaşımı
+  seç. Sadece şunu koru: hangi yöntemi kullanırsan kullan, çalıştırılan
+  komut yine SADECE `APPROVED_COMMANDS` tablosundan gelsin, serbest metin
+  yorumlanmasın.
+- Neden: Sinan "uygulamayı başlat" dediğinde şu an hiçbir şey görmüyor,
+  hot-reload de yapamıyor - görünür, etkileşimli bir VS Code terminali
+  istiyor.
+- Test/doğrulama: "uygulamayı başlat" görevi tetiklendiğinde VS Code
+  içinde yeni bir terminal sekmesi/paneli açılıp `flutter run`ın orada
+  çalıştığı ve `r` tuşuyla hot-reload yapılabildiği gözle doğrulanır.
+- Sonuç/commit: `code` CLI'ın (`--command` gibi bir "komut çalıştır" bayrağı
+  olmadığı doğrulandıktan sonra) resmi olarak desteklenen
+  `tasks.json` + `"runOptions": {"runOn": "folderOpen"}` mekanizması
+  kullanıldı. Proje köküne özel bir **agents-workspace dosyası**
+  (`agents-watcher.code-workspace`) eklendi - içinde SADECE bu workspace'e
+  özel bir "Flutter Run (agents-watcher)" task'ı var (`reveal: always`,
+  `panel: new`, `focus: true`). Bunu ayrı bir workspace dosyasında tutmamın
+  nedeni: normal `.vscode/tasks.json` kullansaydım, Sinan projeyi normal
+  şekilde (bu workspace dosyası olmadan) her yeni pencerede açtığında
+  `flutter run` istemeden otomatik başlardı - izole workspace bu riski
+  ortadan kaldırıyor, otomatik başlatma SADECE bu özel dosya üzerinden
+  açılan pencerede olur. `agents-watcher.js`'deki `APPROVED_COMMANDS`
+  tablosunda "uygulamayı başlat" artık `code --new-window
+  agents-watcher.code-workspace` çalıştırıyor (hâlâ sabit, tablo-kaynaklı
+  bir komut - serbest metin yorumlanmıyor). Gerçek ortamda test edildi:
+  komut elle tetiklendi, yeni bir VS Code penceresi "agents-watcher
+  (Workspace)" başlığıyla açıldı, birkaç saniye içinde task otomatik
+  tetiklenip `flutter` için yeni `dart.exe` süreçleri başladığı
+  (öncesi/sonrası `tasklist` karşılaştırmasıyla) doğrulandı. Eski
+  agents-watcher.js süreci (eski koda sahipti) durduruldu,
+  `start-agents-watcher.bat` ile güncel kodla yeniden başlatıldı - şu an
+  canlı. Not: Panel içinde `r`/`R` ile hot-reload'ın çalıştığının tamamen
+  gözle doğrulanması Sinan'ın kendisine kalıyor (ben ekranı göremiyorum) -
+  açılan "agents-watcher (Workspace)" penceresi hâlâ açık, kontrol
+  edebilirsin. Commit: <gstack doldurur>
+
 _(başka bekleyen görev yok)_
 
 ---
@@ -185,3 +234,10 @@ _(başka bekleyen görev yok)_
   (AGENTS_LOG.md izleyici) + `start-agents-watcher.bat` eklendi, izole
   kopyada 3 senaryo test edildi, sonra gerçek dosya üzerinde canlı olarak
   başlatıldı (bkz. Görev #1'in Sonuç/commit alanı). Commit: `f4ba83f`.
+- **17 Temmuz 2026 - gstack**: Görev #2 tamamlandı. "uygulamayı başlat" artık
+  `flutter run`'ı gizli/arka planda değil, `agents-watcher.code-workspace`
+  adlı özel bir VS Code workspace'i üzerinden (`code --new-window` +
+  workspace'e özel `runOn: folderOpen` task'ı) görünür/etkileşimli bir VS
+  Code terminalinde başlatıyor. `agents-watcher.js` bu yeni koda göre
+  yeniden başlatıldı. Detaylar için Görev #2'nin Sonuç/commit alanına bak.
+  Commit: <doldurulacak>.
