@@ -328,8 +328,14 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildModeToggle() {
+    // bkz. profile_screen.dart'taki aynı düzeltme - extendBodyBehindAppBar:
+    // true yüzünden gövde şeffaf AppBar'ın arkasına kadar uzuyor. SafeArea
+    // yalnızca durum çubuğunu hesaba katıyor, AppBar'ın kendi
+    // (kToolbarHeight) yüksekliğini değil - bu yüzden Column'un İLK öğesi
+    // olan bu mod anahtarı ("Kalıcı Sohbet"/"Kaybolan Mesajlar")
+    // AppBar'ın dokunuş yakalayan bölgesiyle çakışıyordu.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: EdgeInsets.fromLTRB(16, 12 + kToolbarHeight, 16, 4),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(

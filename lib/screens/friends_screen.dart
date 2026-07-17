@@ -183,7 +183,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceElevated,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        // bkz. profile_screen.dart'taki aynı düzeltme - extendBodyBehindAppBar:
+        // true yüzünden gövde şeffaf AppBar'ın arkasına kadar uzuyor. Bu ekran
+        // ayrıca SafeArea kullanıyor ama SafeArea yalnızca durum çubuğunu
+        // hesaba katıyor, AppBar'ın kendi (kToolbarHeight) yüksekliğini değil
+        // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
+        // dokunuş yakalayan bölgesiyle çakışıyordu.
+        padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
         itemCount: _friends.length,
         itemBuilder: (context, index) => _buildFriendTile(_friends[index]),
       ),

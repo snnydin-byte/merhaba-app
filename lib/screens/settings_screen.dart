@@ -228,7 +228,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
             : ListView(
-              padding: const EdgeInsets.all(16),
+              // bkz. profile_screen.dart'taki aynı düzeltme - extendBodyBehindAppBar:
+              // true, gövdeyi şeffaf ama hâlâ dokunuş yakalayan AppBar'ın
+              // ARKASINA/ALTINA kadar uzatıyor; en üstteki içerik (başlık +
+              // ilk satır) hem görsel olarak AppBar'ın "Ayarlar" yazısıyla
+              // üst üste biniyor HEM DE o satırdaki dokunuşlar (ör. "Kiminle
+              // eşleşmek istersin?" açılır menüsü) AppBar tarafından sessizce
+              // yutuluyordu.
+              padding: EdgeInsets.fromLTRB(
+                16,
+                MediaQuery.of(context).padding.top + kToolbarHeight + 16,
+                16,
+                16,
+              ),
               children: [
                 _sectionTitle('Eşleşme Tercihleri'),
                 _dropdownTile(
