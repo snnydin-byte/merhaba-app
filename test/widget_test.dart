@@ -21,6 +21,17 @@ void main() {
 
       expect(find.text('Merhaba'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // Açılış ekranındaki 1600ms'lik minimum gösterim süresi bir
+      // Future.delayed (dolayısıyla bir Timer) kullanıyor - yukarıdaki tek
+      // pump() bunu bitirmeden test biterse, widget ağacı dispose
+      // edildiğinde flutter_test "A Timer is still pending" diye test'i
+      // BAŞARISIZ sayıyor (asıl kontrol ettiğimiz şeyle - açılış ekranının
+      // doğru görünmesiyle - ilgisi yok, sadece temizlik). Süreyi ileri
+      // alıp bekleyen Timer'ın/Future zincirinin tamamlanmasına izin
+      // veriyoruz; bu noktada ekran zaten değişmiş olabilir ama yukarıdaki
+      // asıl assertion'lar ondan ÖNCE zaten çalıştı.
+      await tester.pump(const Duration(milliseconds: 1700));
     },
   );
 }
