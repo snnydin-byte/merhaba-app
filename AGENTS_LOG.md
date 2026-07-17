@@ -181,7 +181,7 @@ görev-bazlı bir blok ekler.)_
   canlı. Not: Panel içinde `r`/`R` ile hot-reload'ın çalıştığının tamamen
   gözle doğrulanması Sinan'ın kendisine kalıyor (ben ekranı göremiyorum) -
   açılan "agents-watcher (Workspace)" penceresi hâlâ açık, kontrol
-  edebilirsin. Commit: <gstack doldurur>
+  edebilirsin. Commit: `a973264`
 
 _(başka bekleyen görev yok)_
 
@@ -240,4 +240,4 @@ _(başka bekleyen görev yok)_
   workspace'e özel `runOn: folderOpen` task'ı) görünür/etkileşimli bir VS
   Code terminalinde başlatıyor. `agents-watcher.js` bu yeni koda göre
   yeniden başlatıldı. Detaylar için Görev #2'nin Sonuç/commit alanına bak.
-  Commit: <doldurulacak>.
+  Commit: `a973264`.
