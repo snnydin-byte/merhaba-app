@@ -40,7 +40,14 @@ class _SplashScreenState extends State<SplashScreen> {
       // tamamlanmış (Firebase yapılandırıldıysa) ya da hâlâ sessizce
       // devredışı (yapılandırılmadıysa, o zaman bu çağrı da no-op).
       if (authService.isLoggedIn) {
-        await PushNotificationService().registerTokenWithServer();
+        // Push token kaydı (sunucuya ayrı bir HTTP isteği) mesajlaşma/arama
+        // soketlerinin açılmasından BAĞIMSIZ - burada await ETMEDEN
+        // (fire-and-forget) tetikliyoruz ki soket bağlantıları onun bitmesini
+        // beklemesin. Böylece gelen mesaj/arama davetlerinin dinlenmeye
+        // başlaması, push token kaydının (bazen yavaş olabilen FCM +
+        // sunucu round-trip'i) süresi kadar gecikmiyor.
+        // ignore: unawaited_futures
+        PushNotificationService().registerTokenWithServer();
         // Mesajlaşma ve arama sinyal bağlantılarını burada, oturum
         // doğrulanır doğrulanmaz BİR KEZ kuruyoruz - artık ekran bazlı
         // değil, uygulama boyunca kalıcılar (bkz. messaging_service.dart,
