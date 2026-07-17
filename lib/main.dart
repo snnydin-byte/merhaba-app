@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/call_service.dart';
@@ -9,13 +12,38 @@ import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  runZonedGuarded(() {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    // FlutterError/Zone hataları aşağıda zaten yakalanıyordu ama yalnızca
+    // print() ile konsola yazılıyordu - bu, yalnızca bir debug oturumuna
+    // bağlıyken görülebilir, gerçek kullanıcının cihazında oluşan bir
+    // crash'i asla göremiyorduk. Firebase.initializeApp() PushNotification-
+    // Service().init()'in zaten yaptığı işi burada TEKRAR yapıyor gibi
+    // görünse de, Crashlytics'in FlutterError.onError içinde kullanılabilmesi
+    // için Firebase'in bu callback tanımlanmadan ÖNCE hazır olması gerekiyor
+    // - firebase_core zaten idempotent (aynı app'i iki kez başlatmayı
+    // sorunsuz görmezden gelir), bu yüzden burada await etmek güvenli.
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
+    } catch (err) {
+      // Firebase yapılandırılmamışsa (bkz. firebase_options.dart) ya da
+      // ağ/servis sorunuysa, Crashlytics olmadan devam ediyoruz - kilitlenip
+      // uygulamayı hiç açtırmamak, hata raporlamadan mahrum kalmaktan çok
+      // daha kötü olurdu.
+      // ignore: avoid_print
+      print('Crashlytics kurulamadı, hata raporlama devre dışı: $err');
+    }
+    final previousOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
       // ignore: avoid_print
       print(
           'YAKALANAN HATA (FlutterError): ${details.exception}\n${details.stack}');
+      previousOnError?.call(details);
     };
     // Bilerek await EDİLMİYOR - Firebase/push kurulumu splash ekranını
     // geciktirmesin diye arka planda ilerliyor. Firebase henüz
@@ -26,6 +54,10 @@ void main() {
   }, (error, stack) {
     // ignore: avoid_print
     print('YAKALANAN HATA (Zone): $error\n$stack');
+    // Firebase hiç başlatılamadıysa (yukarıdaki catch) bu çağrı sessizce
+    // no-op olur - FirebaseCrashlytics.instance kendi içinde bunu kontrol
+    // eder, burada ayrıca bir try/catch'e gerek yok.
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
   });
 }
 
