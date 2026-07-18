@@ -240,7 +240,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
       );
     }
     if (_error != null) return _buildErrorState();
-    if (_friends.isEmpty) return _buildEmptyState();
+
+    // "Kendime Not" (#42 anket maddesi) - arkadaş listesi boş olsa bile
+    // her zaman görünür, kendi kullanıcı id'sine giden özel bir sohbet.
+    if (_friends.isEmpty) {
+      return Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 0),
+            child: _buildNoteToSelfTile(),
+          ),
+          Expanded(child: _buildEmptyState()),
+        ],
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -254,8 +267,57 @@ class _FriendsScreenState extends State<FriendsScreen> {
         // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
         // dokunuş yakalayan bölgesiyle çakışıyordu.
         padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
-        itemCount: _friends.length,
-        itemBuilder: (context, index) => _buildFriendTile(_friends[index]),
+        itemCount: _friends.length + 1,
+        itemBuilder: (context, index) {
+          if (index == 0) return _buildNoteToSelfTile();
+          return _buildFriendTile(_friends[index - 1]);
+        },
+      ),
+    );
+  }
+
+  /// "Kendime Not" girişi - AppUser.id'yi bilerek kendi kullanıcı id'mizle
+  /// dolduruyoruz, böylece ChatScreen bunu normal bir arkadaş sohbeti gibi
+  /// açar ama sunucu (persistent-message-send'deki self-mesaj istisnası)
+  /// ve ChatScreen (_isNoteToSelf) bunun özel olduğunu anlar.
+  Widget _buildNoteToSelfTile() {
+    final me = AuthService().currentUser;
+    if (me == null) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () => Navigator.of(context).push(
+            AppPageRoute(builder: (_) => ChatScreen(friend: me)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.secondary.withValues(alpha: 0.25),
+                child: const Icon(Icons.sticky_note_2_outlined,
+                    color: AppColors.secondary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Kendime Not',
+                        style: AppText.subheading.copyWith(fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text('Kişisel notların, kimseyle paylaşılmaz',
+                        style: TextStyle(
+                            color: AppColors.textMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white38),
+            ],
+          ),
+        ),
       ),
     );
   }

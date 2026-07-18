@@ -11,6 +11,14 @@ class PersistentMessage {
   final String toId;
   final String text;
   final DateTime createdAt;
+  final String kind;
+  final Map<String, dynamic>? meta;
+  final String? replyToId;
+  final DateTime? editedAt;
+  final bool deleted;
+  final bool pinned;
+  // userId -> emoji. Bir kullanıcının bir mesaja aynı anda tek tepkisi olur.
+  final Map<String, String> reactions;
 
   const PersistentMessage({
     required this.id,
@@ -18,6 +26,13 @@ class PersistentMessage {
     required this.toId,
     required this.text,
     required this.createdAt,
+    this.kind = 'text',
+    this.meta,
+    this.replyToId,
+    this.editedAt,
+    this.deleted = false,
+    this.pinned = false,
+    this.reactions = const {},
   });
 
   factory PersistentMessage.fromJson(Map<String, dynamic> json) =>
@@ -27,6 +42,19 @@ class PersistentMessage {
         toId: json['toId'] as String,
         text: json['text'] as String,
         createdAt: DateTime.parse(json['createdAt'] as String),
+        kind: json['kind'] as String? ?? 'text',
+        meta: json['meta'] == null
+            ? null
+            : Map<String, dynamic>.from(json['meta'] as Map),
+        replyToId: json['replyToId'] as String?,
+        editedAt: json['editedAt'] == null
+            ? null
+            : DateTime.parse(json['editedAt'] as String),
+        deleted: json['deleted'] as bool? ?? false,
+        pinned: json['pinned'] as bool? ?? false,
+        reactions: json['reactions'] == null
+            ? const {}
+            : Map<String, String>.from(json['reactions'] as Map),
       );
 }
 
@@ -100,6 +128,15 @@ class MessagingService {
   void Function(String clientId, PersistentMessage message)?
       onPersistentMessageAck;
   void Function(String clientId, String message)? onPersistentMessageError;
+
+  // Mesaj düzenlendiğinde/silindiğinde/tepki alındığında/sabitlendiğinde
+  // sunucu bu güncellenmiş mesajı HER İKİ tarafa da yayınlar (bkz. server.js
+  // broadcastMessageUpdate) - kendi gönderdiğimiz bir işlemin sonucu da
+  // dahil, böylece tek bir kod yolu tüm ekranları senkron tutar.
+  void Function(PersistentMessage message)? onMessageEdited;
+  void Function(PersistentMessage message)? onMessageDeleted;
+  void Function(PersistentMessage message)? onMessageReacted;
+  void Function(PersistentMessage message)? onMessagePinned;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -210,6 +247,50 @@ class MessagingService {
       }
     });
 
+    _socket!.on('message-edited', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onMessageEdited?.call(PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (message-edited): $e');
+      }
+    });
+
+    _socket!.on('message-deleted', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onMessageDeleted?.call(PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (message-deleted): $e');
+      }
+    });
+
+    _socket!.on('message-reacted', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onMessageReacted?.call(PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (message-reacted): $e');
+      }
+    });
+
+    _socket!.on('message-pinned', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onMessagePinned?.call(PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (message-pinned): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -278,9 +359,43 @@ class MessagingService {
   }
 
   void sendPersistentMessage(
-      {required String toId, required String text, required String clientId}) {
-    _socket?.emit('persistent-message-send',
-        {'toId': toId, 'text': text, 'clientId': clientId});
+      {required String toId,
+      required String text,
+      required String clientId,
+      String? replyToId}) {
+    _socket?.emit('persistent-message-send', {
+      'toId': toId,
+      'text': text,
+      'clientId': clientId,
+      if (replyToId != null) 'replyToId': replyToId,
+    });
+  }
+
+  void editMessage({required String messageId, required String text}) {
+    _socket?.emit('message-edit', {'messageId': messageId, 'text': text});
+  }
+
+  void deleteMessage(String messageId) {
+    _socket?.emit('message-delete', {'messageId': messageId});
+  }
+
+  void reactToMessage({required String messageId, required String emoji}) {
+    _socket?.emit('message-react', {'messageId': messageId, 'emoji': emoji});
+  }
+
+  void pinMessage(String messageId) {
+    _socket?.emit('message-pin', {'messageId': messageId});
+  }
+
+  void unpinMessage(String messageId) {
+    _socket?.emit('message-unpin', {'messageId': messageId});
+  }
+
+  /// "Kendine Not" (#42) - kendi id'ne mesaj gönderir, sunucu tarafında
+  /// arkadaşlık kontrolü bilerek atlanır (bkz. server.js persistent-message-send).
+  void sendNoteToSelf(
+      {required String myId, required String text, required String clientId}) {
+    sendPersistentMessage(toId: myId, text: text, clientId: clientId);
   }
 
   void sendDisappearingMessage(
@@ -298,6 +413,10 @@ class MessagingService {
     onPersistentMessageReceived = null;
     onPersistentMessageAck = null;
     onPersistentMessageError = null;
+    onMessageEdited = null;
+    onMessageDeleted = null;
+    onMessageReacted = null;
+    onMessagePinned = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;
