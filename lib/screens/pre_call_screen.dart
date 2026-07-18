@@ -28,6 +28,11 @@ class _PreCallScreenState extends State<PreCallScreen> {
 
   bool _micOn = true;
   bool _camOn = true;
+  // Kullanıcı "Sesli-yalnız mod" anahtarını açtıysa true - bu durumda kamera
+  // HİÇ kullanılmaz (bkz. _toggleVoiceOnly()). VideoChatScreen'e devredilen
+  // WebRTCService, bu tercihi eşleşme aranırken otomatik olarak karşı tarafa
+  // bildirir (bkz. webrtc_service.dart connectAndFindMatch() notu).
+  bool _voiceOnlySwitch = false;
   bool _loading = true;
   bool _permissionError = false;
   bool _permissionPermanentlyDenied = false;
@@ -73,6 +78,48 @@ class _PreCallScreenState extends State<PreCallScreen> {
         setState(() {
           _permissionError = true;
         });
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// Kullanıcı önizlemedeki "Sesli-yalnız mod" anahtarını değiştirdiğinde
+  /// çağrılır. WebRTCService.initLocalMedia() yeni akışı BAŞARIYLA aldıktan
+  /// sonra eskisini kapattığı için (bkz. oradaki not) burada güvenle tekrar
+  /// çağrılabilir - anahtarı kapatıp kamerayı geri isterken bir sorun
+  /// çıkarsa (ör. izin o sırada geri alınmışsa) önceki çalışan (sesli)
+  /// akış kaybolmaz, yalnızca anahtar eski durumuna döner.
+  Future<void> _toggleVoiceOnly(bool value) async {
+    setState(() {
+      _voiceOnlySwitch = value;
+      _loading = true;
+    });
+    try {
+      await _webrtc.initLocalMedia(
+        audioOnly: value,
+        onLocal: (stream) {
+          if (!mounted || _handedOff) return;
+          _previewRenderer.srcObject = stream;
+          setState(() {});
+        },
+      );
+      if (mounted) {
+        setState(() {
+          _camOn = _webrtc.isCamEnabled;
+          _micOn = _webrtc.isMicEnabled;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _voiceOnlySwitch = !value);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(value
+                ? 'Sesli moda geçilemedi.'
+                : 'Kamera açılamadı, sesli modda devam ediliyor.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -185,7 +232,9 @@ class _PreCallScreenState extends State<PreCallScreen> {
                   child: Column(
                     children: [
                       Expanded(child: _buildPreview()),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
+                      if (!_permissionError) _buildVoiceOnlyToggle(),
+                      const SizedBox(height: 14),
                       if (!_rulesAcceptedBefore) _buildRulesChecklist(),
                       const SizedBox(height: 16),
                       _buildStartButton(),
@@ -237,6 +286,23 @@ class _PreCallScreenState extends State<PreCallScreen> {
                   ],
                 ),
               )
+            else if (!_webrtc.hasCamera)
+              // Sesli-yalnız mod aktif - hiç kamera akışı yok, bunu
+              // "kamera kapalı" ile karıştırmamak için ayrı bir gösterge.
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.mic_rounded,
+                      color: Colors.white38, size: 48),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Sesli-yalnız mod',
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        fontSize: 13),
+                  ),
+                ],
+              )
             else if (_camOn)
               RTCVideoView(
                 _previewRenderer,
@@ -247,7 +313,9 @@ class _PreCallScreenState extends State<PreCallScreen> {
               const Icon(Icons.videocam_off_rounded,
                   color: Colors.white38, size: 48),
 
-            // Mikrofon/kamera açma-kapama düğmeleri.
+            // Mikrofon/kamera açma-kapama düğmeleri. Kamera hiç yoksa
+            // (sesli-yalnız mod) kamera düğmesi hiç gösterilmez - toggle
+            // edilecek bir track olmadığı için yanıltıcı olurdu.
             if (!_permissionError)
               Positioned(
                 bottom: 16,
@@ -262,17 +330,19 @@ class _PreCallScreenState extends State<PreCallScreen> {
                         _webrtc.toggleMic(_micOn);
                       },
                     ),
-                    const SizedBox(width: 14),
-                    _previewToggle(
-                      icon: _camOn
-                          ? Icons.videocam_rounded
-                          : Icons.videocam_off_rounded,
-                      active: _camOn,
-                      onTap: () {
-                        setState(() => _camOn = !_camOn);
-                        _webrtc.toggleCamera(_camOn);
-                      },
-                    ),
+                    if (_webrtc.hasCamera) ...[
+                      const SizedBox(width: 14),
+                      _previewToggle(
+                        icon: _camOn
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
+                        active: _camOn,
+                        onTap: () {
+                          setState(() => _camOn = !_camOn);
+                          _webrtc.toggleCamera(_camOn);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -298,6 +368,35 @@ class _PreCallScreenState extends State<PreCallScreen> {
               : Colors.redAccent.withValues(alpha: 0.85),
         ),
         child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  /// "Sesli-yalnız mod" anahtarı - açıksa kamera hiç kullanılmadan, yalnızca
+  /// ses ile eşleşme aranır (bkz. _toggleVoiceOnly()). Rastgele eşleşen
+  /// karşı tarafın ekranında bu tercih otomatik olarak görünür (bkz.
+  /// webrtc_service.dart/server.js "partnerVoiceOnly" notları) - bu yüzden
+  /// burada ekstra bir açıklama gerekmiyor, karşı taraf zaten uyarılıyor.
+  Widget _buildVoiceOnlyToggle() {
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.mic_rounded,
+              color: AppColors.primaryLight, size: 20),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Sesli-yalnız mod (kamera kullanılmaz)',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+          Switch(
+            value: _voiceOnlySwitch,
+            activeColor: AppColors.primary,
+            onChanged: _loading ? null : _toggleVoiceOnly,
+          ),
+        ],
       ),
     );
   }

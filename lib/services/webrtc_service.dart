@@ -38,8 +38,11 @@ typedef OnStatusChange = void Function(String status);
 /// [partnerDisplayName], karşı tarafın hesabı varsa adı - yoksa null
 /// (misafirlerin adı olmaz). [partnerVerified], karşı tarafın hesabı en az
 /// 7 günlük olup olmadığını (basit "onaylı hesap" rozeti) bildirir.
-typedef OnMatchInfo = void Function(
-    bool partnerHasAccount, String? partnerDisplayName, bool partnerVerified);
+/// [partnerVoiceOnly], karşı tarafın "sesli-yalnız mod"da olup olmadığını
+/// (kamerası hiç yok/kapalı) bildirir - true ise ekran, hiç gelmeyecek bir
+/// video akışını beklemek yerine doğrudan sesli-mod göstergesini göstermeli.
+typedef OnMatchInfo = void Function(bool partnerHasAccount,
+    String? partnerDisplayName, bool partnerVerified, bool partnerVoiceOnly);
 
 /// Karşı taraf bize bir arkadaşlık isteği gönderdiğinde tetiklenir.
 typedef OnFriendRequestReceived = void Function(String fromDisplayName);
@@ -181,15 +184,42 @@ class WebRTCService {
     return tracks.first.enabled;
   }
 
-  Future<void> initLocalMedia({required OnLocalStream onLocal}) async {
+  // "Sesli-yalnız mod" - true ise yerel akışta hiç video track'i yok
+  // (kamera hiç açılmadı), isCamEnabled'daki "track yoksa true dön"
+  // davranışıyla KARIŞTIRILMAMALI: isCamEnabled "kamera açık mı" sorusuna,
+  // hasCamera ise "kamera hiç var mı" sorusuna cevap verir. initLocalMedia()
+  // audioOnly:true ile çağrıldığında ayarlanır - bkz. orada.
+  bool _voiceOnly = false;
+
+  /// Şu an yerel akışta bir video track'i olup olmadığını bildirir -
+  /// PreCallScreen/VideoChatScreen bunu kamera düğmesini/önizlemesini hiç
+  /// göstermemek için kullanır (kullanıcı "sesli-yalnız mod"u seçtiyse
+  /// kamera hiç açılmamıştır, kapalıyken açık bir düğme göstermek yanıltıcı
+  /// olurdu).
+  bool get hasCamera => (_localStream?.getVideoTracks().length ?? 0) > 0;
+
+  /// [audioOnly] true verilirse kamera HİÇ istenmez (yalnızca mikrofon
+  /// akışı alınır) - "sesli-yalnız mod" için. Bu, mevcut toggleCamera()'nın
+  /// aksine (track'i sadece enabled=false yapıp açık bırakır) kamerayı
+  /// fiilen hiç açmaz/serbest bırakır - hem gizlilik hem de karşı tarafa
+  /// boşuna siyah bir video karesi göndermemek için daha doğrusu budur.
+  /// Bu metot, önceden açılmış bir yerel akış varken de (ör. kullanıcı
+  /// PreCallScreen'de "sesli-yalnız mod"u açıp sonra tekrar kapatırsa)
+  /// güvenle tekrar çağrılabilir - yeni akış BAŞARIYLA alındıktan SONRA
+  /// eskisi kapatılır, böylece getUserMedia() başarısız olursa (ör. izin
+  /// sorunu) önceki çalışan akış kaybolmaz.
+  Future<void> initLocalMedia(
+      {required OnLocalStream onLocal, bool audioOnly = false}) async {
     onLocalStream = onLocal;
     final mediaConstraints = {
       'audio': true,
-      'video': {
-        'facingMode': 'user',
-        'width': {'ideal': 640},
-        'height': {'ideal': 480},
-      },
+      'video': audioOnly
+          ? false
+          : {
+              'facingMode': 'user',
+              'width': {'ideal': 640},
+              'height': {'ideal': 480},
+            },
     };
     final stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
     if (_disposed) {
@@ -199,7 +229,11 @@ class WebRTCService {
       stream.dispose();
       return;
     }
+    final oldStream = _localStream;
     _localStream = stream;
+    _voiceOnly = audioOnly;
+    oldStream?.getTracks().forEach((track) => track.stop());
+    oldStream?.dispose();
     onLocal(stream);
   }
 
@@ -231,7 +265,14 @@ class WebRTCService {
     // düzgünce kapatıyoruz.
     _socket?.disconnect();
     _socket?.dispose();
-    _matchPreferences = matchPreferences;
+    // "Sesli-yalnız mod" seçiliyse (bkz. hasCamera/initLocalMedia notu) bunu
+    // eşleşme tercihlerine ekliyoruz ki sunucu, karşı tarafa
+    // "partnerVoiceOnly" bilgisini iletebilsin (bkz. server.js tryMatch()) -
+    // böylece karşı tarafın ekranı hiç gelmeyecek bir video akışını
+    // beklemek yerine doğrudan sesli-mod göstergesini gösterir.
+    final prefs = Map<String, dynamic>.from(matchPreferences ?? {});
+    if (_voiceOnly) prefs['voiceOnly'] = true;
+    _matchPreferences = prefs.isEmpty ? null : prefs;
     onStatusChange?.call('Sunucuya bağlanılıyor...');
     // Soket bağlantısıyla PARALEL olarak TURN bilgisini almaya başlıyoruz -
     // eşleşme genelde bundan daha uzun sürdüğü için _createPeerConnection()
@@ -273,6 +314,7 @@ class WebRTCService {
           map['partnerHasAccount'] as bool? ?? false,
           map['partnerDisplayName'] as String?,
           map['partnerVerified'] as bool? ?? false,
+          map['partnerVoiceOnly'] as bool? ?? false,
         );
         await _createPeerConnection(expectedGeneration: myGeneration);
 

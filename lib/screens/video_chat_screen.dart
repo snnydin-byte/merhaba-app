@@ -77,6 +77,16 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   bool _partnerHasAccount = false;
   String? _partnerDisplayName;
   bool _partnerVerified = false;
+  // Karşı taraf "sesli-yalnız mod"da mı (kamerası hiç yok) - bkz.
+  // webrtc_service.dart/server.js "partnerVoiceOnly" notları. true ise
+  // karşı tarafın büyük/küçük ekranında hiç video akışı GELMEYECEĞİNİ
+  // biliyoruz, bu yüzden boş/donuk bir video karesi yerine doğrudan
+  // sesli-mod göstergesi gösteriyoruz.
+  bool _partnerVoiceOnly = false;
+  // Kendi kameramız hiç yok mu (PreCallScreen'de "sesli-yalnız mod" seçildi)
+  // - true ise kamera düğmesi/önizlemesi hiç gösterilmez, toggleCamera()
+  // için bir track olmadığından yanıltıcı olurdu.
+  bool _hasCamera = true;
   // _partnerDisplayName misafir eşleşmelerde null olur (misafirin adı
   // yok) - bu yüzden "eşleşmiş miyim" bilgisini AYRI bir bayrakla
   // tutuyoruz, yoksa misafirle eşleşince isim alanı yanlışlıkla boş
@@ -144,6 +154,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         _partnerHasAccount = false;
         _partnerDisplayName = null;
         _partnerVerified = false;
+        _partnerVoiceOnly = false;
         _hasPartner = false;
         _friendStatus = _FriendStatus.none;
       });
@@ -156,13 +167,14 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     // ekranında kiminle eşleştiğini göstermek ve "Arkadaş Ekle" butonunu
     // buna göre göstermek için. Her yeni eşleşmede önceki arkadaşlık isteği
     // durumunu da sıfırlıyoruz.
-    _webrtc.onMatchInfo =
-        (partnerHasAccount, partnerDisplayName, partnerVerified) {
+    _webrtc.onMatchInfo = (partnerHasAccount, partnerDisplayName,
+        partnerVerified, partnerVoiceOnly) {
       if (!mounted) return;
       setState(() {
         _partnerHasAccount = partnerHasAccount;
         _partnerDisplayName = partnerDisplayName;
         _partnerVerified = partnerVerified;
+        _partnerVoiceOnly = partnerVoiceOnly;
         _hasPartner = true;
         _friendStatus = _FriendStatus.none;
       });
@@ -249,6 +261,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _localRenderer.srcObject = _webrtc.localStream;
       _micOn = _webrtc.isMicEnabled;
       _camOn = _webrtc.isCamEnabled;
+      _hasCamera = _webrtc.hasCamera;
       setState(() {});
       final matchPrefs = await WebRTCService.loadMatchPreferences();
       if (!mounted) return;
@@ -529,6 +542,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _partnerHasAccount = false;
       _partnerDisplayName = null;
       _partnerVerified = false;
+      _partnerVoiceOnly = false;
       _hasPartner = false;
       _friendStatus = _FriendStatus.none;
     });
@@ -638,6 +652,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                     const Icon(Icons.verified_rounded,
                                         color: AppColors.secondary, size: 14),
                                   ],
+                                  if (_partnerVoiceOnly) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.mic_rounded,
+                                        color: Colors.white54, size: 14),
+                                  ],
                                 ],
                               ),
                             ),
@@ -689,21 +708,27 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                           ),
                           clipBehavior: Clip.hardEdge,
                           child: _showLocalAsMain
-                              ? (_camOn
+                              ? ((_camOn && _hasCamera)
                                   ? RTCVideoView(
                                       _localRenderer,
                                       mirror: true,
                                       objectFit: RTCVideoViewObjectFit
                                           .RTCVideoViewObjectFitCover,
                                     )
-                                  : const Center(
-                                      child: Icon(Icons.videocam_off_rounded,
-                                          color: Colors.white38, size: 40),
+                                  : Center(
+                                      child: _hasCamera
+                                          ? const Icon(
+                                              Icons.videocam_off_rounded,
+                                              color: Colors.white38,
+                                              size: 40)
+                                          : _voiceOnlyIndicator(),
                                     ))
                               : (_connected
-                                  ? RTCVideoView(_remoteRenderer,
-                                      objectFit: RTCVideoViewObjectFit
-                                          .RTCVideoViewObjectFitCover)
+                                  ? (_partnerVoiceOnly
+                                      ? Center(child: _voiceOnlyIndicator())
+                                      : RTCVideoView(_remoteRenderer,
+                                          objectFit: RTCVideoViewObjectFit
+                                              .RTCVideoViewObjectFitCover))
                                   : Center(
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -791,12 +816,15 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                             children: [
                               if (_showLocalAsMain)
                                 (_connected
-                                    ? RTCVideoView(_remoteRenderer,
-                                        objectFit: RTCVideoViewObjectFit
-                                            .RTCVideoViewObjectFitCover)
+                                    ? (_partnerVoiceOnly
+                                        ? const Icon(Icons.mic_rounded,
+                                            color: Colors.white38, size: 28)
+                                        : RTCVideoView(_remoteRenderer,
+                                            objectFit: RTCVideoViewObjectFit
+                                                .RTCVideoViewObjectFitCover))
                                     : const Icon(Icons.person,
                                         color: Colors.white38, size: 28))
-                              else if (_camOn)
+                              else if (_camOn && _hasCamera)
                                 RTCVideoView(
                                   _localRenderer,
                                   mirror: true,
@@ -804,11 +832,16 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                       .RTCVideoViewObjectFitCover,
                                 )
                               else
-                                const Icon(Icons.videocam_off_rounded,
-                                    color: Colors.white38, size: 24),
+                                Icon(
+                                    _hasCamera
+                                        ? Icons.videocam_off_rounded
+                                        : Icons.mic_rounded,
+                                    color: Colors.white38,
+                                    size: 24),
 
-                              // Kamera değiştirme ikonu - sadece kendi görüntün küçük ekrandayken gösterilir
-                              if (!_showLocalAsMain && _camOn)
+                              // Kamera değiştirme ikonu - sadece kendi görüntün küçük ekrandayken
+                              // VE gerçekten bir kameramız varken gösterilir.
+                              if (!_showLocalAsMain && _camOn && _hasCamera)
                                 Positioned(
                                   bottom: 4,
                                   right: 4,
@@ -881,16 +914,17 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                           color: Colors.white, size: 28),
                     ),
                   ),
-                  _controlButton(
-                    icon: _camOn
-                        ? Icons.videocam_rounded
-                        : Icons.videocam_off_rounded,
-                    active: _camOn,
-                    onTap: () {
-                      setState(() => _camOn = !_camOn);
-                      _webrtc.toggleCamera(_camOn);
-                    },
-                  ),
+                  if (_hasCamera)
+                    _controlButton(
+                      icon: _camOn
+                          ? Icons.videocam_rounded
+                          : Icons.videocam_off_rounded,
+                      active: _camOn,
+                      onTap: () {
+                        setState(() => _camOn = !_camOn);
+                        _webrtc.toggleCamera(_camOn);
+                      },
+                    ),
                   _controlButton(
                     icon: Icons.call_end_rounded,
                     active: false,
@@ -903,6 +937,29 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Video akışı hiç olmayan/gelmeyecek bir tarafın (kendimiz "sesli-yalnız
+  /// mod"daysak ya da karşı taraf öyleyse) büyük/küçük ekranda gösterilecek
+  /// göstergesi - boş/donuk bir video karesi yerine.
+  Widget _voiceOnlyIndicator() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.mic_rounded,
+              color: Colors.white70, size: 32),
+        ),
+        const SizedBox(height: 10),
+        Text('Sesli-yalnız mod',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+      ],
     );
   }
 
