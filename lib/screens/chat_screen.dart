@@ -1,7 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../data/stickers.dart';
 import '../services/auth_service.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
@@ -32,6 +40,10 @@ class _ChatItem {
   bool pinned;
   Map<String, String> reactions;
   String? replyToId;
+  // 'text' | 'poll' | 'location' | 'sticker' | 'voice' | 'view_once_photo' -
+  // bkz. signaling_server/messageStore.js ve buradaki _buildBubble().
+  final String kind;
+  Map<String, dynamic>? meta;
 
   _ChatItem({
     required this.clientId,
@@ -45,6 +57,8 @@ class _ChatItem {
     this.pinned = false,
     this.reactions = const {},
     this.replyToId,
+    this.kind = 'text',
+    this.meta,
   });
 
   factory _ChatItem.fromMessage(PersistentMessage m, {required bool isMe}) =>
@@ -59,6 +73,8 @@ class _ChatItem {
         pinned: m.pinned,
         reactions: m.reactions,
         replyToId: m.replyToId,
+        kind: m.kind,
+        meta: m.meta,
       );
 
   void applyUpdate(PersistentMessage m) {
@@ -67,6 +83,7 @@ class _ChatItem {
     deleted = m.deleted;
     pinned = m.pinned;
     reactions = m.reactions;
+    meta = m.meta;
   }
 }
 
@@ -102,6 +119,19 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _connectionError;
   bool _loadingHistory = true;
   _ChatItem? _replyingTo;
+
+  // Sesli mesaj kaydı (#48 anket maddesi).
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  bool _isRecordingVoice = false;
+  DateTime? _recordingStartedAt;
+  Timer? _recordingTicker;
+  Duration _recordingElapsed = Duration.zero;
+  bool _uploadingAttachment = false;
+
+  // Sesli mesaj oynatma - aynı anda tek bir mesaj çalınır, yenisine
+  // basılınca öncekini durdurur (WhatsApp/Telegram'daki gibi).
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  String? _playingVoiceMessageId;
 
   bool get _isNoteToSelf => widget.friend.id == _myId;
 
@@ -266,6 +296,14 @@ class _ChatScreenState extends State<ChatScreen> {
       });
     };
 
+    // Anket oyu / tek seferlik fotoğraf açma gibi meta güncellemeleri.
+    _messaging.onMessageUpdated = (message) {
+      if (!mounted) return;
+      setState(() {
+        _findByServerId(_persistentItems, message.id)?.applyUpdate(message);
+      });
+    };
+
     _messaging.onDisappearingMessageReceived = (message) {
       if (!mounted) return;
       if (message.fromId != widget.friend.id) return;
@@ -373,6 +411,294 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       _messaging.sendDisappearingMessage(
           toId: widget.friend.id, text: text, clientId: clientId);
+    }
+  }
+
+  /// Metin dışındaki tüm zengin mesaj türlerinin (anket/konum/sticker/sesli/
+  /// tek seferlik fotoğraf) ortak gönderim yolu - yalnızca "Kalıcı Sohbet"
+  /// modunda kullanılır (bkz. _buildInputBar - ek menüsü yalnızca o modda
+  /// gösteriliyor), "Kaybolan Mesajlar" bilerek sade metinle sınırlı.
+  void _sendRich(
+      {required String kind, required Map<String, dynamic> meta, String caption = ''}) {
+    final clientId =
+        'c${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';
+    final item = _ChatItem(
+      clientId: clientId,
+      text: caption,
+      isMe: true,
+      createdAt: DateTime.now(),
+      state: _SendState.sending,
+      kind: kind,
+      meta: meta,
+    );
+    setState(() => _persistentItems.add(item));
+    _scrollToBottom();
+    _messaging.sendPersistentMessage(
+      toId: widget.friend.id,
+      text: caption,
+      clientId: clientId,
+      kind: kind,
+      meta: meta,
+    );
+  }
+
+  void _showAttachmentSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _AttachmentSheet(
+        onPoll: () {
+          Navigator.pop(sheetContext);
+          _openPollComposer();
+        },
+        onLocation: () {
+          Navigator.pop(sheetContext);
+          _shareLocation();
+        },
+        onSticker: () {
+          Navigator.pop(sheetContext);
+          _openStickerPicker();
+        },
+        onPhoto: () {
+          Navigator.pop(sheetContext);
+          _sendViewOncePhoto();
+        },
+      ),
+    );
+  }
+
+  void _openPollComposer() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _PollComposerDialog(
+        onSubmit: (question, options) {
+          Navigator.pop(dialogContext);
+          _sendRich(kind: 'poll', meta: {'question': question, 'options': options});
+        },
+      ),
+    );
+  }
+
+  void _openStickerPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: kStickerCatalog
+                .map((s) => GestureDetector(
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _sendRich(kind: 'sticker', meta: {'stickerId': s.id});
+                      },
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(s.emoji, style: const TextStyle(fontSize: 32)),
+                      ),
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _shareLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      _showSnack('Konum izni verilmeden paylaşılamaz.');
+      return;
+    }
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      _showSnack('Cihazının konum servisi kapalı.');
+      return;
+    }
+    _showSnack('Konum alınıyor...');
+    try {
+      // LocationAccuracy.low - GPS/"Konum Doğruluğu" çözümleme diyaloğu
+      // gerektirmeyen ağ-tabanlı konum kullanır (bazı cihazlarda .medium/.high
+      // Play Services'in ayar çözümleme akışında asılı kalabiliyor) - basit
+      // bir "konumumu paylaş" özelliği için zaten yeterli hassasiyette.
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+      ).timeout(const Duration(seconds: 15));
+      _sendRich(kind: 'location', meta: {'lat': position.latitude, 'lng': position.longitude});
+    } catch (_) {
+      _showSnack('Konum alınamadı, tekrar dene.');
+    }
+  }
+
+  Future<void> _sendViewOncePhoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: Colors.white70),
+              title: const Text('Kameradan çek', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_outlined, color: Colors.white70),
+              title: const Text('Galeriden seç', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picker = ImagePicker();
+    XFile? picked;
+    try {
+      picked = await picker.pickImage(source: source, maxWidth: 1280, imageQuality: 80);
+    } catch (_) {
+      _showSnack('Fotoğraf alınamadı, tekrar dene.');
+      return;
+    }
+    if (picked == null) return;
+
+    setState(() => _uploadingAttachment = true);
+    try {
+      final result = await _messaging.uploadChatMedia(File(picked.path), mimeType: 'image/jpeg');
+      if (!mounted) return;
+      _sendRich(kind: 'view_once_photo', meta: {'url': result['url']});
+    } catch (e) {
+      if (mounted) _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _uploadingAttachment = false);
+    }
+  }
+
+  Future<void> _startVoiceRecording() async {
+    if (!await _audioRecorder.hasPermission()) {
+      _showSnack('Ses kaydı için mikrofon izni gerekiyor.');
+      return;
+    }
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    _recordingStartedAt = DateTime.now();
+    _recordingTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted) return;
+      setState(() {
+        _recordingElapsed = DateTime.now().difference(_recordingStartedAt!);
+      });
+    });
+    setState(() => _isRecordingVoice = true);
+  }
+
+  Future<void> _stopVoiceRecordingAndSend({required bool cancel}) async {
+    _recordingTicker?.cancel();
+    _recordingTicker = null;
+    final path = await _audioRecorder.stop();
+    final duration = _recordingElapsed;
+    setState(() {
+      _isRecordingVoice = false;
+      _recordingElapsed = Duration.zero;
+    });
+    if (cancel || path == null) return;
+    if (duration.inMilliseconds < 800) {
+      _showSnack('Sesli mesaj çok kısa, tekrar dene.');
+      return;
+    }
+    setState(() => _uploadingAttachment = true);
+    try {
+      final result = await _messaging.uploadChatMedia(File(path), mimeType: 'audio/mp4');
+      if (!mounted) return;
+      _sendRich(kind: 'voice', meta: {
+        'url': result['url'],
+        'durationMs': result['durationMs'] ?? duration.inMilliseconds,
+      });
+    } catch (e) {
+      if (mounted) _showSnack(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _uploadingAttachment = false);
+    }
+  }
+
+  Future<void> _toggleVoicePlayback(_ChatItem item) async {
+    final url = item.meta?['url'] as String?;
+    if (url == null) return;
+    if (_playingVoiceMessageId == item.serverId) {
+      await _audioPlayer.stop();
+      setState(() => _playingVoiceMessageId = null);
+      return;
+    }
+    await _audioPlayer.stop();
+    setState(() => _playingVoiceMessageId = item.serverId);
+    await _audioPlayer.play(UrlSource(url));
+    _audioPlayer.onPlayerComplete.first.then((_) {
+      if (mounted) setState(() => _playingVoiceMessageId = null);
+    });
+  }
+
+  Future<void> _openViewOncePhoto(_ChatItem item) async {
+    final viewed = item.meta?['viewed'] == true;
+    if (!item.isMe && !viewed) {
+      _messaging.openViewOncePhoto(item.serverId!);
+    }
+    final url = item.meta?['url'] as String?;
+    if (url == null) {
+      _showSnack(item.isMe ? 'Bu fotoğraf zaten görüntülendi.' : 'Fotoğraf artık görüntülenemiyor.');
+      return;
+    }
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      builder: (dialogContext) => GestureDetector(
+        onTap: () => Navigator.pop(dialogContext),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Center(
+            child: InteractiveViewer(
+              child: Image.network(url, fit: BoxFit.contain),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openInMaps(double lat, double lng) async {
+    final uri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
+    final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      await launchUrl(fallback, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -492,14 +818,15 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
             if (item.isMe) ...[
-              ListTile(
-                leading: const Icon(Icons.edit_outlined, color: Colors.white70),
-                title: const Text('Düzenle', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _startEdit(item);
-                },
-              ),
+              if (item.kind == 'text')
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: Colors.white70),
+                  title: const Text('Düzenle', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _startEdit(item);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: AppColors.danger),
                 title: const Text('Sil', style: TextStyle(color: AppColors.danger)),
@@ -525,6 +852,9 @@ class _ChatScreenState extends State<ChatScreen> {
     _cancelConnectTimeout();
     _controller.dispose();
     _scrollController.dispose();
+    _recordingTicker?.cancel();
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
     // Kaybolan mesajlar zaten hiç sunucuya kaydedilmiyordu; ekrandan
     // çıkınca hafızadaki listeyi de bırakıyoruz ki gerçekten "kaybolsun".
     _disappearingItems.clear();
@@ -573,7 +903,7 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              pinned.last.deleted ? 'Silinmiş mesaj' : pinned.last.text,
+              _previewTextFor(pinned.last),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -603,7 +933,7 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: Text(
-              replying.text,
+              _previewTextFor(replying),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -743,9 +1073,31 @@ class _ChatScreenState extends State<ChatScreen> {
     return _findByServerId(_persistentItems, replyToId);
   }
 
+  /// Yanıt önizlemesi / sabitlenmiş mesaj çubuğu gibi tek satırlık
+  /// özetlerde kullanılan, türe göre okunabilir kısa metin (bkz. server.js
+  /// notificationPreviewFor - aynı fikir, istemci tarafı).
+  String _previewTextFor(_ChatItem item) {
+    if (item.deleted) return 'Silinmiş mesaj';
+    switch (item.kind) {
+      case 'poll':
+        return '📊 ${item.meta?['question'] as String? ?? 'Anket'}';
+      case 'location':
+        return '📍 Konum';
+      case 'sticker':
+        return '${stickerEmojiFor(item.meta?['stickerId'] as String? ?? '')} Sticker';
+      case 'voice':
+        return '🎤 Sesli mesaj';
+      case 'view_once_photo':
+        return '📷 Tek seferlik fotoğraf';
+      default:
+        return item.text;
+    }
+  }
+
   Widget _buildBubble(_ChatItem item) {
     final isPersistent = _mode == _ChatMode.persistent;
     final replySource = isPersistent ? _findReplySource(item.replyToId) : null;
+    final isSticker = item.kind == 'sticker' && !item.deleted;
 
     return GestureDetector(
       onLongPress: isPersistent ? () => _showMessageActions(item) : null,
@@ -757,24 +1109,27 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Container(
               margin: const EdgeInsets.symmetric(vertical: 4),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: isSticker
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.72),
-              decoration: BoxDecoration(
-                color: item.isMe ? AppColors.primary : Colors.white12,
-                borderRadius: BorderRadius.circular(16),
-              ),
+              decoration: isSticker
+                  ? null
+                  : BoxDecoration(
+                      color: item.isMe ? AppColors.primary : Colors.white12,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (item.pinned)
+                  if (item.pinned && !isSticker)
                     const Padding(
                       padding: EdgeInsets.only(bottom: 4),
                       child: Icon(Icons.push_pin,
                           size: 12, color: Colors.white70),
                     ),
-                  if (replySource != null)
+                  if (replySource != null && !isSticker)
                     Container(
                       margin: const EdgeInsets.only(bottom: 6),
                       padding: const EdgeInsets.symmetric(
@@ -786,9 +1141,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             left: BorderSide(color: Colors.white54, width: 2)),
                       ),
                       child: Text(
-                        replySource.deleted
-                            ? 'Silinmiş mesaj'
-                            : replySource.text,
+                        _previewTextFor(replySource),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -796,16 +1149,8 @@ class _ChatScreenState extends State<ChatScreen> {
                             fontSize: 11),
                       ),
                     ),
-                  Text(
-                    item.deleted ? 'Bu mesaj silindi' : item.text,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontStyle:
-                          item.deleted ? FontStyle.italic : FontStyle.normal,
-                    ),
-                  ),
-                  if (item.editedAt != null && !item.deleted)
+                  _buildContentForKind(item),
+                  if (item.editedAt != null && !item.deleted && item.kind == 'text')
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text('düzenlendi',
@@ -851,6 +1196,296 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildContentForKind(_ChatItem item) {
+    if (item.deleted) {
+      return const Text(
+        'Bu mesaj silindi',
+        style: TextStyle(color: Colors.white, fontSize: 14, fontStyle: FontStyle.italic),
+      );
+    }
+    switch (item.kind) {
+      case 'poll':
+        return _buildPollContent(item);
+      case 'location':
+        return _buildLocationContent(item);
+      case 'sticker':
+        return _buildStickerContent(item);
+      case 'voice':
+        return _buildVoiceContent(item);
+      case 'view_once_photo':
+        return _buildViewOncePhotoContent(item);
+      default:
+        return Text(item.text, style: const TextStyle(color: Colors.white, fontSize: 14));
+    }
+  }
+
+  Widget _buildPollContent(_ChatItem item) {
+    final meta = item.meta ?? const {};
+    final question = meta['question'] as String? ?? '';
+    final options = (meta['options'] as List?)?.cast<dynamic>().map((e) => e.toString()).toList() ?? const <String>[];
+    final votesRaw = meta['votes'];
+    final votes = votesRaw is Map ? Map<String, dynamic>.from(votesRaw) : <String, dynamic>{};
+    final total = votes.length;
+    final myVote = votes[_myId] is int ? votes[_myId] as int : null;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 220),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bar_chart_rounded, size: 16, color: Colors.white70),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(question,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < options.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _pollOption(item, i, options[i], votes, total, myVote),
+            ),
+          Text('$total oy', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _pollOption(_ChatItem item, int index, String label, Map<String, dynamic> votes, int total, int? myVote) {
+    final count = votes.values.where((v) => v == index).length;
+    final pct = total == 0 ? 0.0 : count / total;
+    final selected = myVote == index;
+    return GestureDetector(
+      onTap: item.serverId == null
+          ? null
+          : () => _messaging.votePoll(messageId: item.serverId!, optionIndex: index),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          children: [
+            Container(height: 34, color: Colors.white.withValues(alpha: 0.08)),
+            FractionallySizedBox(
+              widthFactor: pct.clamp(0.0, 1.0),
+              child: Container(
+                height: 34,
+                color: (selected ? AppColors.secondary : AppColors.primaryLight)
+                    .withValues(alpha: 0.45),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  children: [
+                    if (selected)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.check_circle, size: 14, color: Colors.white),
+                      ),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Text('${(pct * 100).round()}%',
+                        style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationContent(_ChatItem item) {
+    final meta = item.meta ?? const {};
+    final lat = (meta['lat'] as num?)?.toDouble();
+    final lng = (meta['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) {
+      return const Text('📍 Konum', style: TextStyle(color: Colors.white, fontSize: 14));
+    }
+    return GestureDetector(
+      onTap: () => _openInMaps(lat, lng),
+      child: Container(
+        width: 210,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.secondary.withValues(alpha: 0.28),
+              AppColors.primary.withValues(alpha: 0.28),
+            ],
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15), shape: BoxShape.circle),
+              child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Konum paylaşıldı',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                  const SizedBox(height: 2),
+                  Text('${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10)),
+                  const SizedBox(height: 4),
+                  Text('Haritada aç →',
+                      style: TextStyle(
+                          color: AppColors.secondaryLight,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStickerContent(_ChatItem item) {
+    final stickerId = item.meta?['stickerId'] as String? ?? '';
+    return Text(stickerEmojiFor(stickerId), style: const TextStyle(fontSize: 62));
+  }
+
+  Widget _buildVoiceContent(_ChatItem item) {
+    final meta = item.meta ?? const {};
+    final durationMs = (meta['durationMs'] as num?)?.toInt() ?? 0;
+    final seconds = (durationMs / 1000).round();
+    final isPlaying = item.serverId != null && _playingVoiceMessageId == item.serverId;
+    return SizedBox(
+      width: 190,
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: item.serverId == null ? null : () => _toggleVoicePlayback(item),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: Colors.white, size: 20),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 20,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: List.generate(
+                      16,
+                      (i) => Expanded(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 1),
+                          height: 5 + (i % 5) * 3.0,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: isPlaying ? 0.9 : 0.5),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text('$seconds sn',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 10)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildViewOncePhotoContent(_ChatItem item) {
+    final viewed = item.meta?['viewed'] == true;
+    if (!item.isMe && !viewed) {
+      return GestureDetector(
+        onTap: () => _openViewOncePhoto(item),
+        child: Container(
+          width: 150,
+          height: 150,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.primary.withValues(alpha: 0.35),
+                AppColors.secondary.withValues(alpha: 0.35),
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.visibility_rounded, color: Colors.white, size: 26),
+              SizedBox(height: 6),
+              Text('Görmek için dokun',
+                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+              SizedBox(height: 2),
+              Text('Tek seferlik', style: TextStyle(color: Colors.white70, fontSize: 9)),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.06),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            item.isMe && !viewed ? Icons.lock_clock_outlined : Icons.check_circle_outline,
+            color: Colors.white38,
+            size: 26,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            item.isMe && !viewed ? 'Gönderildi · tek seferlik' : 'Görüntülendi',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Aynı emojiyi birden fazla kişi kullandıysa tekilleştirip yanına sayı
   /// ekler (ör. "👍 2").
   String _reactionSummary(Map<String, String> reactions) {
@@ -864,14 +1499,80 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildInputBar() {
+    final canAttach = _mode == _ChatMode.persistent && !_uploadingAttachment;
+
+    if (_isRecordingVoice) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.danger.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Row(
+            children: [
+              const _PulsingDot(),
+              const SizedBox(width: 10),
+              Text(
+                _formatDuration(_recordingElapsed),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => _stopVoiceRecordingAndSend(cancel: true),
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(Icons.close_rounded, color: Colors.white70),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () => _stopVoiceRecordingAndSend(cancel: false),
+                child: const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final showMicInstead = canAttach && _controller.text.trim().isEmpty;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
       child: Row(
         children: [
+          if (canAttach)
+            GestureDetector(
+              onTap: _uploadingAttachment ? null : _showAttachmentSheet,
+              child: Container(
+                width: 40,
+                height: 40,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  shape: BoxShape.circle,
+                ),
+                child: _uploadingAttachment
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.primaryLight),
+                      )
+                    : const Icon(Icons.add_rounded, color: Colors.white70),
+              ),
+            ),
           Expanded(
             child: TextField(
               controller: _controller,
               style: const TextStyle(color: Colors.white, fontSize: 14),
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: _isNoteToSelf
                     ? 'Kendine bir not yaz...'
@@ -894,15 +1595,268 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           const SizedBox(width: 8),
           GestureDetector(
-            onTap: _send,
-            child: const CircleAvatar(
+            onTap: showMicInstead ? _startVoiceRecording : _send,
+            child: CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.primary,
-              child: Icon(Icons.send_rounded, color: Colors.white, size: 18),
+              child: Icon(
+                showMicInstead ? Icons.mic_rounded : Icons.send_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+}
+
+/// Sesli mesaj kaydı sırasında gösterilen, yavaşça yanıp sönen kırmızı
+/// nokta - kayıt durumunu net bir görsel geri bildirimle gösterir.
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween(begin: 0.3, end: 1.0).animate(_controller),
+      child: const CircleAvatar(radius: 6, backgroundColor: AppColors.danger),
+    );
+  }
+}
+
+/// Sohbette "+" butonuna basınca açılan ek menüsü - Telegram/WhatsApp'ın
+/// ikon+etiket ızgara deseninden esinlenildi, uygulamanın mevcut düz liste
+/// menülerinden bilerek farklı/daha canlı tasarlandı.
+class _AttachmentSheet extends StatelessWidget {
+  final VoidCallback onPoll;
+  final VoidCallback onLocation;
+  final VoidCallback onSticker;
+  final VoidCallback onPhoto;
+
+  const _AttachmentSheet({
+    required this.onPoll,
+    required this.onLocation,
+    required this.onSticker,
+    required this.onPhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Row(
+              children: [
+                _attachTile(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Anket',
+                    color: AppColors.primary,
+                    onTap: onPoll),
+                _attachTile(
+                    icon: Icons.location_on_rounded,
+                    label: 'Konum',
+                    color: AppColors.secondary,
+                    onTap: onLocation),
+                _attachTile(
+                    icon: Icons.emoji_emotions_rounded,
+                    label: 'Sticker',
+                    color: AppColors.warning,
+                    onTap: onSticker),
+                _attachTile(
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Fotoğraf',
+                    color: AppColors.danger,
+                    onTap: onPhoto),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachTile(
+      {required IconData icon,
+      required String label,
+      required Color color,
+      required VoidCallback onTap}) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Anket oluşturma diyaloğu - 2-8 arası dinamik seçenek alanı.
+class _PollComposerDialog extends StatefulWidget {
+  final void Function(String question, List<String> options) onSubmit;
+  const _PollComposerDialog({required this.onSubmit});
+
+  @override
+  State<_PollComposerDialog> createState() => _PollComposerDialogState();
+}
+
+class _PollComposerDialogState extends State<_PollComposerDialog> {
+  final _questionController = TextEditingController();
+  final List<TextEditingController> _optionControllers = [
+    TextEditingController(),
+    TextEditingController(),
+  ];
+
+  @override
+  void dispose() {
+    _questionController.dispose();
+    for (final c in _optionControllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  void _addOption() {
+    if (_optionControllers.length >= 8) return;
+    setState(() => _optionControllers.add(TextEditingController()));
+  }
+
+  void _removeOption(int index) {
+    if (_optionControllers.length <= 2) return;
+    setState(() => _optionControllers.removeAt(index).dispose());
+  }
+
+  void _submit() {
+    final question = _questionController.text.trim();
+    final options = _optionControllers
+        .map((c) => c.text.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    if (question.isEmpty || options.length < 2) return;
+    widget.onSubmit(question, options);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      title: const Text('Anket oluştur', style: TextStyle(color: Colors.white)),
+      content: SizedBox(
+        width: 320,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _questionController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(hintText: 'Soru...'),
+                maxLength: 200,
+              ),
+              const SizedBox(height: 4),
+              for (var i = 0; i < _optionControllers.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _optionControllers[i],
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(hintText: 'Seçenek ${i + 1}'),
+                          maxLength: 80,
+                          buildCounter: (_,
+                                  {required currentLength, required isFocused, maxLength}) =>
+                              null,
+                        ),
+                      ),
+                      if (_optionControllers.length > 2)
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline, color: Colors.white38, size: 20),
+                          onPressed: () => _removeOption(i),
+                        ),
+                    ],
+                  ),
+                ),
+              if (_optionControllers.length < 8)
+                TextButton.icon(
+                  onPressed: _addOption,
+                  icon: const Icon(Icons.add, color: AppColors.primaryLight, size: 18),
+                  label: const Text('Seçenek ekle',
+                      style: TextStyle(color: AppColors.primaryLight)),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Vazgeç'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text('Oluştur'),
+        ),
+      ],
     );
   }
 }

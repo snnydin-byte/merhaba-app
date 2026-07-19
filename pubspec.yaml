@@ -23,6 +23,11 @@ dependencies:
   url_launcher: ^6.3.1
   firebase_crashlytics: ^5.2.6
   image_picker: ^1.1.2
+  geolocator: ^14.0.2
+  record: ^7.1.1
+  audioplayers: ^6.8.1
+  path_provider: ^2.1.6
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_test:

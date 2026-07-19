@@ -4,4 +4,9 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- YALNIZCA debug derlemelerinde (release'e hiç girmez) - yerel
+         geliştirme sunucusuna (10.0.2.2, emülatörün ana bilgisayar takma
+         adı) düz HTTP ile bağlanabilmek için. bkz. webrtc_service.dart
+         'GEÇİCİ - CANLI TEST' notu. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

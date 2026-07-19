@@ -1,5 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'auth_service.dart';
 import 'push_notification_service.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
@@ -137,6 +143,10 @@ class MessagingService {
   void Function(PersistentMessage message)? onMessageDeleted;
   void Function(PersistentMessage message)? onMessageReacted;
   void Function(PersistentMessage message)? onMessagePinned;
+  // Anket oyu / tek seferlik fotoğraf açma gibi 'meta' alanını değiştiren
+  // ama ayrı bir olay adı gerektirmeyen genel güncellemeler (bkz. server.js
+  // 'message-updated' yayını).
+  void Function(PersistentMessage message)? onMessageUpdated;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -291,6 +301,17 @@ class MessagingService {
       }
     });
 
+    _socket!.on('message-updated', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onMessageUpdated?.call(PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (message-updated): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -362,13 +383,69 @@ class MessagingService {
       {required String toId,
       required String text,
       required String clientId,
-      String? replyToId}) {
+      String? replyToId,
+      String kind = 'text',
+      Map<String, dynamic>? meta}) {
     _socket?.emit('persistent-message-send', {
       'toId': toId,
       'text': text,
       'clientId': clientId,
       if (replyToId != null) 'replyToId': replyToId,
+      'kind': kind,
+      if (meta != null) 'meta': meta,
     });
+  }
+
+  /// Anket oyu (#39 anket maddesi) - aynı seçeneğe tekrar oy vermek oyu
+  /// geri çeker (bkz. server.js voteOnPoll toggle mantığı).
+  void votePoll({required String messageId, required int optionIndex}) {
+    _socket?.emit('message-poll-vote',
+        {'messageId': messageId, 'optionIndex': optionIndex});
+  }
+
+  /// Tek seferlik fotoğrafı açar (#59 anket maddesi) - yalnızca alıcı,
+  /// yalnızca bir kez çağırmalı (bkz. server.js openViewOncePhoto).
+  void openViewOncePhoto(String messageId) {
+    _socket?.emit('message-view-once-open', {'messageId': messageId});
+  }
+
+  /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
+  /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
+  /// Dönen URL, ardından 'kind'e göre sendPersistentMessage'a meta olarak
+  /// geçilir - mesajın kendisi burada OLUŞTURULMAZ.
+  ///
+  /// [mimeType] AÇIKÇA verilmeli (ör. 'image/jpeg', 'audio/mp4') - dosya
+  /// yolundan otomatik MIME tahmini (image_picker/record'un ürettiği
+  /// dosyalarda uzantı her zaman güvenilir olmadığı için) sunucudaki
+  /// multer fileFilter'ın "Desteklenmeyen dosya türü" diye reddetmesine
+  /// yol açabiliyordu - bu yüzden çağıran taraf türü kesin olarak bilir.
+  Future<Map<String, dynamic>> uploadChatMedia(File file, {required String mimeType}) async {
+    final token = AuthService().token;
+    if (token == null) {
+      throw Exception('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$signalingServerUrl/chat/media'))
+          ..headers['Authorization'] = 'Bearer $token'
+          ..files.add(await http.MultipartFile.fromPath(
+            'file',
+            file.path,
+            contentType: MediaType.parse(mimeType),
+          ));
+
+    final http.Response response;
+    try {
+      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      response = await http.Response.fromStream(streamed);
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode != 200) {
+      throw Exception(data['error'] as String? ?? 'Dosya yüklenemedi.');
+    }
+    return data;
   }
 
   void editMessage({required String messageId, required String text}) {
@@ -417,6 +494,7 @@ class MessagingService {
     onMessageDeleted = null;
     onMessageReacted = null;
     onMessagePinned = null;
+    onMessageUpdated = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;

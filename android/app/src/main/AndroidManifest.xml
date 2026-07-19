@@ -13,6 +13,10 @@
          (requestPermission() üzerinden) ister, ama manifest'te de
          tanımlanmış olması gerekiyor. -->
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<!--  Konum paylaşımı özelliği (tek seferlik, canlı DEĞİL) - yalnızca
+         kullanıcı paylaş butonuna bastığı anda tek bir konum okunur. -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 <application android:label="merhaba" android:name="${applicationName}" android:icon="@mipmap/ic_launcher">
 <!--  FCM'in varsayılan bildirim kanalı - push_notification_service.dart
              içinde oluşturduğumuz kanalla aynı id'yi kullanıyor, böylece
