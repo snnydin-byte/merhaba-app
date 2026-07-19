@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/webrtc_service.dart';
@@ -12,6 +13,7 @@ import 'friends_screen.dart';
 import 'pre_call_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
+import 'video_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -250,10 +252,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStartButton(BuildContext context) {
     return GradientButton(
-      onPressed: () {
-        Navigator.of(context).push(
-          AppPageRoute(builder: (_) => const PreCallScreen()),
-        );
+      onPressed: () async {
+        // Sadece metin modu (Batch C) - açıksa kamera/mikrofon izni HİÇ
+        // istenmeden doğrudan metin sohbeti aramaya geçilir (bkz.
+        // video_chat_screen.dart textOnlyMode, settings_screen.dart'taki
+        // anahtar). Diğer tüm durumlarda PreCallScreen'deki normal önizleme
+        // akışı değişmeden devam ediyor.
+        final prefs = await SharedPreferences.getInstance();
+        final textOnly = prefs.getBool(matchTextOnlyPrefKey) ?? false;
+        if (!context.mounted) return;
+        if (textOnly) {
+          Navigator.of(context).push(
+            AppPageRoute(builder: (_) => const VideoChatScreen(textOnlyMode: true)),
+          );
+        } else {
+          Navigator.of(context).push(
+            AppPageRoute(builder: (_) => const PreCallScreen()),
+          );
+        }
       },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

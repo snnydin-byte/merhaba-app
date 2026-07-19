@@ -34,6 +34,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _error;
   String? _gender; // 'erkek' | 'kadın' | null
   List<String> _interests = [];
+  // Batch C - burç/doğum tarihi (yalnızca kendi profilinde dolu gelir).
+  DateTime? _birthDate;
 
   bool _uploadingPhoto = false;
 
@@ -56,6 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _languageController.text = user.language ?? '';
     _gender = user.gender;
     _interests = List.of(user.interests);
+    _birthDate = user.birthDate != null ? DateTime.tryParse(user.birthDate!) : null;
   }
 
   void _startEditing(AppUser user) {
@@ -208,6 +211,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? null
             : _languageController.text.trim(),
         age: age,
+        birthDate: _birthDate == null
+            ? null
+            : '${_birthDate!.year.toString().padLeft(4, '0')}-'
+                '${_birthDate!.month.toString().padLeft(2, '0')}-'
+                '${_birthDate!.day.toString().padLeft(2, '0')}',
       );
       if (mounted) setState(() => _editing = false);
     } on AuthException catch (e) {
@@ -391,6 +399,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Premium katman DATA MODELİ (Batch C) - gerçek bir ödeme akışı henüz
+  /// YOK, bu yüzden [user.isPremium] şu an her zaman false. Kart, ileride
+  /// gerçek bir ödeme sağlayıcısı eklenene kadar yalnızca "Yakında" bilgisi
+  /// veriyor - kilitli özellik vaadi vermiyor ki gerçekleşmeyen bir söz
+  /// olmasın.
+  Widget _premiumBanner(AppUser user) {
+    if (user.isPremium) {
+      return GlassCard(
+        child: Row(
+          children: [
+            const Icon(Icons.workspace_premium_rounded, color: AppColors.warning),
+            const SizedBox(width: 10),
+            Text('Premium üyesin', style: AppText.subheading.copyWith(fontSize: 14)),
+          ],
+        ),
+      );
+    }
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppColors.surfaceElevated,
+          title: const Text('Premium', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            'Premium üyelik yakında geliyor: sınırsız hızlı tur, gelişmiş filtreler ve daha fazlası.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam')),
+          ],
+        ),
+      ),
+      child: GlassCard(
+        child: Row(
+          children: [
+            Icon(Icons.workspace_premium_outlined, color: AppColors.textMuted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Premium - Yakında',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white38),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfileBody(AppUser user) {
     final genderLabel = user.gender == 'erkek'
         ? 'Erkek'
@@ -419,6 +476,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.bio.isEmpty ? 'Henüz bir şey yazılmamış.' : user.bio),
         _infoCard(label: 'Cinsiyet', value: genderLabel),
         _infoCard(label: 'Yaş', value: user.age?.toString() ?? 'Belirtilmemiş'),
+        if (user.zodiac != null)
+          _infoCard(label: 'Burç', value: user.zodiac!),
         _infoCard(
           label: 'İlgi Alanları',
           value: user.interests.isEmpty
@@ -435,6 +494,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.language?.isNotEmpty == true
                 ? user.language!
                 : 'Belirtilmemiş'),
+        const SizedBox(height: AppSpacing.md),
+        _premiumBanner(user),
         const SizedBox(height: AppSpacing.md),
         SizedBox(
           width: double.infinity,
@@ -501,6 +562,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           keyboardType: TextInputType.number,
           style: const TextStyle(color: Colors.white, fontSize: 15),
           decoration: _fieldDecoration('Yaş'),
+        ),
+        const SizedBox(height: 14),
+        InkWell(
+          onTap: () async {
+            final now = DateTime.now();
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _birthDate ?? DateTime(now.year - 20, now.month, now.day),
+              firstDate: DateTime(now.year - 100),
+              lastDate: DateTime(now.year - 13, now.month, now.day),
+            );
+            if (picked != null) setState(() => _birthDate = picked);
+          },
+          child: InputDecorator(
+            decoration: _fieldDecoration('Doğum tarihi (burcun için)'),
+            child: Text(
+              _birthDate == null
+                  ? 'Seçilmedi'
+                  : '${_birthDate!.day.toString().padLeft(2, '0')}.'
+                      '${_birthDate!.month.toString().padLeft(2, '0')}.'
+                      '${_birthDate!.year}',
+              style: const TextStyle(color: Colors.white, fontSize: 15),
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         TextField(

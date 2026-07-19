@@ -28,6 +28,13 @@ class AppUser {
   final bool hideOnlineStatus;
   final bool hideLastSeen;
   final bool readReceiptsEnabled;
+  // Batch C eşleştirme motoru genişletmeleri.
+  // birthDate: yalnızca kendi profilini çekerken dolu gelir (bkz.
+  // server.js publicUser() - hassas kişisel veri, başkalarına gösterilmez).
+  final String? birthDate; // "YYYY-MM-DD"
+  final String? zodiac; // sunucuda türetilir, herkese görünür
+  final String? introVideoUrl;
+  final bool isPremium;
 
   const AppUser({
     required this.id,
@@ -46,6 +53,10 @@ class AppUser {
     this.hideOnlineStatus = false,
     this.hideLastSeen = false,
     this.readReceiptsEnabled = true,
+    this.birthDate,
+    this.zodiac,
+    this.introVideoUrl,
+    this.isPremium = false,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -68,6 +79,10 @@ class AppUser {
         hideOnlineStatus: json['hideOnlineStatus'] as bool? ?? false,
         hideLastSeen: json['hideLastSeen'] as bool? ?? false,
         readReceiptsEnabled: json['readReceiptsEnabled'] as bool? ?? true,
+        birthDate: json['birthDate'] as String?,
+        zodiac: json['zodiac'] as String?,
+        introVideoUrl: json['introVideoUrl'] as String?,
+        isPremium: json['isPremium'] as bool? ?? false,
       );
 }
 
@@ -205,6 +220,7 @@ class AuthService {
     bool? hideOnlineStatus,
     bool? hideLastSeen,
     bool? readReceiptsEnabled,
+    String? birthDate,
   }) async {
     if (_token == null) throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
 
@@ -220,6 +236,7 @@ class AuthService {
     if (hideOnlineStatus != null) body['hideOnlineStatus'] = hideOnlineStatus;
     if (hideLastSeen != null) body['hideLastSeen'] = hideLastSeen;
     if (readReceiptsEnabled != null) body['readReceiptsEnabled'] = readReceiptsEnabled;
+    if (birthDate != null) body['birthDate'] = birthDate;
 
     final http.Response response;
     try {
@@ -288,6 +305,48 @@ class AuthService {
       throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
 
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  /// Video profil tanıtımı yükler (Batch C) - kısa bir klip, chat medyası
+  /// gibi Cloudinary'ye gidiyor (bkz. server.js POST /profile/intro-video).
+  Future<void> uploadIntroVideo(File file) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$signalingServerUrl/profile/intro-video'))
+          ..headers['Authorization'] = 'Bearer $_token'
+          ..files.add(await http.MultipartFile.fromPath('video', file.path));
+
+    final http.Response response;
+    try {
+      final streamed = await request.send().timeout(const Duration(seconds: 40));
+      response = await http.Response.fromStream(streamed);
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Video yüklenemedi, tekrar dene.');
+    }
+
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  Future<void> removeIntroVideo() async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final http.Response response;
+    try {
+      response = await http.delete(
+        Uri.parse('$signalingServerUrl/profile/intro-video'),
+        headers: {'Authorization': 'Bearer $_token'},
+      ).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
     final data = _decodeOrThrow(response);
     _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
     await _persist();

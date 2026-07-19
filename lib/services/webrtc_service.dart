@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -14,6 +15,11 @@ const String matchGenderFilterPrefKey =
 const String matchMinAgePrefKey = 'match_min_age'; // int, yoksa yok
 const String matchMaxAgePrefKey = 'match_max_age'; // int, yoksa yok
 const String matchOnlyVerifiedPrefKey = 'match_only_verified'; // bool
+// Batch C eşleştirme motoru genişletmeleri.
+const String matchCountryFilterPrefKey = 'match_country_filter'; // String? ülke kodu
+const String matchMaxDistanceKmPrefKey = 'match_max_distance_km'; // int, yoksa yok
+const String matchTextOnlyPrefKey = 'match_text_only'; // bool
+const String matchSpeedRoundPrefKey = 'match_speed_round'; // bool
 
 /// Sunucunun adresi.
 ///
@@ -41,8 +47,18 @@ typedef OnStatusChange = void Function(String status);
 /// [partnerVoiceOnly], karşı tarafın "sesli-yalnız mod"da olup olmadığını
 /// (kamerası hiç yok/kapalı) bildirir - true ise ekran, hiç gelmeyecek bir
 /// video akışını beklemek yerine doğrudan sesli-mod göstergesini göstermeli.
-typedef OnMatchInfo = void Function(bool partnerHasAccount,
-    String? partnerDisplayName, bool partnerVerified, bool partnerVoiceOnly);
+/// [partnerTextOnly] (Batch C), karşı tarafın "sadece metin modu"nda olup
+/// olmadığını bildirir - true ise hiçbir medya akışı (ne video ne ses)
+/// beklenmemeli. [speedRoundSeconds] (Batch C), KENDİ "süreli hızlı
+/// eşleştirme" tercihimiz seçiliyse bir geri sayım süresi (sn), aksi halde
+/// null - karşı tarafın tercihiyle ilgisi yok, tamamen kişisel.
+typedef OnMatchInfo = void Function(
+    bool partnerHasAccount,
+    String? partnerDisplayName,
+    bool partnerVerified,
+    bool partnerVoiceOnly,
+    bool partnerTextOnly,
+    int? speedRoundSeconds);
 
 /// Karşı taraf bize bir arkadaşlık isteği gönderdiğinde tetiklenir.
 typedef OnFriendRequestReceived = void Function(String fromDisplayName);
@@ -69,6 +85,41 @@ class WebRTCService {
     if (maxAge != null) result['maxAge'] = maxAge;
     final onlyVerified = prefs.getBool(matchOnlyVerifiedPrefKey);
     if (onlyVerified == true) result['onlyVerified'] = true;
+    final country = prefs.getString(matchCountryFilterPrefKey);
+    if (country != null && country.isNotEmpty) result['countryFilter'] = country;
+    final textOnly = prefs.getBool(matchTextOnlyPrefKey);
+    if (textOnly == true) result['textOnly'] = true;
+    final speedRound = prefs.getBool(matchSpeedRoundPrefKey);
+    if (speedRound == true) result['speedRound'] = true;
+
+    // Yakınlık bazlı eşleştirme (Batch C) - konum sunucuya HER SEFERİNDE
+    // canlı olarak gönderilir (bkz. server.js passesProximityFilter), asla
+    // profile kaydedilmez. Konum alınamazsa (izin yok/GPS kapalı/zaman
+    // aşımı) maxDistanceKm'i SESSİZCE atlıyoruz - sunucu myLat/myLng
+    // olmadan zaten bu filtreyi uygulayamıyor, kullanıcıyı burada bir
+    // hatayla durdurmanın (bu metot bir BuildContext'e sahip değil) bir
+    // faydası yok, filtresiz eşleştirmeye devam etmesi daha iyi.
+    final maxDistanceKm = prefs.getInt(matchMaxDistanceKmPrefKey);
+    if (maxDistanceKm != null) {
+      try {
+        var permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        final hasPermission = permission != LocationPermission.denied &&
+            permission != LocationPermission.deniedForever;
+        if (hasPermission && await Geolocator.isLocationServiceEnabled()) {
+          final position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+          ).timeout(const Duration(seconds: 10));
+          result['maxDistanceKm'] = maxDistanceKm;
+          result['myLat'] = position.latitude;
+          result['myLng'] = position.longitude;
+        }
+      } catch (_) {
+        // Konum alınamadı - maxDistanceKm hiç eklenmedi, filtresiz devam.
+      }
+    }
     return result;
   }
 
@@ -315,6 +366,8 @@ class WebRTCService {
           map['partnerDisplayName'] as String?,
           map['partnerVerified'] as bool? ?? false,
           map['partnerVoiceOnly'] as bool? ?? false,
+          map['partnerTextOnly'] as bool? ?? false,
+          map['speedRoundSeconds'] as int?,
         );
         await _createPeerConnection(expectedGeneration: myGeneration);
 

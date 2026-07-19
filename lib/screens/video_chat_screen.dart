@@ -25,8 +25,13 @@ class VideoChatScreen extends StatefulWidget {
   /// (ör. eski bir yerden doğrudan çağrılırsa) ekran kendi izin/kamera
   /// akışını baştan başlatır - eski davranışla geriye dönük uyumlu.
   final WebRTCService? preloadedWebrtc;
+  // Sadece metin modu (Batch C) - true ise kamera/mikrofon izni HİÇ
+  // istenmez, initLocalMedia() hiç çağrılmaz (bkz. pre_call_screen.dart
+  // _startTextOnly()) - istemci yalnızca metin sohbetine bağlanır.
+  final bool textOnlyMode;
 
-  const VideoChatScreen({super.key, this.preloadedWebrtc});
+  const VideoChatScreen(
+      {super.key, this.preloadedWebrtc, this.textOnlyMode = false});
 
   @override
   State<VideoChatScreen> createState() => _VideoChatScreenState();
@@ -83,6 +88,13 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   // biliyoruz, bu yüzden boş/donuk bir video karesi yerine doğrudan
   // sesli-mod göstergesi gösteriyoruz.
   bool _partnerVoiceOnly = false;
+  // Karşı taraf "sadece metin modu"nda mı (Batch C) - true ise hiç medya
+  // akışı (video NE DE ses) gelmeyecek, yalnızca ekran-içi metin sohbeti.
+  bool _partnerTextOnly = false;
+  // Süreli hızlı eşleştirme modu (Batch C) - KENDİ tercihimizse dolu,
+  // sayaç sıfıra inince otomatik "tur bitti" diyaloğu gösterilir.
+  int? _speedRoundRemaining;
+  Timer? _speedRoundTimer;
   // Kendi kameramız hiç yok mu (PreCallScreen'de "sesli-yalnız mod" seçildi)
   // - true ise kamera düğmesi/önizlemesi hiç gösterilmez, toggleCamera()
   // için bir track olmadığından yanıltıcı olurdu.
@@ -155,9 +167,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         _partnerDisplayName = null;
         _partnerVerified = false;
         _partnerVoiceOnly = false;
+        _partnerTextOnly = false;
         _hasPartner = false;
         _friendStatus = _FriendStatus.none;
       });
+      _stopSpeedRoundTimer();
       _startMatchTimeout();
       _webrtc.skipToNext();
     };
@@ -168,16 +182,18 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     // buna göre göstermek için. Her yeni eşleşmede önceki arkadaşlık isteği
     // durumunu da sıfırlıyoruz.
     _webrtc.onMatchInfo = (partnerHasAccount, partnerDisplayName,
-        partnerVerified, partnerVoiceOnly) {
+        partnerVerified, partnerVoiceOnly, partnerTextOnly, speedRoundSeconds) {
       if (!mounted) return;
       setState(() {
         _partnerHasAccount = partnerHasAccount;
         _partnerDisplayName = partnerDisplayName;
         _partnerVerified = partnerVerified;
         _partnerVoiceOnly = partnerVoiceOnly;
+        _partnerTextOnly = partnerTextOnly;
         _hasPartner = true;
         _friendStatus = _FriendStatus.none;
       });
+      _startSpeedRoundTimer(speedRoundSeconds);
     };
 
     // Şikayetimiz sunucuya kaydedildi.
@@ -251,6 +267,20 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     };
+
+    if (widget.textOnlyMode) {
+      // Kamera/mikrofon izni HİÇ istenmiyor, initLocalMedia() hiç
+      // çağrılmıyor - _createPeerConnection() null _localStream'i güvenle
+      // yok sayıyor (bkz. webrtc_service.dart), bağlantı yalnızca sinyal/
+      // metin sohbeti taşıyor.
+      _hasCamera = false;
+      final matchPrefs = await WebRTCService.loadMatchPreferences();
+      if (!mounted) return;
+      _startMatchTimeout();
+      _webrtc.connectAndFindMatch(
+          authToken: AuthService().token, matchPreferences: matchPrefs);
+      return;
+    }
 
     if (widget.preloadedWebrtc != null && _webrtc.localStream != null) {
       // PreCallScreen'de izinler zaten alındı ve kamera/mikrofon zaten
@@ -543,11 +573,71 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _partnerDisplayName = null;
       _partnerVerified = false;
       _partnerVoiceOnly = false;
+      _partnerTextOnly = false;
       _hasPartner = false;
       _friendStatus = _FriendStatus.none;
     });
+    _stopSpeedRoundTimer();
     _startMatchTimeout();
     _webrtc.skipToNext();
+  }
+
+  // Süreli hızlı eşleştirme modu (Batch C) - TAMAMEN istemci taraflı bir
+  // geri sayım, sunucu yalnızca süreyi bildirir (bkz. server.js
+  // SPEED_ROUND_SECONDS). Süre dolunca çağrıyı KENDİLİĞİNDEN bitirmiyoruz -
+  // WhatsApp/Tinder'daki "hızlı tur" deneyimine daha yakın olsun diye
+  // kullanıcıya "devam et mi, sıradaki kişiye mi geç" sorusunu soruyoruz.
+  void _startSpeedRoundTimer(int? seconds) {
+    _stopSpeedRoundTimer();
+    if (seconds == null) return;
+    setState(() => _speedRoundRemaining = seconds);
+    _speedRoundTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final remaining = (_speedRoundRemaining ?? 1) - 1;
+      if (remaining <= 0) {
+        timer.cancel();
+        setState(() => _speedRoundRemaining = null);
+        _showSpeedRoundElapsedDialog();
+      } else {
+        setState(() => _speedRoundRemaining = remaining);
+      }
+    });
+  }
+
+  void _stopSpeedRoundTimer() {
+    _speedRoundTimer?.cancel();
+    _speedRoundTimer = null;
+    _speedRoundRemaining = null;
+  }
+
+  Future<void> _showSpeedRoundElapsedDialog() async {
+    if (!mounted || !_connected) return;
+    final continueChat = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: const Text('Hızlı tur bitti', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Bu turun süresi doldu. Sohbete devam etmek mi, sıradaki kişiyle tanışmak mı istersin?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Sıradaki kişi'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Devam et'),
+          ),
+        ],
+      ),
+    );
+    if (continueChat != true && mounted) _nextPerson();
   }
 
   void _endCall() {
@@ -571,6 +661,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   @override
   void dispose() {
     _cancelMatchTimeout();
+    _stopSpeedRoundTimer();
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     _msgController.dispose();
@@ -657,8 +748,34 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                     const Icon(Icons.mic_rounded,
                                         color: Colors.white54, size: 14),
                                   ],
+                                  if (_partnerTextOnly) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chat_bubble_outline_rounded,
+                                        color: Colors.white54, size: 14),
+                                  ],
                                 ],
                               ),
+                            ),
+                          ),
+                        if (_speedRoundRemaining != null)
+                          Container(
+                            margin: const EdgeInsets.only(right: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.timer_outlined, color: AppColors.warning, size: 13),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${(_speedRoundRemaining! ~/ 60).toString().padLeft(2, '0')}:${(_speedRoundRemaining! % 60).toString().padLeft(2, '0')}',
+                                  style: const TextStyle(
+                                      color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              ],
                             ),
                           ),
                         _buildFriendButton(),

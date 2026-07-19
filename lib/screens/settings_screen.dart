@@ -50,6 +50,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _ageRangeEnabled = false;
   bool _onlyVerified = false;
 
+  // Batch C eşleştirme motoru genişletmeleri.
+  final _countryFilterController = TextEditingController();
+  bool _proximityEnabled = false;
+  double _maxDistanceKm = 100;
+  bool _textOnlyMode = false;
+  bool _speedRoundMode = false;
+
   // Gizlilik ayarları (#39/#24 anket maddeleri) - SharedPreferences DEĞİL,
   // sunucuda hesaba bağlı olarak saklanır (bkz. AuthService.updateProfile).
   // Misafir kullanıcılarda hiç hesap olmadığı için bu anahtarlar devre dışı.
@@ -69,6 +76,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadPrefs();
     _loadAppVersion();
+  }
+
+  @override
+  void dispose() {
+    _countryFilterController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAppVersion() async {
@@ -97,6 +110,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (maxAge ?? 60).toDouble(),
       );
       _onlyVerified = prefs.getBool(matchOnlyVerifiedPrefKey) ?? false;
+      _countryFilterController.text = prefs.getString(matchCountryFilterPrefKey) ?? '';
+      final maxDistanceKm = prefs.getInt(matchMaxDistanceKmPrefKey);
+      _proximityEnabled = maxDistanceKm != null;
+      _maxDistanceKm = (maxDistanceKm ?? 100).toDouble();
+      _textOnlyMode = prefs.getBool(matchTextOnlyPrefKey) ?? false;
+      _speedRoundMode = prefs.getBool(matchSpeedRoundPrefKey) ?? false;
       final user = AuthService().currentUser;
       if (user != null) {
         _hideOnlineStatus = user.hideOnlineStatus;
@@ -179,6 +198,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(matchMinAgePrefKey, values.start.round());
     await prefs.setInt(matchMaxAgePrefKey, values.end.round());
+  }
+
+  Future<void> _setCountryFilter(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      await prefs.remove(matchCountryFilterPrefKey);
+    } else {
+      await prefs.setString(matchCountryFilterPrefKey, trimmed);
+    }
+  }
+
+  Future<void> _setProximityEnabled(bool value) async {
+    setState(() => _proximityEnabled = value);
+    final prefs = await SharedPreferences.getInstance();
+    if (value) {
+      await prefs.setInt(matchMaxDistanceKmPrefKey, _maxDistanceKm.round());
+    } else {
+      await prefs.remove(matchMaxDistanceKmPrefKey);
+    }
+  }
+
+  Future<void> _setMaxDistanceKm(double value) async {
+    setState(() => _maxDistanceKm = value);
+    if (!_proximityEnabled) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(matchMaxDistanceKmPrefKey, value.round());
+  }
+
+  Future<void> _setTextOnlyMode(bool value) async {
+    setState(() => _textOnlyMode = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(matchTextOnlyPrefKey, value);
+  }
+
+  Future<void> _setSpeedRoundMode(bool value) async {
+    setState(() => _speedRoundMode = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(matchSpeedRoundPrefKey, value);
   }
 
   Future<void> _handleDeleteAccountTap() async {
@@ -340,6 +398,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: TextField(
+                    controller: _countryFilterController,
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: _setCountryFilter,
+                    decoration: InputDecoration(
+                      labelText: 'Ülke filtresi (boş = herkes)',
+                      hintText: 'ör. Türkiye',
+                      labelStyle: TextStyle(color: AppColors.textMuted),
+                    ),
+                  ),
+                ),
+                _switchTile(
+                  title: 'Yakınlık bazlı eşleştirme',
+                  subtitle: _proximityEnabled
+                      ? '${_maxDistanceKm.round()} km içindekilerle eşleş (konumun paylaşılır)'
+                      : 'Kapalı - mesafeye bakılmaksızın eşleş',
+                  value: _proximityEnabled,
+                  onChanged: _setProximityEnabled,
+                ),
+                if (_proximityEnabled)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(14)),
+                    child: Slider(
+                      value: _maxDistanceKm,
+                      min: 5,
+                      max: 500,
+                      divisions: 99,
+                      activeColor: AppColors.primary,
+                      inactiveColor: Colors.white.withValues(alpha: 0.15),
+                      label: '${_maxDistanceKm.round()} km',
+                      onChanged: (v) => setState(() => _maxDistanceKm = v),
+                      onChangeEnd: _setMaxDistanceKm,
+                    ),
+                  ),
+                _switchTile(
+                  title: 'Sadece metin modu',
+                  subtitle: 'Kamera/mikrofon hiç açılmaz, yalnızca yazışırsın',
+                  value: _textOnlyMode,
+                  onChanged: _setTextOnlyMode,
+                ),
+                _switchTile(
+                  title: 'Süreli hızlı eşleştirme',
+                  subtitle: '2 dakikalık kısa turlar, süre dolunca devam et/sıradaki seç',
+                  value: _speedRoundMode,
+                  onChanged: _setSpeedRoundMode,
+                ),
                 const SizedBox(height: 24),
                 _sectionTitle('Gizlilik'),
                 _switchTile(
