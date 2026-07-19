@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/call_ui_controller.dart';
 import '../services/friends_service.dart';
+import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import 'chat_screen.dart';
@@ -110,6 +111,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
         _loading = false;
       });
     }
+  }
+
+  /// Toplu/broadcast liste (#31 anket maddesi) - seçilen her arkadaşa AYNI
+  /// mesajı TEK TEK, birbirinden bağımsız kalıcı mesaj olarak gönderir
+  /// (WhatsApp'ın "yayın listesi"yle aynı fikir: alıcılar birbirini
+  /// GÖRMEZ, sanki her birine ayrı ayrı yazılmış gibi kendi sohbetlerinde
+  /// görünür - grup sohbeti DEĞİL). Sunucu tarafında ek bir değişiklik
+  /// gerekmiyor, zaten var olan persistent-message-send tek tek çağrılıyor.
+  void _openBroadcastComposer() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _BroadcastComposerSheet(friends: _friends),
+    );
   }
 
   Future<void> _confirmRemove(AppUser friend) async {
@@ -227,6 +243,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
         title: Text('Arkadaşlar', style: AppText.subheading),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          if (_friends.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.campaign_outlined, color: Colors.white70),
+              tooltip: 'Toplu mesaj gönder',
+              onPressed: _openBroadcastComposer,
+            ),
+        ],
       ),
       body: AppBackground(child: SafeArea(child: _buildBody())),
     );
@@ -248,7 +272,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 0),
-            child: _buildNoteToSelfTile(),
+            child: Column(children: [_buildNoteToSelfTile(), _buildBotTile()]),
           ),
           Expanded(child: _buildEmptyState()),
         ],
@@ -267,10 +291,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
         // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
         // dokunuş yakalayan bölgesiyle çakışıyordu.
         padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
-        itemCount: _friends.length + 1,
+        itemCount: _friends.length + 2,
         itemBuilder: (context, index) {
           if (index == 0) return _buildNoteToSelfTile();
-          return _buildFriendTile(_friends[index - 1]);
+          if (index == 1) return _buildBotTile();
+          return _buildFriendTile(_friends[index - 2]);
         },
       ),
     );
@@ -309,6 +334,56 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         style: AppText.subheading.copyWith(fontSize: 15)),
                     const SizedBox(height: 2),
                     Text('Kişisel notların, kimseyle paylaşılmaz',
+                        style: TextStyle(
+                            color: AppColors.textMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white38),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Basit kurallı yardımcı bot girişi - sunucudaki sabit BOT_USER_ID
+  /// ('merhaba-bot') ile eşleşen sahte bir AppUser oluşturup ChatScreen'i
+  /// normal bir arkadaş sohbeti gibi açıyoruz. Sunucu (persistent-message-send
+  /// ve GET /messages/:friendId) bu id için arkadaşlık şartını atlıyor ve
+  /// kullanıcı mesaj attığında botReplyFor() ile otomatik yanıt üretiyor.
+  Widget _buildBotTile() {
+    const bot = AppUser(
+      id: 'merhaba-bot',
+      email: '',
+      displayName: 'Merhaba Asistan',
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () => Navigator.of(context).push(
+            AppPageRoute(builder: (_) => const ChatScreen(friend: bot)),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                child: const Icon(Icons.smart_toy_outlined,
+                    color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Merhaba Asistan',
+                        style: AppText.subheading.copyWith(fontSize: 15)),
+                    const SizedBox(height: 2),
+                    Text('Sorularını yanıtlayan basit yardımcı',
                         style: TextStyle(
                             color: AppColors.textMuted, fontSize: 11)),
                   ],
@@ -552,6 +627,140 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return IconButton(
       onPressed: onTap,
       icon: Icon(icon, color: AppColors.textSecondary, size: 20),
+    );
+  }
+}
+
+/// Toplu mesaj (#31 anket maddesi) diyaloğu - arkadaş listesinden çoklu
+/// seçim + tek bir metin, "Gönder"e basınca her seçili kişiye ayrı ayrı
+/// kalıcı mesaj olarak iletilir.
+class _BroadcastComposerSheet extends StatefulWidget {
+  final List<AppUser> friends;
+  const _BroadcastComposerSheet({required this.friends});
+
+  @override
+  State<_BroadcastComposerSheet> createState() => _BroadcastComposerSheetState();
+}
+
+class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
+  final Set<String> _selected = {};
+  final TextEditingController _controller = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _selected.isEmpty) return;
+    setState(() => _sending = true);
+    final messaging = MessagingService();
+    var counter = 0;
+    for (final friendId in _selected) {
+      messaging.sendPersistentMessage(
+        toId: friendId,
+        text: text,
+        clientId: 'bcast_${DateTime.now().microsecondsSinceEpoch}_${counter++}',
+      );
+    }
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Mesaj ${_selected.length} kişiye gönderildi.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.campaign_outlined, color: AppColors.primaryLight),
+                const SizedBox(width: 8),
+                const Text('Toplu mesaj',
+                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text('${_selected.length} seçili',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Aynı mesaj seçtiğin herkese ayrı ayrı gönderilir - alıcılar birbirini görmez.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.friends.length,
+                itemBuilder: (context, index) {
+                  final friend = widget.friends[index];
+                  final checked = _selected.contains(friend.id);
+                  return CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: AppColors.primary,
+                    value: checked,
+                    onChanged: (v) => setState(() {
+                      if (v == true) {
+                        _selected.add(friend.id);
+                      } else {
+                        _selected.remove(friend.id);
+                      }
+                    }),
+                    title: Text(friend.displayName, style: const TextStyle(color: Colors.white)),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _controller,
+              maxLines: 3,
+              minLines: 1,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Mesajını yaz...',
+                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.06),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_sending || _selected.isEmpty) ? null : _send,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: const Text('Gönder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
