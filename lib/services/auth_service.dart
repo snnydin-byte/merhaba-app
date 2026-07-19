@@ -1,10 +1,28 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'webrtc_service.dart' show signalingServerUrl;
+
+// Google ile hızlı kayıt (Batch C) - bu, Google Cloud Console'da OTOMATİK
+// oluşan "Web client (auto created by Google Service)" OAuth istemcisinin
+// ID'si. GİZLİ bir değer DEĞİL (apiKey gibi - istemci koduna gömülmesi
+// normal, bkz. firebase_options.dart'taki aynı yaklaşım) ama Sinan'ın
+// Firebase konsolunda "Authentication > Sign-in method > Google" sağlayıcısını
+// AÇMASI ve oradan bu değeri kopyalayıp buraya yapıştırması gerekiyor -
+// kurulum adımları KURULUM.md'de. Ayarlanana kadar bu placeholder ile kalır
+// ve Google ile giriş düğmesi gösterilmez (bkz. isGoogleSignInConfigured) -
+// firebase_options.dart'taki _placeholderApiKey deseniyle AYNI "zarif geri
+// düşme" (istemci tarafı gösterilmiyor, sunucu tarafı da GOOGLE_WEB_CLIENT_ID
+// ayarlanmadıysa 503 döner, hiçbir yerde çökme olmaz).
+const String _googleWebClientId =
+    'REPLACE_WITH_REAL_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com';
+
+bool get isGoogleSignInConfigured =>
+    !_googleWebClientId.startsWith('REPLACE_WITH_');
 
 /// Sinyalleşme sunucusundaki bir hesabı temsil eder (bkz.
 /// signaling_server/userStore.js publicUser()). Şifre burada tutulmaz.
@@ -194,6 +212,43 @@ class AuthService {
       'email': email,
       'password': password,
     });
+    return _applyAuthResponse(response);
+  }
+
+  /// Google ile kayıt/giriş (Batch C). google_sign_in paketi kullanıcıya
+  /// yerleşik Google hesap seçici diyaloğunu gösterir, biz yalnızca dönen
+  /// imzalı ID token'ı sunucuya iletip (bkz. server.js POST /auth/google)
+  /// normal JWT oturum akışına geçeriz - şifre hiçbir zaman bu uygulamaya
+  /// veya sunucusuna gelmez.
+  ///
+  /// [isGoogleSignInConfigured] false ise (Sinan henüz Firebase konsolunda
+  /// Google sağlayıcısını açıp gerçek client ID'yi yapıştırmadıysa) çağıran
+  /// ekran bu düğmeyi hiç GÖSTERMEMELİ - yine de çağrılırsa erken bir
+  /// AuthException fırlatılır.
+  ///
+  /// Kullanıcı hesap seçiciyi iptal ederse hata FIRLATILMAZ, null döner -
+  /// çağıran ekran bunu sessizce (hata mesajı göstermeden) ele almalı.
+  Future<AppUser?> signInWithGoogle() async {
+    if (!isGoogleSignInConfigured) {
+      throw AuthException('Google ile giriş şu an yapılandırılmamış.');
+    }
+
+    final googleSignIn = GoogleSignIn(serverClientId: _googleWebClientId);
+    GoogleSignInAccount? account;
+    try {
+      account = await googleSignIn.signIn();
+    } catch (_) {
+      throw AuthException('Google ile giriş başlatılamadı, tekrar dene.');
+    }
+    if (account == null) return null;
+
+    final auth = await account.authentication;
+    final idToken = auth.idToken;
+    if (idToken == null) {
+      throw AuthException('Google kimlik doğrulaması eksik döndü, tekrar dene.');
+    }
+
+    final response = await _post('/auth/google', {'idToken': idToken});
     return _applyAuthResponse(response);
   }
 

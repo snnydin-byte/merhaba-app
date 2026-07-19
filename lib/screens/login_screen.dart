@@ -91,6 +91,39 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _submitWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _errorText = null;
+    });
+
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user == null) {
+        // Kullanıcı hesap seçiciyi iptal etti - sessizce dön, hata gösterme.
+        return;
+      }
+      unawaited(PushNotificationService().registerTokenWithServer());
+      final token = _authService.token;
+      if (token != null) {
+        MessagingService().connectIfNeeded(token);
+        CallService().connectIfNeeded(token);
+        CallUiController().wire();
+      }
+      if (!mounted) return;
+      _goToHome();
+    } on AuthException catch (e) {
+      if (mounted) setState(() => _errorText = e.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+            () => _errorText = 'Beklenmeyen bir hata oluştu, tekrar dene.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _continueAsGuest() => _goToHome();
 
   void _goToHome() {
@@ -129,6 +162,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   _buildDivider(),
                   const SizedBox(height: 16),
+                  if (isGoogleSignInConfigured) ...[
+                    _buildGoogleButton(),
+                    const SizedBox(height: 12),
+                  ],
                   _buildGuestButton(),
                 ],
               ),
@@ -298,6 +335,29 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         Expanded(child: Divider(color: AppColors.divider)),
       ],
+    );
+  }
+
+  Widget _buildGoogleButton() {
+    return SizedBox(
+      height: 50,
+      child: OutlinedButton(
+        onPressed: _loading ? null : _submitWithGoogle,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg)),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.g_mobiledata_rounded, size: 26, color: Colors.white),
+            SizedBox(width: 4),
+            Text('Google ile devam et'),
+          ],
+        ),
+      ),
     );
   }
 

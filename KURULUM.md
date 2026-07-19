@@ -131,6 +131,56 @@ eklenmemeli, `users.json` gibi).
 - Artık geçersiz olan token'lar Firebase'in hata yanıtlarından tespit edilip
   otomatik temizlenir.
 
+## Google ile Hızlı Kayıt Kurulumu
+
+"Google ile devam et" düğmesi kodda hazır ama iki değer YALNIZCA Firebase
+konsolundan alınıp elle girilmeden çalışmaz — ayarlanana kadar düğme
+istemcide hiç GÖSTERİLMEZ, sunucu tarafı da 503 döner (çökme yok, bkz.
+`isGoogleSignInConfigured` / `GOOGLE_WEB_CLIENT_ID`).
+
+### 1) Android imza parmak izini (SHA-1) Firebase'e ekle
+
+Debug imzasının SHA-1/SHA-256 değeri (bu makinedeki `debug.keystore`'dan
+üretildi):
+
+```
+SHA-1:   AD:9D:B5:69:86:7B:E7:05:D4:B6:04:0D:BB:75:8A:0C:3F:B8:B5:5F
+SHA-256: DF:52:4B:4F:AC:FB:E6:50:E9:DA:FA:C0:37:99:2F:BC:B5:C8:DC:8C:03:D1:A4:66:06:86:DD:CB:94:D2:83:40
+```
+
+Firebase konsolu (console.firebase.google.com) → `merhaba-93ddb` projesi →
+⚙ **Project settings** → **General** sekmesi → **Your apps** altında
+`com.merhaba.app` Android uygulaması → **Add fingerprint** → yukarıdaki
+SHA-1'i yapıştır (SHA-256 alanı varsa onu da ekle).
+
+> Bu, yalnızca DEBUG derlemeleri (emülatör/geliştirme cihazı) için yeterli.
+> Play Store'a gerçek bir sürüm yayınlarken RELEASE imzasının SHA-1'i de
+> aynı şekilde eklenmeli, yoksa yayınlanan sürümde Google girişi çalışmaz.
+
+### 2) Google sağlayıcısını aç ve Web Client ID'yi al
+
+Firebase konsolu → sol menü **Authentication** → **Sign-in method** sekmesi
+→ **Add new provider** → **Google** → Etkinleştir → bir destek e-postası
+seç (kendi e-postan yeterli) → Kaydet.
+
+Bu adım otomatik olarak bir "Web client (auto created by Google Service)"
+OAuth istemcisi oluşturur. Aynı sayfada **Google** sağlayıcısına tıklayıp
+"Web SDK configuration" kısmını açarsan **Web client ID** değerini
+görürsün (`237640279761-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com`
+formatında).
+
+### 3) Bu değeri iki yere gir
+
+- **İstemci**: `lib/services/auth_service.dart` içindeki
+  `_googleWebClientId` sabitini bu değerle değiştir.
+- **Sunucu**: Render dashboard → `merhaba-signaling` servisi →
+  **Environment** sekmesi → **Add Environment Variable** →
+  Key: `GOOGLE_WEB_CLIENT_ID`, Value: aynı değer → Save (otomatik yeniden
+  deploy tetikler).
+
+Bu değer GİZLİ değil (apiKey gibi herkese açık bir tanımlayıcı) — istemci
+kodunda görünmesi normal, `.gitignore`'a eklenmesi gerekmiyor.
+
 ## Kalıcı Barındırma (Firestore Yedekleme)
 
 Sunucu dosya tabanlı (`users.json`, `messages.json`, `reports.json`,
