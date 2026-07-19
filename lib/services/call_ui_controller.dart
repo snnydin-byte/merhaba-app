@@ -52,9 +52,9 @@ class CallUiController {
     _wired = true;
     final service = CallService();
 
-    service.onCallInviteReceived = (fromSocketId, fromDisplayName, callType) {
+    service.onCallInviteReceived = (fromSocketId, fromDisplayName, callType, isRematch) {
       // ignore: avoid_print
-      print('CallUiController: davet geldi - $fromDisplayName ($callType). '
+      print('CallUiController: davet geldi - $fromDisplayName ($callType, isRematch=$isRematch). '
           '_inCall=$_inCall _dialogShowing=$_dialogShowing currentAppContext=${currentAppContext == null ? "YOK" : "var"}');
       if (_inCall || _dialogShowing) {
         // Zaten bir görüşmedeyiz ya da başka bir diyalog açık - çakışan
@@ -65,7 +65,7 @@ class CallUiController {
         service.respondToCallInvite(false);
         return;
       }
-      _showIncomingCallDialog(fromDisplayName, callType, service);
+      _showIncomingCallDialog(fromDisplayName, callType, service, isRematch);
     };
 
     service.onCallInviteSent = () {
@@ -139,6 +139,26 @@ class CallUiController {
     _cancelOutgoingCallTimer();
   }
 
+  /// "Tekrar eşleş" (GECE_GELISTIRME madde 2) - startCall()'ın rematch
+  /// eşiti. video_chat_screen.dart, karşı taraf (hesaplıysa) ayrıldığında
+  /// gösterdiği "Tekrar Eşleş" snackbar aksiyonundan çağırır. Aynı "Aranıyor
+  /// ..." diyaloğu ve zaman aşımı mantığı kullanılıyor, tek fark
+  /// CallService.inviteToCall() yerine requestRematch() çağrılması (hedef
+  /// sunucu tarafında zaten biliniyor, bkz. orada).
+  Future<void> requestRematch(String partnerDisplayName) async {
+    _outgoingTargetName = partnerDisplayName;
+    CallService().requestRematch();
+    _cancelOutgoingCallTimer();
+    _outgoingCallTimer = Timer(_outgoingCallTimeout, () {
+      CallService().cancelOutgoingCall();
+      _dialogPop?.call();
+      _showSnack('${_outgoingTargetName ?? 'Kullanıcı'} yanıt vermedi.');
+      _outgoingTargetName = null;
+    });
+    await _showOutgoingCallDialog(partnerDisplayName, 'video');
+    _cancelOutgoingCallTimer();
+  }
+
   void _showSnack(String message) {
     final context = currentAppContext;
     if (context == null) return;
@@ -190,7 +210,8 @@ class CallUiController {
     _dialogPop = null;
   }
 
-  Future<void> _showIncomingCallDialog(String fromDisplayName, String callType, CallService service) async {
+  Future<void> _showIncomingCallDialog(String fromDisplayName, String callType,
+      CallService service, bool isRematch) async {
     final context = currentAppContext;
     if (context == null) {
       // Gösterecek bir ekran yok (uygulama henüz hiç açılmadı) - sessizce
@@ -214,11 +235,15 @@ class CallUiController {
           child: AlertDialog(
             backgroundColor: const Color(0xFF1A1035),
             title: Text(
-              callType == 'video' ? 'Görüntülü arama' : 'Sesli arama',
+              isRematch
+                  ? 'Tekrar Eşleş'
+                  : (callType == 'video' ? 'Görüntülü arama' : 'Sesli arama'),
               style: const TextStyle(color: Colors.white),
             ),
             content: Text(
-              '$fromDisplayName seni arıyor.',
+              isRematch
+                  ? '$fromDisplayName seninle tekrar görüşmek istiyor.'
+                  : '$fromDisplayName seni arıyor.',
               style: const TextStyle(color: Colors.white70),
             ),
             actions: [

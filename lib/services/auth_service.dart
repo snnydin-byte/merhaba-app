@@ -53,6 +53,9 @@ class AppUser {
   final String? zodiac; // sunucuda türetilir, herkese görünür
   final String? introVideoUrl;
   final bool isPremium;
+  // Günlük giriş serisi (GECE_GELISTIRME madde 7) - yalnızca kendi profilinde
+  // dolu gelir (bkz. server.js publicUser()), saf görsel bir rozet.
+  final int loginStreak;
 
   const AppUser({
     required this.id,
@@ -75,6 +78,7 @@ class AppUser {
     this.zodiac,
     this.introVideoUrl,
     this.isPremium = false,
+    this.loginStreak = 0,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -101,6 +105,7 @@ class AppUser {
         zodiac: json['zodiac'] as String?,
         introVideoUrl: json['introVideoUrl'] as String?,
         isPremium: json['isPremium'] as bool? ?? false,
+        loginStreak: json['loginStreak'] as int? ?? 0,
       );
 }
 
@@ -472,6 +477,20 @@ class AuthService {
     }
 
     _decodeOrThrow(response);
+  }
+
+  /// Gerçek zamanlı mesaj çevirisi (GECE_GELISTIRME madde 5) - sunucu
+  /// TRANSLATE_API_KEY ile yapılandırılmadıysa 503 döner (bkz.
+  /// translationService.js), bu durumda AuthException fırlatılır ve çağıran
+  /// ekran (chat_screen.dart) kullanıcıya "çeviri şu an yapılandırılmamış"
+  /// gibi bir mesaj gösterir.
+  Future<String> translateText(String text, String targetLang) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final response = await _post('/translate', {'text': text, 'targetLang': targetLang});
+    final data = _decodeOrThrow(response);
+    return data['translatedText'] as String? ?? text;
   }
 
   Future<void> logout() async {

@@ -56,6 +56,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   double _maxDistanceKm = 100;
   bool _textOnlyMode = false;
   bool _speedRoundMode = false;
+  // GECE_GELISTIRME madde 4 - ilgi alanı etiketiyle eşleştirme (sert filtre,
+  // affinityScore'daki YUMUŞAK ilgi alanı önceliğinden AYRI - o zaten her
+  // eşleşmede otomatik çalışıyor, bu anahtar "yalnızca ortak ilgi alanım
+  // olanlarla eşleş" gibi daha katı bir tercih).
+  bool _requireCommonInterest = false;
 
   // Gizlilik ayarları (#39/#24 anket maddeleri) - SharedPreferences DEĞİL,
   // sunucuda hesaba bağlı olarak saklanır (bkz. AuthService.updateProfile).
@@ -116,6 +121,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _maxDistanceKm = (maxDistanceKm ?? 100).toDouble();
       _textOnlyMode = prefs.getBool(matchTextOnlyPrefKey) ?? false;
       _speedRoundMode = prefs.getBool(matchSpeedRoundPrefKey) ?? false;
+      _requireCommonInterest = prefs.getBool(matchRequireCommonInterestPrefKey) ?? false;
       final user = AuthService().currentUser;
       if (user != null) {
         _hideOnlineStatus = user.hideOnlineStatus;
@@ -237,6 +243,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _speedRoundMode = value);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(matchSpeedRoundPrefKey, value);
+  }
+
+  Future<void> _setRequireCommonInterest(bool value) async {
+    setState(() => _requireCommonInterest = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(matchRequireCommonInterestPrefKey, value);
   }
 
   Future<void> _handleDeleteAccountTap() async {
@@ -361,6 +373,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: 'En az 7 günlük, hesaplı kullanıcılarla eşleş',
                   value: _onlyVerified,
                   onChanged: _setOnlyVerified,
+                ),
+                _switchTile(
+                  title: 'Ortak ilgi alanı şart olsun',
+                  subtitle: 'Yalnızca profilinde en az bir ortak ilgi alanı '
+                      'etiketi olan kişilerle eşleş',
+                  value: _requireCommonInterest,
+                  onChanged: _setRequireCommonInterest,
                 ),
                 _switchTile(
                   title: 'Yaş aralığı filtresi',

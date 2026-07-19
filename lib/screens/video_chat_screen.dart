@@ -6,8 +6,13 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../data/icebreakers.dart';
 import '../services/auth_service.dart';
+import '../services/call_ui_controller.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
+
+/// Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - sunucudaki
+/// QUICK_REACTIONS kataloğuyla (server.js) BİREBİR aynı olmalı.
+const List<String> quickReactions = ['👍', '😂', '❤️', '👋', '😮', '🔥'];
 
 /// "Arkadaş Ekle" butonunun/durumunun o anki eşleşme için hangi aşamada
 /// olduğunu tutar. Her yeni eşleşmede [none]'a sıfırlanır.
@@ -110,6 +115,53 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   final TextEditingController _msgController = TextEditingController();
   final List<_ChatMsg> _messages = [];
 
+  // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - o an ekranda
+  // "yüzen" tepkiler, her biri birkaç saniye sonra kendini listeden çıkarır
+  // (bkz. _addFloatingReaction). Kalıcı bir mesaj/veri DEĞİL.
+  final List<_FloatingReaction> _floatingReactions = [];
+  int _reactionIdCounter = 0;
+
+  void _addFloatingReaction(String emoji) {
+    if (!mounted) return;
+    final id = _reactionIdCounter++;
+    final xOffset = (Random().nextDouble() - 0.5) * 200;
+    setState(() => _floatingReactions.add(_FloatingReaction(id, emoji, xOffset)));
+    Timer(const Duration(seconds: 2, milliseconds: 200), () {
+      if (!mounted) return;
+      setState(() => _floatingReactions.removeWhere((r) => r.id == id));
+    });
+  }
+
+  void _showReactionPicker() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: quickReactions
+                .map((emoji) => GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        _webrtc.sendReaction(emoji);
+                        _addFloatingReaction(emoji);
+                      },
+                      child: Text(emoji, style: const TextStyle(fontSize: 30)),
+                    ))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -153,8 +205,16 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       setState(() => _messages.add(_ChatMsg(text, false)));
     };
 
+    _webrtc.onReaction = (emoji) => _addFloatingReaction(emoji);
+
     _webrtc.onPartnerLeft = () {
       if (!mounted) return;
+      // "Tekrar eşleş" (GECE_GELISTIRME madde 2) - yalnızca karşı tarafın
+      // hesabı varsa anlamlı (misafirlere bir daha ulaşılamaz, bkz.
+      // server.js lastPartnerByUser notu). Ayrılma anındaki değerleri
+      // aşağıdaki setState SIFIRLAMADAN ÖNCE yakalıyoruz.
+      final canRematch = _partnerHasAccount && _partnerDisplayName != null;
+      final rematchName = _partnerDisplayName;
       // Karşı taraf ayrıldığında ekranda öylece kalmak yerine otomatik
       // olarak yeni bir eşleşme aranmaya başlanır - tıpkı "sıradaki kişi"
       // butonuna basılmış gibi.
@@ -174,6 +234,18 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _stopSpeedRoundTimer();
       _startMatchTimeout();
       _webrtc.skipToNext();
+      if (canRematch) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$rematchName ayrıldı.'),
+            duration: const Duration(seconds: 8),
+            action: SnackBarAction(
+              label: 'Tekrar Eşleş',
+              onPressed: () => CallUiController().requestRematch(rematchName!),
+            ),
+          ),
+        );
+      }
     };
 
     // Yeni bir eşleşme bulunduğunda karşı tarafın hesabı olup olmadığını,
@@ -674,7 +746,9 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(
+        child: Stack(
+          children: [
+            Column(
           children: [
             // ÜST BAR
             Padding(
@@ -1018,6 +1092,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                     active: _chatOpen,
                     onTap: () => setState(() => _chatOpen = !_chatOpen),
                   ),
+                  _controlButton(
+                    icon: Icons.emoji_emotions_outlined,
+                    active: false,
+                    onTap: _showReactionPicker,
+                  ),
                   GestureDetector(
                     onTap: _nextPerson,
                     child: Container(
@@ -1049,6 +1128,18 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                     onTap: _endCall,
                   ),
                 ],
+              ),
+            ),
+          ],
+            ),
+            // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - dokunuşları
+            // ALTINDAKİ ekrana geçirmesi için IgnorePointer ile sarılı, yalnızca
+            // görsel bir katman.
+            IgnorePointer(
+              child: Stack(
+                children: _floatingReactions
+                    .map((r) => _FloatingReactionWidget(key: ValueKey(r.id), reaction: r))
+                    .toList(),
               ),
             ),
           ],
@@ -1263,6 +1354,40 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         ),
         child: Icon(icon, color: Colors.white, size: 20),
       ),
+    );
+  }
+}
+
+class _FloatingReaction {
+  final int id;
+  final String emoji;
+  final double xOffset;
+  _FloatingReaction(this.id, this.emoji, this.xOffset);
+}
+
+/// Bir hızlı tepkinin ekranda "yukarı süzülüp solarak" kaybolması - basit bir
+/// TweenAnimationBuilder, ekstra bir animasyon paketi gerektirmiyor.
+class _FloatingReactionWidget extends StatelessWidget {
+  final _FloatingReaction reaction;
+  const _FloatingReactionWidget({super.key, required this.reaction});
+
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(seconds: 2, milliseconds: 200),
+      curve: Curves.easeOut,
+      builder: (context, t, child) {
+        return Positioned(
+          bottom: screenSize.height * 0.25 + t * 220,
+          left: screenSize.width / 2 - 20 + reaction.xOffset * t,
+          child: Opacity(
+            opacity: (1 - t).clamp(0.0, 1.0),
+            child: Text(reaction.emoji, style: const TextStyle(fontSize: 40)),
+          ),
+        );
+      },
     );
   }
 }

@@ -433,6 +433,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: AppSpacing.xs),
             PillBadge(label: 'Onaylı hesap', color: AppColors.secondary),
           ],
+          // Günlük giriş serisi (GECE_GELISTIRME madde 7) - saf görsel bir
+          // rozet, HİÇBİR parasal ödül YOK. 1 günlük seri gösterilmiyor
+          // (henüz "seri" sayılmaz, yalnızca bugün giriş yapılmış demek).
+          if (user.loginStreak > 1) ...[
+            const SizedBox(height: AppSpacing.xs),
+            PillBadge(
+              label: '${user.loginStreak} günlük seri 🔥',
+              color: AppColors.primary,
+            ),
+          ],
         ],
       ),
     );

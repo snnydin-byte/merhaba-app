@@ -392,6 +392,12 @@ class MessagingService {
   // mesajımızı okuyunca (bkz. server.js 'conversation-read').
   void Function(List<String> messageIds, DateTime readAt)? onConversationRead;
 
+  // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - fromId, YAZAN
+  // kişinin userId'si (bkz. server.js typing-start/typing-stop). Hiçbir şey
+  // SAKLANMIYOR, yalnızca anlık bir gösterge.
+  void Function(String fromId)? onTypingStart;
+  void Function(String fromId)? onTypingStop;
+
   // Mesaj planlama (#12 anket maddesi) - bkz. yukarıdaki ScheduledMessage.
   void Function(String clientId, ScheduledMessage item)? onScheduleMessageAck;
   void Function(String? clientId, String? id, String message)?
@@ -496,6 +502,28 @@ class MessagingService {
         return;
       }
       onConnectError?.call('Bağlantı kesildi ($reason), yeniden bağlanılıyor...');
+    });
+
+    // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
+    _socket!.on('typing-start', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final fromId = map['fromId'] as String?;
+        if (fromId != null) onTypingStart?.call(fromId);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (typing-start): $e');
+      }
+    });
+    _socket!.on('typing-stop', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final fromId = map['fromId'] as String?;
+        if (fromId != null) onTypingStop?.call(fromId);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (typing-stop): $e');
+      }
     });
 
     _socket!.on('persistent-message-received', (data) {
@@ -925,6 +953,16 @@ class MessagingService {
     connectIfNeeded(authToken);
   }
 
+  /// "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - chat_screen.dart
+  /// bunu TextField onChanged'inde (debounce'lu) çağırır.
+  void sendTypingStart(String toId) {
+    _socket?.emit('typing-start', {'toId': toId});
+  }
+
+  void sendTypingStop(String toId) {
+    _socket?.emit('typing-stop', {'toId': toId});
+  }
+
   void sendPersistentMessage(
       {required String toId,
       required String text,
@@ -1281,6 +1319,8 @@ class MessagingService {
     onMessagePinned = null;
     onMessageUpdated = null;
     onConversationRead = null;
+    onTypingStart = null;
+    onTypingStop = null;
     onScheduleMessageAck = null;
     onScheduleMessageError = null;
     onScheduleMessageCancelled = null;

@@ -124,6 +124,15 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _loadingHistory = true;
   _ChatItem? _replyingTo;
 
+  // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
+  bool _partnerTyping = false;
+  Timer? _partnerTypingTimeout;
+  // KENDİ yazma durumumuz - 'typing-start' art arda her tuş vuruşunda değil,
+  // yazmaya BAŞLARKEN bir kez gönderilir (aşağıdaki _iAmTyping bayrağı bunu
+  // takip eder); 2 saniyelik yazma durağanlığından sonra 'typing-stop' gider.
+  bool _iAmTyping = false;
+  Timer? _stopTypingDebounce;
+
   // Sesli mesaj kaydı (#48 anket maddesi).
   final AudioRecorder _audioRecorder = AudioRecorder();
   bool _isRecordingVoice = false;
@@ -285,6 +294,25 @@ class _ChatScreenState extends State<ChatScreen> {
           }
         }
       });
+    };
+
+    // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - yalnızca BU
+    // sohbetin karşı tarafından gelen sinyal işleniyor (fromId eşleşmeli).
+    // typing-stop hiç gelmezse (ör. karşı taraf uygulamayı aniden kapattı)
+    // 4 saniyelik bir zaman aşımıyla kendiliğinden kayboluyor - göstergenin
+    // sonsuza kadar takılı kalmasını önlemek için.
+    _messaging.onTypingStart = (fromId) {
+      if (!mounted || fromId != widget.friend.id) return;
+      setState(() => _partnerTyping = true);
+      _partnerTypingTimeout?.cancel();
+      _partnerTypingTimeout = Timer(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _partnerTyping = false);
+      });
+    };
+    _messaging.onTypingStop = (fromId) {
+      if (!mounted || fromId != widget.friend.id) return;
+      _partnerTypingTimeout?.cancel();
+      setState(() => _partnerTyping = false);
     };
 
     _messaging.onPersistentMessageAck = (clientId, message) {
@@ -456,6 +484,30 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - kendine not/bot
+  /// sohbetinde göstermenin bir anlamı yok (karşı taraf kendimiz/gerçek bir
+  /// kişi değil), bkz. onTap yorumları.
+  void _onComposerChanged(String text) {
+    if (_isNoteToSelf || widget.friend.id == 'merhaba-bot') return;
+    if (text.trim().isEmpty) {
+      _stopTypingDebounce?.cancel();
+      if (_iAmTyping) {
+        _iAmTyping = false;
+        _messaging.sendTypingStop(widget.friend.id);
+      }
+      return;
+    }
+    if (!_iAmTyping) {
+      _iAmTyping = true;
+      _messaging.sendTypingStart(widget.friend.id);
+    }
+    _stopTypingDebounce?.cancel();
+    _stopTypingDebounce = Timer(const Duration(seconds: 2), () {
+      _iAmTyping = false;
+      _messaging.sendTypingStop(widget.friend.id);
+    });
+  }
+
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty || _connecting || _connectionError != null) return;
@@ -478,6 +530,11 @@ class _ChatScreenState extends State<ChatScreen> {
       _replyingTo = null;
     });
     _scrollToBottom();
+    _stopTypingDebounce?.cancel();
+    if (_iAmTyping) {
+      _iAmTyping = false;
+      _messaging.sendTypingStop(widget.friend.id);
+    }
 
     if (_mode == _ChatMode.persistent) {
       _messaging.sendPersistentMessage(
@@ -955,6 +1012,60 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// Gerçek zamanlı mesaj çevirisi (GECE_GELISTIRME madde 5) - hedef dil
+  /// olarak cihazın/uygulamanın o an gösterildiği dili kullanıyoruz ("bu
+  /// mesajı BENİM anlayabileceğim dile çevir" mantığı). Sunucu
+  /// TRANSLATE_API_KEY ile yapılandırılmadıysa AuthService.translateText()
+  /// bir AuthException fırlatır (bkz. orada) - bu durumda kullanıcıya
+  /// sunucunun döndürdüğü "çeviri şu an yapılandırılmamış" mesajı gösterilir.
+  Future<void> _translateMessage(_ChatItem item) async {
+    final targetLang = Localizations.localeOf(context).languageCode;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+            ),
+            SizedBox(width: 16),
+            Text('Çevriliyor...', style: TextStyle(color: Colors.white70)),
+          ],
+        ),
+      ),
+    );
+    try {
+      final translated = await AuthService().translateText(item.text, targetLang);
+      if (!mounted) return;
+      Navigator.pop(context);
+      showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppColors.surfaceElevated,
+          title: const Text('Çeviri', style: TextStyle(color: Colors.white)),
+          content: Text(translated, style: const TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
+          ],
+        ),
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Çeviri yapılamadı, tekrar dene.')));
+    }
+  }
+
   void _showMessageActions(_ChatItem item) {
     if (item.deleted || item.serverId == null) return;
     showModalBottomSheet<void>(
@@ -995,6 +1106,15 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _replyingTo = item);
               },
             ),
+            if (item.kind == 'text')
+              ListTile(
+                leading: const Icon(Icons.translate_rounded, color: Colors.white70),
+                title: const Text('Çevir', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _translateMessage(item);
+                },
+              ),
             ListTile(
               leading: Icon(
                   item.pinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -1043,6 +1163,9 @@ class _ChatScreenState extends State<ChatScreen> {
     // gelecek arkadaşlık/mesaj/arama olayları çalışmaya devam eder).
     _messaging.detachScreenCallbacks();
     _cancelConnectTimeout();
+    _partnerTypingTimeout?.cancel();
+    _stopTypingDebounce?.cancel();
+    if (_iAmTyping) _messaging.sendTypingStop(widget.friend.id);
     _controller.dispose();
     _scrollController.dispose();
     _recordingTicker?.cancel();
@@ -1059,7 +1182,22 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(_isNoteToSelf ? 'Kendime Not' : widget.friend.displayName),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_isNoteToSelf ? 'Kendime Not' : widget.friend.displayName),
+            // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
+            if (_partnerTyping)
+              const Text(
+                'yazıyor...',
+                style: TextStyle(
+                    color: AppColors.primaryLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -1792,7 +1930,10 @@ class _ChatScreenState extends State<ChatScreen> {
             child: TextField(
               controller: _controller,
               style: const TextStyle(color: Colors.white, fontSize: 14),
-              onChanged: (_) => setState(() {}),
+              onChanged: (text) {
+                setState(() {});
+                _onComposerChanged(text);
+              },
               decoration: InputDecoration(
                 hintText: _isNoteToSelf
                     ? 'Kendine bir not yaz...'

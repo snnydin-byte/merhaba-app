@@ -20,6 +20,8 @@ const String matchCountryFilterPrefKey = 'match_country_filter'; // String? ülk
 const String matchMaxDistanceKmPrefKey = 'match_max_distance_km'; // int, yoksa yok
 const String matchTextOnlyPrefKey = 'match_text_only'; // bool
 const String matchSpeedRoundPrefKey = 'match_speed_round'; // bool
+// GECE_GELISTIRME madde 4 - ilgi alanı etiketiyle eşleştirme.
+const String matchRequireCommonInterestPrefKey = 'match_require_common_interest'; // bool
 
 /// Sunucunun adresi.
 ///
@@ -91,6 +93,8 @@ class WebRTCService {
     if (textOnly == true) result['textOnly'] = true;
     final speedRound = prefs.getBool(matchSpeedRoundPrefKey);
     if (speedRound == true) result['speedRound'] = true;
+    final requireCommonInterest = prefs.getBool(matchRequireCommonInterestPrefKey);
+    if (requireCommonInterest == true) result['requireCommonInterest'] = true;
 
     // Yakınlık bazlı eşleştirme (Batch C) - konum sunucuya HER SEFERİNDE
     // canlı olarak gönderilir (bkz. server.js passesProximityFilter), asla
@@ -164,6 +168,7 @@ class WebRTCService {
   OnLocalStream? onLocalStream;
   OnStatusChange? onStatusChange;
   void Function(String text)? onChatMessage;
+  void Function(String emoji)? onReaction;
   void Function()? onPartnerLeft;
   OnMatchInfo? onMatchInfo;
   OnFriendRequestReceived? onFriendRequestReceived;
@@ -408,6 +413,18 @@ class WebRTCService {
         // ignore: avoid_print
         print('HATA (signal): $e\n$st');
         onStatusChange?.call('Hata (sinyal): $e');
+      }
+    });
+
+    // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3).
+    _socket!.on('call-reaction', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final emoji = map['emoji'] as String?;
+        if (emoji != null) onReaction?.call(emoji);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (call-reaction): $e');
       }
     });
 
@@ -703,6 +720,13 @@ class WebRTCService {
 
   void sendChatMessage(String text) {
     _socket?.emit('chat-message', {'text': text});
+  }
+
+  /// Görüşme içi hızlı tepki gönderir (GECE_GELISTIRME madde 3) - [emoji]
+  /// sunucudaki QUICK_REACTIONS kataloğunda olmalı, aksi halde sunucu
+  /// sessizce yok sayar (bkz. video_chat_screen.dart quickReactions).
+  void sendReaction(String emoji) {
+    _socket?.emit('call-reaction', {'emoji': emoji});
   }
 
   void toggleMic(bool enabled) {

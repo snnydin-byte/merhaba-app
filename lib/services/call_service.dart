@@ -105,8 +105,8 @@ class CallService {
   // Arama daveti akışı - call_ui_controller.dart tarafından oturum
   // açıldığında bir kez bağlanır (bkz. orada), tıpkı bu servisin sinyal
   // soketinin bir kez kurulması gibi.
-  void Function(String fromSocketId, String fromDisplayName, String callType)?
-      onCallInviteReceived;
+  void Function(String fromSocketId, String fromDisplayName, String callType,
+      bool isRematch)? onCallInviteReceived;
   void Function()? onCallInviteSent;
   void Function(String message)? onCallInviteError;
   void Function()? onCallInviteDeclined;
@@ -259,6 +259,7 @@ class CallService {
           map['fromSocketId'] as String,
           map['fromDisplayName'] as String? ?? 'Biri',
           map['callType'] as String? ?? 'video',
+          map['isRematch'] as bool? ?? false,
         );
       } catch (e) {
         // ignore: avoid_print
@@ -323,6 +324,23 @@ class CallService {
       return;
     }
     _socket?.emit('call-invite', {'toId': friendId, 'callType': callType});
+  }
+
+  /// "Tekrar eşleş" (GECE_GELISTIRME madde 2) - inviteToCall()'ın SADELEŞMİŞ
+  /// hâli: hedef sunucu tarafında BELİRLENİYOR (son rastgele eşleştiğimiz
+  /// hesaplı kişi, bkz. server.js lastPartnerByUser) - burada bir friendId
+  /// GEÇMİYORUZ. Kabul/red aynı call-invite-received/response akışından
+  /// geçiyor (bkz. CallUiController.requestRematch() - isRematch bayrağıyla
+  /// farklı bir metin gösteriyor, akışın kendisi BİREBİR aynı).
+  void requestRematch() {
+    final connected = _socket?.connected ?? false;
+    if (_socket == null || (!connected && !_connecting)) {
+      onCallInviteError?.call('Sunucu bağlantısı kopmuş, tekrar dene.');
+      final token = _lastAuthToken;
+      if (token != null) reconnect(token);
+      return;
+    }
+    _socket?.emit('rematch-invite');
   }
 
   void respondToCallInvite(bool accepted) {
