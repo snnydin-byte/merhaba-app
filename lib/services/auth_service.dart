@@ -19,7 +19,7 @@ import 'webrtc_service.dart' show signalingServerUrl;
 // düşme" (istemci tarafı gösterilmiyor, sunucu tarafı da GOOGLE_WEB_CLIENT_ID
 // ayarlanmadıysa 503 döner, hiçbir yerde çökme olmaz).
 const String _googleWebClientId =
-    'REPLACE_WITH_REAL_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com';
+    '237640279761-pov3sop9c2fjmfc2ooe75lsnpti7e1ra.apps.googleusercontent.com';
 
 bool get isGoogleSignInConfigured =>
     !_googleWebClientId.startsWith('REPLACE_WITH_');
