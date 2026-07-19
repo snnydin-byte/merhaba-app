@@ -10,6 +10,7 @@ import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import 'friends_screen.dart';
+import 'group_call_pre_screen.dart';
 import 'pre_call_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
@@ -105,6 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const Spacer(),
                 _buildStartButton(context),
+                const SizedBox(height: 10),
+                _buildGroupCallEntry(context),
                 const SizedBox(height: 12),
                 Text(
                   'Devam ederek Topluluk Kurallarını kabul etmiş olursun.',
@@ -278,6 +281,24 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           Text('Sohbete Başla', style: AppText.button),
         ],
+      ),
+    );
+  }
+
+  // Küçük grup rastgele görüşmesi (mesh, 3-4 kişi, Batch C) - ana CTA'nın
+  // altında ikincil, göze daha az çarpan bir giriş. "(beta)" etiketi
+  // bilerek kalıcı: bu özellik gerçek çoklu-cihaz testinden geçmedi.
+  Widget _buildGroupCallEntry(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () {
+        Navigator.of(context).push(
+          AppPageRoute(builder: (_) => const GroupCallPreScreen()),
+        );
+      },
+      icon: const Icon(Icons.groups_rounded, color: Colors.white54, size: 18),
+      label: const Text(
+        'Grup Görüşmesi (beta) · 3-4 kişi',
+        style: TextStyle(color: Colors.white54, fontSize: 13),
       ),
     );
   }
