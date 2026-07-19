@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
 import '../services/call_service.dart';
@@ -38,6 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _birthDate;
 
   bool _uploadingPhoto = false;
+  bool _uploadingVideo = false;
 
   @override
   void dispose() {
@@ -173,6 +175,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showSnack('Fotoğraf kaldırılamadı, tekrar dene.');
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
+
+  // Video profil tanıtımı (Batch C) - kayıt/oynatma için ayrı bir video
+  // oynatıcı paketi eklemek yerine (bkz. proje kapsam notu) yüklenen video
+  // url_launcher ile CİHAZIN kendi video oynatıcısında/tarayıcısında
+  // açılıyor - fotoğraf yükleme akışıyla AYNI desen, yalnızca ImagePicker.
+  // pickVideo() kullanıyor.
+  Future<void> _pickAndUploadIntroVideo() async {
+    final picker = ImagePicker();
+    final XFile? picked;
+    try {
+      picked = await picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 30),
+      );
+    } catch (_) {
+      _showSnack('Video seçilemedi, tekrar dene.');
+      return;
+    }
+    if (picked == null) return;
+
+    setState(() => _uploadingVideo = true);
+    try {
+      await _authService.uploadIntroVideo(File(picked.path));
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      _showSnack('Video yüklenemedi, tekrar dene.');
+    } finally {
+      if (mounted) setState(() => _uploadingVideo = false);
+    }
+  }
+
+  Future<void> _removeIntroVideo() async {
+    setState(() => _uploadingVideo = true);
+    try {
+      await _authService.removeIntroVideo();
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      _showSnack('Video kaldırılamadı, tekrar dene.');
+    } finally {
+      if (mounted) setState(() => _uploadingVideo = false);
+    }
+  }
+
+  Future<void> _playIntroVideo(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      _showSnack('Video açılamadı.');
     }
   }
 
@@ -448,6 +503,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Video/kısa klip profil tanıtımı (Batch C) - en fazla 30sn, galeriden
+  /// seçilir, Cloudinary'ye yüklenir (bkz. auth_service.dart
+  /// uploadIntroVideo). Oynatma cihazın kendi video oynatıcısında/
+  /// tarayıcısında açılır (bkz. _playIntroVideo notu).
+  Widget _introVideoCard(AppUser user) {
+    if (_uploadingVideo) {
+      return const GlassCard(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+    if (user.introVideoUrl == null) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: _pickAndUploadIntroVideo,
+        child: GlassCard(
+          child: Row(
+            children: [
+              Icon(Icons.videocam_outlined, color: AppColors.textMuted),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Video tanıtım ekle (en fazla 30sn)',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+              ),
+              const Icon(Icons.add, color: Colors.white38),
+            ],
+          ),
+        ),
+      );
+    }
+    return GlassCard(
+      child: Row(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => _playIntroVideo(user.introVideoUrl!),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Video tanıtımın', style: AppText.subheading.copyWith(fontSize: 14)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+            onPressed: _removeIntroVideo,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProfileBody(AppUser user) {
     final genderLabel = user.gender == 'erkek'
         ? 'Erkek'
@@ -494,6 +612,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.language?.isNotEmpty == true
                 ? user.language!
                 : 'Belirtilmemiş'),
+        const SizedBox(height: AppSpacing.md),
+        _introVideoCard(user),
         const SizedBox(height: AppSpacing.md),
         _premiumBanner(user),
         const SizedBox(height: AppSpacing.md),
