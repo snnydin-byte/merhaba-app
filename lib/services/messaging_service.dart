@@ -111,6 +111,78 @@ class ScheduledMessage {
       );
 }
 
+/// Bir durum/hikaye paylaşımı (#71 anket maddesi) - bkz.
+/// signaling_server/storyStore.js. 24 saat sonra sunucu tarafında
+/// kendiliğinden "aktif olmayan" sayılır, GET /stories bir daha hiç
+/// döndürmez (bkz. story_service kullanan ekranlar).
+class Story {
+  final String id;
+  final String userId;
+  final String authorDisplayName;
+  final String? authorPhotoUrl;
+  final String kind; // 'text' | 'photo'
+  final String? text;
+  final String? mediaUrl;
+  final String? backgroundColor;
+  final DateTime createdAt;
+  final DateTime expiresAt;
+  final bool viewed;
+  final int viewCount;
+
+  const Story({
+    required this.id,
+    required this.userId,
+    required this.authorDisplayName,
+    this.authorPhotoUrl,
+    required this.kind,
+    this.text,
+    this.mediaUrl,
+    this.backgroundColor,
+    required this.createdAt,
+    required this.expiresAt,
+    this.viewed = false,
+    this.viewCount = 0,
+  });
+
+  factory Story.fromJson(Map<String, dynamic> json) => Story(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        authorDisplayName: json['authorDisplayName'] as String? ?? 'Biri',
+        authorPhotoUrl: json['authorPhotoUrl'] as String?,
+        kind: json['kind'] as String? ?? 'text',
+        text: json['text'] as String?,
+        mediaUrl: json['mediaUrl'] as String?,
+        backgroundColor: json['backgroundColor'] as String?,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        expiresAt: DateTime.parse(json['expiresAt'] as String),
+        viewed: json['viewed'] as bool? ?? false,
+        viewCount: json['viewCount'] as int? ?? 0,
+      );
+}
+
+/// Bir hikayeyi kimin/ne zaman izlediği - yalnızca hikaye sahibi çekebilir
+/// (bkz. server.js GET /stories/:id/viewers).
+class StoryViewer {
+  final String userId;
+  final String displayName;
+  final String? photoUrl;
+  final DateTime viewedAt;
+
+  const StoryViewer({
+    required this.userId,
+    required this.displayName,
+    this.photoUrl,
+    required this.viewedAt,
+  });
+
+  factory StoryViewer.fromJson(Map<String, dynamic> json) => StoryViewer(
+        userId: json['userId'] as String,
+        displayName: json['displayName'] as String? ?? 'Biri',
+        photoUrl: json['photoUrl'] as String?,
+        viewedAt: DateTime.parse(json['viewedAt'] as String),
+      );
+}
+
 /// Kaybolan (ephemeral) bir mesaj - sunucuda hiç saklanmaz, yalnızca anlık
 /// iletilir. Bu yüzden PersistentMessage'dan farklı olarak "toId" alanı
 /// yok - zaten sadece bize gelen mesajlar bu tipte oluşuyor.
@@ -210,6 +282,20 @@ class MessagingService {
   // Gönderim anına kadar arkadaşlık bozulmuşsa (ör. engellendiyse) - mesaj
   // hiç gönderilmez, kullanıcıya haber verilir.
   void Function(String id, String message)? onScheduleMessageFailed;
+
+  // Durum/hikaye (#71 anket maddesi) - bkz. yukarıdaki Story/StoryViewer.
+  void Function(String clientId, Story story)? onStoryCreateAck;
+  void Function(String? clientId, String message)? onStoryError;
+  // Bir arkadaş yeni bir hikaye paylaştığında ANLIK (bkz. server.js
+  // 'story-new') - hikaye şeridini yeniden çekmeden güncelleyebilmek için.
+  void Function(Story story, String fromDisplayName)? onNewStory;
+  // Kendi hikayemizi biri izlediğinde - yalnızca hikaye sahibine gelir.
+  void Function(String storyId, String viewerId, String viewerDisplayName,
+      DateTime viewedAt)? onStoryViewed;
+  void Function(String storyId)? onStoryDeleted;
+  // Bir arkadaş kendi hikayesini sildiğinde ANLIK - o an açık olan hikaye
+  // şeridinden/görüntüleyiciden kaldırılabilsin diye.
+  void Function(String storyId)? onStoryRemoved;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -447,6 +533,76 @@ class MessagingService {
       }
     });
 
+    _socket!.on('story-create-ack', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final story = Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
+        onStoryCreateAck?.call(map['clientId'] as String, story);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-create-ack): $e');
+      }
+    });
+
+    _socket!.on('story-error', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onStoryError?.call(
+          map['clientId'] as String?,
+          map['message'] as String? ?? 'Hikaye paylaşılamadı.',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-error): $e');
+      }
+    });
+
+    _socket!.on('story-new', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final story = Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
+        onNewStory?.call(story, map['fromDisplayName'] as String? ?? 'Biri');
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-new): $e');
+      }
+    });
+
+    _socket!.on('story-viewed', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onStoryViewed?.call(
+          map['storyId'] as String,
+          map['viewerId'] as String,
+          map['viewerDisplayName'] as String? ?? 'Biri',
+          DateTime.parse(map['viewedAt'] as String),
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-viewed): $e');
+      }
+    });
+
+    _socket!.on('story-deleted', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onStoryDeleted?.call(map['storyId'] as String);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-deleted): $e');
+      }
+    });
+
+    _socket!.on('story-removed', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onStoryRemoved?.call(map['storyId'] as String);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (story-removed): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -605,6 +761,76 @@ class MessagingService {
         .toList();
   }
 
+  /// Yeni bir durum/hikaye paylaşır (#71 anket maddesi) - [kind] 'text' ise
+  /// [text] zorunlu, 'photo' ise [mediaUrl] zorunlu (fotoğraf önce
+  /// uploadChatMedia ile yüklenip dönen URL buraya geçilir). Sonuç
+  /// onStoryCreateAck/onStoryError ile gelir.
+  void createStory(
+      {required String kind,
+      required String clientId,
+      String? text,
+      String? mediaUrl,
+      String? backgroundColor}) {
+    _socket?.emit('story-create', {
+      'clientId': clientId,
+      'kind': kind,
+      if (text != null) 'text': text,
+      if (mediaUrl != null) 'mediaUrl': mediaUrl,
+      if (backgroundColor != null) 'backgroundColor': backgroundColor,
+    });
+  }
+
+  /// Bir hikayeyi "görüldü" işaretler - sahibi kendi hikayesi için
+  /// çağırırsa sunucu sessizce yok sayar (bkz. storyStore.markViewed).
+  void viewStory(String storyId) {
+    _socket?.emit('story-view', {'storyId': storyId});
+  }
+
+  /// Yalnızca kendi hikayeni silebilirsin.
+  void deleteStory(String storyId) {
+    _socket?.emit('story-delete', {'storyId': storyId});
+  }
+
+  /// Arkadaşların (+ kendi) süresi dolmamış TÜM hikayelerini döner (bkz.
+  /// server.js GET /stories).
+  Future<List<Story>> fetchStories() async {
+    final token = AuthService().token;
+    if (token == null) return [];
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$signalingServerUrl/stories'),
+              headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    if (response.statusCode != 200) throw Exception('Hikayeler alınamadı.');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (data['stories'] as List<dynamic>? ?? []);
+    return list.map((e) => Story.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Bir hikayeyi kimlerin izlediği - yalnızca sahibiyken çağrılabilir (bkz.
+  /// server.js GET /stories/:id/viewers, aksi halde 403 döner).
+  Future<List<StoryViewer>> fetchStoryViewers(String storyId) async {
+    final token = AuthService().token;
+    if (token == null) return [];
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$signalingServerUrl/stories/$storyId/viewers'),
+              headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    if (response.statusCode != 200) throw Exception('İzleyenler alınamadı.');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (data['viewers'] as List<dynamic>? ?? []);
+    return list.map((e) => StoryViewer.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
   /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
   /// Dönen URL, ardından 'kind'e göre sendPersistentMessage'a meta olarak
@@ -697,6 +923,12 @@ class MessagingService {
     onScheduleMessageCancelled = null;
     onScheduleMessageFired = null;
     onScheduleMessageFailed = null;
+    onStoryCreateAck = null;
+    onStoryError = null;
+    onNewStory = null;
+    onStoryViewed = null;
+    onStoryDeleted = null;
+    onStoryRemoved = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;

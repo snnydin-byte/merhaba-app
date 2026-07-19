@@ -10,6 +10,8 @@ import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import 'chat_screen.dart';
 import 'login_screen.dart';
+import 'story_creator_sheet.dart';
+import 'story_viewer_screen.dart';
 
 /// Arkadaşlar sayfası - ana ekrandaki çevrimiçi sayısının altındaki
 /// "Arkadaşlar" girişinden açılır. Arkadaş listesini gösterir/kaldırır,
@@ -35,6 +37,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
   List<AppUser> _friends = [];
   Timer? _statusRefreshTimer;
 
+  // Durum/hikaye (#71 anket maddesi) - gerçek zamanlı soket bildirimi
+  // yerine (bkz. sınıf üstü not - MessagingService callback'leri ekranlar
+  // arasında paylaşılan TEK bir alan, chat_screen.dart açıkken üzerine
+  // yazılabilir) BİLEREK aynı 20sn'lik periyodik yenilemeye (bkz.
+  // _silentRefresh) bindiriliyor - arkadaş listesi de zaten aynı desenle
+  // güncelleniyor.
+  List<Story> _stories = [];
+  bool _loadingStories = false;
+
   bool get _isGuest => !AuthService().isLoggedIn;
 
   @override
@@ -42,14 +53,32 @@ class _FriendsScreenState extends State<FriendsScreen> {
     super.initState();
     if (!_isGuest) {
       _load();
+      _loadStories();
       // Çevrimiçi/son görülme durumu zamanla değiştiği (arkadaş çevrimiçi
       // olabilir/çıkabilir) için listeyi periyodik olarak sessizce (yükleniyor
       // döndürmeden) tazeliyoruz - home_screen.dart'taki online-count
       // yenilemesiyle aynı yaklaşım.
-      _statusRefreshTimer =
-          Timer.periodic(const Duration(seconds: 20), (_) => _silentRefresh());
+      _statusRefreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+        _silentRefresh();
+        _loadStories();
+      });
     } else {
       _loading = false;
+    }
+  }
+
+  Future<void> _loadStories() async {
+    if (_isGuest) return;
+    setState(() => _loadingStories = true);
+    try {
+      final stories = await MessagingService().fetchStories();
+      if (!mounted) return;
+      setState(() {
+        _stories = stories;
+        _loadingStories = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingStories = false);
     }
   }
 
@@ -271,8 +300,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
       return Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 0),
-            child: Column(children: [_buildNoteToSelfTile(), _buildBotTile()]),
+            padding: EdgeInsets.fromLTRB(0, 16 + kToolbarHeight, 0, 0),
+            child: Column(
+              children: [
+                _buildStoryRing(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child:
+                      Column(children: [_buildNoteToSelfTile(), _buildBotTile()]),
+                ),
+              ],
+            ),
           ),
           Expanded(child: _buildEmptyState()),
         ],
@@ -290,13 +328,147 @@ class _FriendsScreenState extends State<FriendsScreen> {
         // hesaba katıyor, AppBar'ın kendi (kToolbarHeight) yüksekliğini değil
         // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
         // dokunuş yakalayan bölgesiyle çakışıyordu.
-        padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
-        itemCount: _friends.length + 2,
+        padding: EdgeInsets.fromLTRB(0, 16 + kToolbarHeight, 0, 16),
+        itemCount: _friends.length + 3,
         itemBuilder: (context, index) {
-          if (index == 0) return _buildNoteToSelfTile();
-          if (index == 1) return _buildBotTile();
-          return _buildFriendTile(_friends[index - 2]);
+          if (index == 0) return _buildStoryRing();
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: index == 1
+                ? _buildNoteToSelfTile()
+                : index == 2
+                    ? _buildBotTile()
+                    : _buildFriendTile(_friends[index - 3]),
+          );
         },
+      ),
+    );
+  }
+
+  /// Durum/hikaye şeridi (#71 anket maddesi) - WhatsApp/Instagram tarzı
+  /// yatay kaydırılabilir daire dizisi. İlk öğe her zaman "Hikayen" (kendi
+  /// hikayen varsa görüntülemeye, yoksa oluşturmaya götürür), ardından
+  /// aktif hikayesi olan arkadaşlar (izlenmemiş varsa parlak, hepsi
+  /// izlenmişse soluk halka ile).
+  Widget _buildStoryRing() {
+    if (_loadingStories && _stories.isEmpty) return const SizedBox.shrink();
+
+    final myId = AuthService().currentUser?.id;
+    final myStories = _stories.where((s) => s.userId == myId).toList();
+    final Map<String, List<Story>> byFriend = {};
+    for (final s in _stories) {
+      if (s.userId == myId) continue;
+      byFriend.putIfAbsent(s.userId, () => []).add(s);
+    }
+    if (myStories.isEmpty && byFriend.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: 96,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          _storyRingTile(
+            label: 'Hikayen',
+            photoUrl: AuthService().currentUser?.photoUrl,
+            hasUnviewed: false,
+            hasAny: myStories.isNotEmpty,
+            showAddBadge: true,
+            onTap: () async {
+              if (myStories.isEmpty) {
+                await showStoryCreatorSheet(context);
+              } else {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => StoryViewerScreen(stories: myStories),
+                ));
+              }
+              _loadStories();
+            },
+          ),
+          ...byFriend.entries.map((entry) {
+            final stories = entry.value
+              ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+            final hasUnviewed = stories.any((s) => !s.viewed);
+            return _storyRingTile(
+              label: stories.first.authorDisplayName,
+              photoUrl: stories.first.authorPhotoUrl,
+              hasUnviewed: hasUnviewed,
+              hasAny: true,
+              onTap: () async {
+                await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => StoryViewerScreen(stories: stories),
+                ));
+                _loadStories();
+              },
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _storyRingTile({
+    required String label,
+    String? photoUrl,
+    required bool hasUnviewed,
+    required bool hasAny,
+    bool showAddBadge = false,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 68,
+        child: Column(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              padding: const EdgeInsets.all(2.5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: hasUnviewed
+                    ? const LinearGradient(
+                        colors: [AppColors.primary, AppColors.secondary])
+                    : null,
+                border: !hasUnviewed
+                    ? Border.all(
+                        color: hasAny ? Colors.white24 : Colors.transparent,
+                        width: 2)
+                    : null,
+              ),
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                    backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                    child: photoUrl == null
+                        ? Text(label.isNotEmpty ? label[0].toUpperCase() : '?')
+                        : null,
+                  ),
+                  if (showAddBadge)
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white, size: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ],
+        ),
       ),
     );
   }
