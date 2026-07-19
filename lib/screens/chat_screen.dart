@@ -171,6 +171,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final List<_ChatItem> _persistentItems = [];
   final List<_ChatItem> _disappearingItems = [];
+  // Mesaj planlama (#12 anket maddesi) - bu sohbete ait, henüz gönderilmemiş
+  // zamanlanmış mesajlar (bkz. _openScheduleComposer/_showScheduledSheet).
+  final List<ScheduledMessage> _scheduledForThisChat = [];
 
   int _clientIdCounter = 0;
   String get _myId => AuthService().currentUser?.id ?? '';
@@ -215,6 +218,23 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     await _loadHistory();
+    await _loadScheduledMessages();
+  }
+
+  /// Bu sohbete ait, henüz gönderilmemiş zamanlanmış mesajları çeker (#12
+  /// anket maddesi) - ekran her açıldığında bir öncekiler hâlâ görünsün diye.
+  Future<void> _loadScheduledMessages() async {
+    try {
+      final all = await _messaging.fetchScheduledMessages();
+      if (!mounted) return;
+      setState(() {
+        _scheduledForThisChat
+          ..clear()
+          ..addAll(all.where((s) => s.toId == widget.friend.id));
+      });
+    } catch (_) {
+      // Sessizce yok say - liste boş kalır, kritik bir işlev değil.
+    }
   }
 
   void _wireMessagingCallbacks() {
@@ -321,6 +341,41 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _findByServerId(_persistentItems, message.id)?.applyUpdate(message);
       });
+    };
+
+    _messaging.onScheduleMessageAck = (clientId, item) {
+      if (!mounted) return;
+      if (item.toId != widget.friend.id) return;
+      setState(() => _scheduledForThisChat.add(item));
+    };
+
+    _messaging.onScheduleMessageError = (clientId, id, message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    };
+
+    _messaging.onScheduleMessageCancelled = (id) {
+      if (!mounted) return;
+      setState(() => _scheduledForThisChat.removeWhere((s) => s.id == id));
+    };
+
+    _messaging.onScheduleMessageFired = (id, message) {
+      if (!mounted) return;
+      setState(() => _scheduledForThisChat.removeWhere((s) => s.id == id));
+      if (message.toId != widget.friend.id) return;
+      if (_persistentItems.any((i) => i.serverId == message.id)) return;
+      setState(() {
+        _persistentItems.add(_ChatItem.fromMessage(message, isMe: true));
+      });
+      _scrollToBottom();
+    };
+
+    _messaging.onScheduleMessageFailed = (id, message) {
+      if (!mounted) return;
+      setState(() => _scheduledForThisChat.removeWhere((s) => s.id == id));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     };
 
     _messaging.onDisappearingMessageReceived = (message) {
@@ -485,6 +540,122 @@ class _ChatScreenState extends State<ChatScreen> {
           Navigator.pop(sheetContext);
           _sendViewOncePhoto();
         },
+        onSchedule: () {
+          Navigator.pop(sheetContext);
+          _openScheduleComposer();
+        },
+      ),
+    );
+  }
+
+  /// Mesaj planlama (#12 anket maddesi) - metin + tarih/saat seçtirip
+  /// sunucuya bir zamanlama kaydı gönderir (gerçek mesaj o an OLUŞMAZ, bkz.
+  /// MessagingService.scheduleMessage).
+  Future<void> _openScheduleComposer() async {
+    final textController = TextEditingController(text: _controller.text);
+    DateTime? picked = await showDialog<DateTime>(
+      context: context,
+      builder: (dialogContext) => _ScheduleComposerDialog(
+        textController: textController,
+      ),
+    );
+    final text = textController.text.trim();
+    textController.dispose();
+    if (picked == null || !mounted || text.isEmpty) return;
+
+    final clientId =
+        'sched${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';
+    _messaging.scheduleMessage(
+      toId: widget.friend.id,
+      text: text,
+      clientId: clientId,
+      sendAt: picked,
+    );
+    if (_controller.text.trim() == text) _controller.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Mesaj ${_formatScheduleTime(picked)} için planlandı.')),
+    );
+  }
+
+  String _formatScheduleTime(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
+    final time =
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    if (sameDay) return 'bugün $time';
+    return '${local.day.toString().padLeft(2, '0')}.${local.month.toString().padLeft(2, '0')} $time';
+  }
+
+  /// Bu sohbete ait bekleyen zamanlanmış mesajların listesi - iptal etme
+  /// imkanıyla birlikte.
+  void _showScheduledSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surfaceElevated,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Zamanlanmış mesajlar',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                if (_scheduledForThisChat.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Text('Bekleyen zamanlanmış mesaj yok.',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                  )
+                else
+                  ..._scheduledForThisChat.map((s) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(s.text,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                  const SizedBox(height: 2),
+                                  Text(_formatScheduleTime(s.sendAt),
+                                      style: TextStyle(
+                                          color: AppColors.primaryLight, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
+                              onPressed: () {
+                                _messaging.cancelScheduledMessage(s.id);
+                                setSheetState(() => _scheduledForThisChat.removeWhere((e) => e.id == s.id));
+                              },
+                            ),
+                          ],
+                        ),
+                      )),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -891,6 +1062,18 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Text(_isNoteToSelf ? 'Kendime Not' : widget.friend.displayName),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          if (_mode == _ChatMode.persistent && _scheduledForThisChat.isNotEmpty)
+            IconButton(
+              tooltip: 'Zamanlanmış mesajlar',
+              onPressed: _showScheduledSheet,
+              icon: Badge(
+                label: Text('${_scheduledForThisChat.length}'),
+                backgroundColor: AppColors.primary,
+                child: const Icon(Icons.schedule_send_rounded, color: Colors.white70),
+              ),
+            ),
+        ],
       ),
       body: AppBackground(
         child: SafeArea(
@@ -1693,12 +1876,14 @@ class _AttachmentSheet extends StatelessWidget {
   final VoidCallback onLocation;
   final VoidCallback onSticker;
   final VoidCallback onPhoto;
+  final VoidCallback onSchedule;
 
   const _AttachmentSheet({
     required this.onPoll,
     required this.onLocation,
     required this.onSticker,
     required this.onPhoto,
+    required this.onSchedule,
   });
 
   @override
@@ -1724,7 +1909,9 @@ class _AttachmentSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceEvenly,
+              runSpacing: 16,
               children: [
                 _attachTile(
                     icon: Icons.bar_chart_rounded,
@@ -1746,6 +1933,11 @@ class _AttachmentSheet extends StatelessWidget {
                     label: 'Fotoğraf',
                     color: AppColors.danger,
                     onTap: onPhoto),
+                _attachTile(
+                    icon: Icons.schedule_send_rounded,
+                    label: 'Zamanla',
+                    color: AppColors.secondaryLight,
+                    onTap: onSchedule),
               ],
             ),
           ],
@@ -1759,7 +1951,8 @@ class _AttachmentSheet extends StatelessWidget {
       required String label,
       required Color color,
       required VoidCallback onTap}) {
-    return Expanded(
+    return SizedBox(
+      width: 68,
       child: GestureDetector(
         onTap: onTap,
         child: Column(
@@ -1892,6 +2085,118 @@ class _PollComposerDialogState extends State<_PollComposerDialog> {
         TextButton(
           onPressed: _submit,
           child: const Text('Oluştur'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Mesaj planlama (#12 anket maddesi) diyaloğu - metin + tarih/saat seçimi.
+/// Onaylanınca seçilen [DateTime]'ı (yerel saat) Navigator.pop ile döner,
+/// gerçek zamanlama isteğini çağıran taraf (_openScheduleComposer) gönderir.
+class _ScheduleComposerDialog extends StatefulWidget {
+  final TextEditingController textController;
+  const _ScheduleComposerDialog({required this.textController});
+
+  @override
+  State<_ScheduleComposerDialog> createState() => _ScheduleComposerDialogState();
+}
+
+class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
+  DateTime? _picked;
+
+  Future<void> _pickDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(minutes: 5)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(minutes: 5))),
+    );
+    if (time == null || !mounted) return;
+    setState(() {
+      _picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  String _formatPicked(DateTime dt) {
+    return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year} '
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _submit() {
+    if (widget.textController.text.trim().isEmpty || _picked == null) return;
+    if (_picked!.isBefore(DateTime.now().add(const Duration(seconds: 55)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gönderim zamanı en az 1 dakika sonrası olmalı.')),
+      );
+      return;
+    }
+    Navigator.pop(context, _picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceElevated,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      title: const Text('Mesajı zamanla', style: TextStyle(color: Colors.white)),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: widget.textController,
+              autofocus: true,
+              maxLines: 4,
+              minLines: 1,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(hintText: 'Mesajını yaz...'),
+              maxLength: 2000,
+            ),
+            const SizedBox(height: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: _pickDateTime,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, color: AppColors.primaryLight, size: 18),
+                    const SizedBox(width: 10),
+                    Text(
+                      _picked == null ? 'Tarih ve saat seç' : _formatPicked(_picked!),
+                      style: TextStyle(
+                          color: _picked == null ? Colors.white54 : Colors.white,
+                          fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Vazgeç'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: const Text('Planla'),
         ),
       ],
     );

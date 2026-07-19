@@ -69,6 +69,48 @@ class PersistentMessage {
       );
 }
 
+/// Zamanlanmış (henüz gönderilmemiş) bir mesaj (#12 anket maddesi - bkz.
+/// signaling_server/scheduledMessageStore.js). Gerçek bir PersistentMessage
+/// DEĞİLDİR - sohbet geçmişinde hiç görünmez, yalnızca "Zamanlanmış
+/// mesajlar" listesinde (bkz. chat_screen.dart) gösterilir. Sunucudaki
+/// periyodik kontrol zamanı gelince bunu gerçek bir PersistentMessage'a
+/// dönüştürür (bkz. onScheduleMessageFired).
+class ScheduledMessage {
+  final String id;
+  final String fromId;
+  final String toId;
+  final String text;
+  final String kind;
+  final Map<String, dynamic>? meta;
+  final DateTime sendAt;
+  final DateTime createdAt;
+
+  const ScheduledMessage({
+    required this.id,
+    required this.fromId,
+    required this.toId,
+    required this.text,
+    required this.sendAt,
+    required this.createdAt,
+    this.kind = 'text',
+    this.meta,
+  });
+
+  factory ScheduledMessage.fromJson(Map<String, dynamic> json) =>
+      ScheduledMessage(
+        id: json['id'] as String,
+        fromId: json['fromId'] as String,
+        toId: json['toId'] as String,
+        text: json['text'] as String,
+        kind: json['kind'] as String? ?? 'text',
+        meta: json['meta'] == null
+            ? null
+            : Map<String, dynamic>.from(json['meta'] as Map),
+        sendAt: DateTime.parse(json['sendAt'] as String),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
 /// Kaybolan (ephemeral) bir mesaj - sunucuda hiç saklanmaz, yalnızca anlık
 /// iletilir. Bu yüzden PersistentMessage'dan farklı olarak "toId" alanı
 /// yok - zaten sadece bize gelen mesajlar bu tipte oluşuyor.
@@ -155,6 +197,19 @@ class MessagingService {
   // Okundu bilgisi (#24 anket maddesi) - karşı taraf bir/birden fazla
   // mesajımızı okuyunca (bkz. server.js 'conversation-read').
   void Function(List<String> messageIds, DateTime readAt)? onConversationRead;
+
+  // Mesaj planlama (#12 anket maddesi) - bkz. yukarıdaki ScheduledMessage.
+  void Function(String clientId, ScheduledMessage item)? onScheduleMessageAck;
+  void Function(String? clientId, String? id, String message)?
+      onScheduleMessageError;
+  void Function(String id)? onScheduleMessageCancelled;
+  // Zamanı gelip gerçek bir mesaja dönüştüğünde (sunucu periyodik kontrolü) -
+  // [message] artık normal sohbet geçmişinde de var, bkz. server.js
+  // processDueScheduledMessages().
+  void Function(String id, PersistentMessage message)? onScheduleMessageFired;
+  // Gönderim anına kadar arkadaşlık bozulmuşsa (ör. engellendiyse) - mesaj
+  // hiç gönderilmez, kullanıcıya haber verilir.
+  void Function(String id, String message)? onScheduleMessageFailed;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -331,6 +386,67 @@ class MessagingService {
       }
     });
 
+    _socket!.on('schedule-message-ack', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final item = ScheduledMessage.fromJson(
+            Map<String, dynamic>.from(map['item'] as Map));
+        onScheduleMessageAck?.call(map['clientId'] as String, item);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (schedule-message-ack): $e');
+      }
+    });
+
+    _socket!.on('schedule-message-error', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onScheduleMessageError?.call(
+          map['clientId'] as String?,
+          map['id'] as String?,
+          map['message'] as String? ?? 'Mesaj planlanamadı.',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (schedule-message-error): $e');
+      }
+    });
+
+    _socket!.on('schedule-message-cancelled', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onScheduleMessageCancelled?.call(map['id'] as String);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (schedule-message-cancelled): $e');
+      }
+    });
+
+    _socket!.on('schedule-message-fired', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final message = PersistentMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map));
+        onScheduleMessageFired?.call(map['id'] as String, message);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (schedule-message-fired): $e');
+      }
+    });
+
+    _socket!.on('schedule-message-failed', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onScheduleMessageFailed?.call(
+          map['id'] as String,
+          map['message'] as String? ?? 'Planlanan mesaj gönderilemedi.',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (schedule-message-failed): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -434,6 +550,61 @@ class MessagingService {
     _socket?.emit('conversation-mark-read', {'friendId': friendId});
   }
 
+  /// Bir mesajı ileri bir tarihe planlar (#12 anket maddesi) - [sendAt] en az
+  /// 1 dakika, en fazla 30 gün sonrası olmalı (bkz. server.js
+  /// SCHEDULE_MIN_LEAD_MS/SCHEDULE_MAX_LEAD_MS, sunucu tarafında da
+  /// doğrulanıyor). Sonuç onScheduleMessageAck/onScheduleMessageError ile
+  /// gelir.
+  void scheduleMessage(
+      {required String toId,
+      required String text,
+      required String clientId,
+      required DateTime sendAt,
+      String kind = 'text',
+      Map<String, dynamic>? meta}) {
+    _socket?.emit('schedule-message-create', {
+      'toId': toId,
+      'text': text,
+      'clientId': clientId,
+      'kind': kind,
+      if (meta != null) 'meta': meta,
+      'sendAt': sendAt.toUtc().toIso8601String(),
+    });
+  }
+
+  /// Henüz gönderilmemiş bir zamanlanmış mesajı iptal eder.
+  void cancelScheduledMessage(String id) {
+    _socket?.emit('schedule-message-cancel', {'id': id});
+  }
+
+  /// O an bekleyen (henüz gönderilmemiş/iptal edilmemiş) TÜM zamanlanmış
+  /// mesajları döner - "Zamanlanmış mesajlar" listesi ekranı için (bkz.
+  /// server.js GET /messages/scheduled).
+  Future<List<ScheduledMessage>> fetchScheduledMessages() async {
+    final token = AuthService().token;
+    if (token == null) return [];
+
+    final http.Response response;
+    try {
+      response = await http
+          .get(
+            Uri.parse('$signalingServerUrl/messages/scheduled'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    if (response.statusCode != 200) {
+      throw Exception('Zamanlanmış mesajlar alınamadı.');
+    }
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (data['scheduled'] as List<dynamic>? ?? []);
+    return list
+        .map((e) => ScheduledMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
   /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
   /// Dönen URL, ardından 'kind'e göre sendPersistentMessage'a meta olarak
@@ -521,6 +692,11 @@ class MessagingService {
     onMessagePinned = null;
     onMessageUpdated = null;
     onConversationRead = null;
+    onScheduleMessageAck = null;
+    onScheduleMessageError = null;
+    onScheduleMessageCancelled = null;
+    onScheduleMessageFired = null;
+    onScheduleMessageFailed = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;
