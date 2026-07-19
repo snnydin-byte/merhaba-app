@@ -183,6 +183,128 @@ class StoryViewer {
       );
 }
 
+/// Bir grup üyesinin adı/fotoğrafı - Group.memberProfiles içinde gelir.
+/// Bir üye bizim kişisel arkadaşımız OLMAYABİLİR (ör. başka bir üyenin
+/// eklediği kişi) - bu yüzden FriendsService'teki liste her zaman yeterli
+/// olmuyor, sunucu grup nesnesiyle birlikte bu bilgiyi de gönderiyor (bkz.
+/// server.js groupWithProfiles).
+class GroupMemberProfile {
+  final String id;
+  final String displayName;
+  final String? photoUrl;
+
+  const GroupMemberProfile({required this.id, required this.displayName, this.photoUrl});
+
+  factory GroupMemberProfile.fromJson(Map<String, dynamic> json) => GroupMemberProfile(
+        id: json['id'] as String,
+        displayName: json['displayName'] as String? ?? 'Bilinmeyen',
+        photoUrl: json['photoUrl'] as String?,
+      );
+}
+
+/// Bir grup sohbeti (Batch B) - bkz. signaling_server/groupStore.js. Kapsam
+/// BİLEREK dar: yeniden adlandırma/admin atama/duyuru-kanalı modu var,
+/// grup fotoğrafı yükleme bu ilk sürümde YOK ([photoUrl] her zaman null).
+class Group {
+  final String id;
+  final String name;
+  final String? photoUrl;
+  final String ownerId;
+  final List<String> admins;
+  final List<String> members;
+  final List<GroupMemberProfile> memberProfiles;
+  final bool announcementOnly;
+  final DateTime createdAt;
+
+  const Group({
+    required this.id,
+    required this.name,
+    this.photoUrl,
+    required this.ownerId,
+    required this.admins,
+    required this.members,
+    this.memberProfiles = const [],
+    required this.announcementOnly,
+    required this.createdAt,
+  });
+
+  bool isAdmin(String userId) => admins.contains(userId);
+  bool isOwner(String userId) => ownerId == userId;
+  bool isMember(String userId) => members.contains(userId);
+
+  String displayNameFor(String userId) {
+    for (final p in memberProfiles) {
+      if (p.id == userId) return p.displayName;
+    }
+    return 'Biri';
+  }
+
+  String? photoUrlFor(String userId) {
+    for (final p in memberProfiles) {
+      if (p.id == userId) return p.photoUrl;
+    }
+    return null;
+  }
+
+  factory Group.fromJson(Map<String, dynamic> json) => Group(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        photoUrl: json['photoUrl'] as String?,
+        ownerId: json['ownerId'] as String,
+        admins: List<String>.from(json['admins'] as List? ?? const []),
+        members: List<String>.from(json['members'] as List? ?? const []),
+        memberProfiles: json['memberProfiles'] == null
+            ? const []
+            : (json['memberProfiles'] as List)
+                .map((e) => GroupMemberProfile.fromJson(Map<String, dynamic>.from(e as Map)))
+                .toList(),
+        announcementOnly: json['announcementOnly'] as bool? ?? false,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+}
+
+/// Bir grup sohbeti mesajı - PersistentMessage'a benzer ama ikili
+/// sohbetteki düzenleme/tepki/sabitleme burada YOK (bkz.
+/// groupMessageStore.js üstündeki kapsam notu), yalnızca gönderme/silme/
+/// yanıtlama (replyToId - basitleştirilmiş "thread").
+class GroupMessage {
+  final String id;
+  final String groupId;
+  final String fromId;
+  final String text;
+  final String kind;
+  final Map<String, dynamic>? meta;
+  final String? replyToId;
+  final DateTime createdAt;
+  final bool deleted;
+
+  const GroupMessage({
+    required this.id,
+    required this.groupId,
+    required this.fromId,
+    required this.text,
+    required this.createdAt,
+    this.kind = 'text',
+    this.meta,
+    this.replyToId,
+    this.deleted = false,
+  });
+
+  factory GroupMessage.fromJson(Map<String, dynamic> json) => GroupMessage(
+        id: json['id'] as String,
+        groupId: json['groupId'] as String,
+        fromId: json['fromId'] as String,
+        text: json['text'] as String,
+        kind: json['kind'] as String? ?? 'text',
+        meta: json['meta'] == null
+            ? null
+            : Map<String, dynamic>.from(json['meta'] as Map),
+        replyToId: json['replyToId'] as String?,
+        createdAt: DateTime.parse(json['createdAt'] as String),
+        deleted: json['deleted'] as bool? ?? false,
+      );
+}
+
 /// Kaybolan (ephemeral) bir mesaj - sunucuda hiç saklanmaz, yalnızca anlık
 /// iletilir. Bu yüzden PersistentMessage'dan farklı olarak "toId" alanı
 /// yok - zaten sadece bize gelen mesajlar bu tipte oluşuyor.
@@ -296,6 +418,26 @@ class MessagingService {
   // Bir arkadaş kendi hikayesini sildiğinde ANLIK - o an açık olan hikaye
   // şeridinden/görüntüleyiciden kaldırılabilsin diye.
   void Function(String storyId)? onStoryRemoved;
+
+  // Grup sohbeti (Batch B) - bkz. yukarıdaki Group/GroupMessage.
+  void Function(String clientId, Group group)? onGroupCreateAck;
+  void Function(String? clientId, String message)? onGroupError;
+  // Biri bizi yeni bir gruba eklediğinde (ya da grubu oluşturduğunda) -
+  // grup listesine yeni bir kart eklemek için.
+  void Function(Group group, String fromDisplayName)? onGroupCreated;
+  // Grup adı/admin listesi/üye listesi/duyuru modu değiştiğinde - GÜNCEL
+  // grup nesnesinin TAMAMI gelir, çağıran taraf kendi listesinde eşleşen
+  // id'yi bulup değiştirmeli.
+  void Function(Group group)? onGroupUpdated;
+  // Biz bir gruptan çıkarıldığımızda - grup listesinden kaldırılmalı.
+  void Function(String groupId)? onGroupRemovedYou;
+  void Function(String groupId)? onGroupDeleted;
+
+  void Function(String clientId, GroupMessage message)? onGroupMessageAck;
+  void Function(String? clientId, String message)? onGroupMessageError;
+  void Function(GroupMessage message, String fromDisplayName)?
+      onGroupMessageReceived;
+  void Function(GroupMessage message)? onGroupMessageDeleted;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -603,6 +745,119 @@ class MessagingService {
       }
     });
 
+    _socket!.on('group-create-ack', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final group = Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+        onGroupCreateAck?.call(map['clientId'] as String, group);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-create-ack): $e');
+      }
+    });
+
+    _socket!.on('group-error', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupError?.call(
+          map['clientId'] as String?,
+          map['message'] as String? ?? 'Grup işlemi başarısız.',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-error): $e');
+      }
+    });
+
+    _socket!.on('group-created', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final group = Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+        onGroupCreated?.call(group, map['fromDisplayName'] as String? ?? 'Biri');
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-created): $e');
+      }
+    });
+
+    _socket!.on('group-updated', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupUpdated?.call(Group.fromJson(Map<String, dynamic>.from(map['group'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-updated): $e');
+      }
+    });
+
+    _socket!.on('group-removed-you', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupRemovedYou?.call(map['groupId'] as String);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-removed-you): $e');
+      }
+    });
+
+    _socket!.on('group-deleted', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupDeleted?.call(map['groupId'] as String);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-deleted): $e');
+      }
+    });
+
+    _socket!.on('group-message-ack', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final message =
+            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map));
+        onGroupMessageAck?.call(map['clientId'] as String, message);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-message-ack): $e');
+      }
+    });
+
+    _socket!.on('group-message-error', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupMessageError?.call(
+          map['clientId'] as String?,
+          map['message'] as String? ?? 'Mesaj gönderilemedi.',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-message-error): $e');
+      }
+    });
+
+    _socket!.on('group-message-received', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final message =
+            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map));
+        onGroupMessageReceived?.call(message, map['fromDisplayName'] as String? ?? 'Biri');
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-message-received): $e');
+      }
+    });
+
+    _socket!.on('group-message-deleted', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onGroupMessageDeleted?.call(
+            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map)));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (group-message-deleted): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -831,6 +1086,114 @@ class MessagingService {
     return list.map((e) => StoryViewer.fromJson(e as Map<String, dynamic>)).toList();
   }
 
+  /// Yeni bir grup sohbeti oluşturur (Batch B) - [memberIds] yalnızca
+  /// oluşturanın ARKADAŞLARI olabilir, sunucu arkadaş olmayanları sessizce
+  /// eler (bkz. server.js 'group-create'). Sonuç onGroupCreateAck/
+  /// onGroupError ile gelir.
+  void createGroup(
+      {required String name,
+      required List<String> memberIds,
+      required String clientId}) {
+    _socket?.emit('group-create', {
+      'name': name,
+      'memberIds': memberIds,
+      'clientId': clientId,
+    });
+  }
+
+  void sendGroupMessage(
+      {required String groupId,
+      required String text,
+      required String clientId,
+      String? replyToId,
+      String kind = 'text',
+      Map<String, dynamic>? meta}) {
+    _socket?.emit('group-message-send', {
+      'groupId': groupId,
+      'text': text,
+      'clientId': clientId,
+      if (replyToId != null) 'replyToId': replyToId,
+      'kind': kind,
+      if (meta != null) 'meta': meta,
+    });
+  }
+
+  /// Gönderen kendi mesajını, bir admin grupta HERHANGİ bir mesajı silebilir.
+  void deleteGroupMessage({required String groupId, required String messageId}) {
+    _socket?.emit('group-message-delete', {'groupId': groupId, 'messageId': messageId});
+  }
+
+  /// Yalnızca mevcut bir admin yeni üye ekleyebilir, eklenecek kişiler
+  /// EKLEYENİN arkadaşı olmalı (bkz. server.js 'group-member-add').
+  void addGroupMembers({required String groupId, required List<String> memberIds}) {
+    _socket?.emit('group-member-add', {'groupId': groupId, 'memberIds': memberIds});
+  }
+
+  /// [memberId] == kendi id'n ise gruptan ayrılma, aksi halde (admin
+  /// olman gerekir) o kişiyi çıkarma.
+  void removeGroupMember({required String groupId, required String memberId}) {
+    _socket?.emit('group-member-remove', {'groupId': groupId, 'memberId': memberId});
+  }
+
+  /// Yalnızca grup sahibi başka üyeleri admin yapabilir/admin'likten alabilir.
+  void setGroupAdmin(
+      {required String groupId, required String memberId, required bool isAdmin}) {
+    _socket?.emit('group-set-admin', {'groupId': groupId, 'memberId': memberId, 'isAdmin': isAdmin});
+  }
+
+  void renameGroup({required String groupId, required String name}) {
+    _socket?.emit('group-rename', {'groupId': groupId, 'name': name});
+  }
+
+  /// true ise grup tek yönlü duyuru kanalına döner - yalnızca adminler
+  /// mesaj gönderebilir.
+  void setGroupAnnouncementOnly({required String groupId, required bool value}) {
+    _socket?.emit('group-set-announcement-only', {'groupId': groupId, 'value': value});
+  }
+
+  /// Yalnızca grup sahibi silebilir.
+  void deleteGroup(String groupId) {
+    _socket?.emit('group-delete', {'groupId': groupId});
+  }
+
+  /// Üyesi olduğumuz TÜM grupları döner (bkz. server.js GET /groups).
+  Future<List<Group>> fetchGroups() async {
+    final token = AuthService().token;
+    if (token == null) return [];
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$signalingServerUrl/groups'),
+              headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    if (response.statusCode != 200) throw Exception('Gruplar alınamadı.');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (data['groups'] as List<dynamic>? ?? []);
+    return list.map((e) => Group.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// Bir grubun mesaj geçmişini döner (bkz. server.js GET /groups/:id/messages).
+  Future<List<GroupMessage>> fetchGroupMessages(String groupId) async {
+    final token = AuthService().token;
+    if (token == null) return [];
+    final http.Response response;
+    try {
+      response = await http
+          .get(Uri.parse('$signalingServerUrl/groups/$groupId/messages'),
+              headers: {'Authorization': 'Bearer $token'})
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    if (response.statusCode != 200) throw Exception('Grup geçmişi alınamadı.');
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final list = (data['messages'] as List<dynamic>? ?? []);
+    return list.map((e) => GroupMessage.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
   /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
   /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
   /// Dönen URL, ardından 'kind'e göre sendPersistentMessage'a meta olarak
@@ -929,6 +1292,16 @@ class MessagingService {
     onStoryViewed = null;
     onStoryDeleted = null;
     onStoryRemoved = null;
+    onGroupCreateAck = null;
+    onGroupError = null;
+    onGroupCreated = null;
+    onGroupUpdated = null;
+    onGroupRemovedYou = null;
+    onGroupDeleted = null;
+    onGroupMessageAck = null;
+    onGroupMessageError = null;
+    onGroupMessageReceived = null;
+    onGroupMessageDeleted = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;

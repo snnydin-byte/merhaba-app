@@ -9,6 +9,7 @@ import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import 'chat_screen.dart';
+import 'groups_screen.dart';
 import 'login_screen.dart';
 import 'story_creator_sheet.dart';
 import 'story_viewer_screen.dart';
@@ -273,6 +274,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.groups_rounded, color: Colors.white70),
+            tooltip: 'Gruplar',
+            onPressed: () => Navigator.of(context).push(
+              AppPageRoute(builder: (_) => const GroupsScreen()),
+            ),
+          ),
           if (_friends.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.campaign_outlined, color: Colors.white70),
