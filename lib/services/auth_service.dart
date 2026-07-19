@@ -22,6 +22,12 @@ class AppUser {
   final bool online;
   final DateTime? lastSeen;
   final String? photoUrl;
+  // Yalnızca kendi profilini çekerken sunucudan dolu gelir (bkz. server.js
+  // publicUser() - `isSelf` değilse bu 3 alan undefined/null döner, JSON'a
+  // hiç girmez). #39/#24 anket maddeleri.
+  final bool hideOnlineStatus;
+  final bool hideLastSeen;
+  final bool readReceiptsEnabled;
 
   const AppUser({
     required this.id,
@@ -37,6 +43,9 @@ class AppUser {
     this.online = false,
     this.lastSeen,
     this.photoUrl,
+    this.hideOnlineStatus = false,
+    this.hideLastSeen = false,
+    this.readReceiptsEnabled = true,
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -56,6 +65,9 @@ class AppUser {
         // varsa kendi GET /avatars/:userId ucuna işaret eden tam bir URL
         // döner, yoksa null - foto yoksa ekranlar isim baş harfini gösterir.
         photoUrl: json['photoUrl'] as String?,
+        hideOnlineStatus: json['hideOnlineStatus'] as bool? ?? false,
+        hideLastSeen: json['hideLastSeen'] as bool? ?? false,
+        readReceiptsEnabled: json['readReceiptsEnabled'] as bool? ?? true,
       );
 }
 
@@ -190,6 +202,9 @@ class AuthService {
     String? country,
     String? language,
     int? age,
+    bool? hideOnlineStatus,
+    bool? hideLastSeen,
+    bool? readReceiptsEnabled,
   }) async {
     if (_token == null) throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
 
@@ -202,6 +217,9 @@ class AuthService {
     if (country != null) body['country'] = country;
     if (language != null) body['language'] = language;
     if (age != null) body['age'] = age;
+    if (hideOnlineStatus != null) body['hideOnlineStatus'] = hideOnlineStatus;
+    if (hideLastSeen != null) body['hideLastSeen'] = hideLastSeen;
+    if (readReceiptsEnabled != null) body['readReceiptsEnabled'] = readReceiptsEnabled;
 
     final http.Response response;
     try {

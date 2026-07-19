@@ -50,6 +50,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _ageRangeEnabled = false;
   bool _onlyVerified = false;
 
+  // Gizlilik ayarları (#39/#24 anket maddeleri) - SharedPreferences DEĞİL,
+  // sunucuda hesaba bağlı olarak saklanır (bkz. AuthService.updateProfile).
+  // Misafir kullanıcılarda hiç hesap olmadığı için bu anahtarlar devre dışı.
+  bool _hideOnlineStatus = false;
+  bool _hideLastSeen = false;
+  bool _readReceiptsEnabled = true;
+  bool _savingPrivacy = false;
+
   static const _genderLabels = {
     'herkes': 'Herkes',
     'erkek': 'Erkek',
@@ -89,8 +97,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (maxAge ?? 60).toDouble(),
       );
       _onlyVerified = prefs.getBool(matchOnlyVerifiedPrefKey) ?? false;
+      final user = AuthService().currentUser;
+      if (user != null) {
+        _hideOnlineStatus = user.hideOnlineStatus;
+        _hideLastSeen = user.hideLastSeen;
+        _readReceiptsEnabled = user.readReceiptsEnabled;
+      }
       _loadingPrefs = false;
     });
+  }
+
+  Future<void> _setHideOnlineStatus(bool value) async {
+    setState(() => _hideOnlineStatus = value);
+    await _savePrivacyField(hideOnlineStatus: value);
+  }
+
+  Future<void> _setHideLastSeen(bool value) async {
+    setState(() => _hideLastSeen = value);
+    await _savePrivacyField(hideLastSeen: value);
+  }
+
+  Future<void> _setReadReceiptsEnabled(bool value) async {
+    setState(() => _readReceiptsEnabled = value);
+    await _savePrivacyField(readReceiptsEnabled: value);
+  }
+
+  Future<void> _savePrivacyField(
+      {bool? hideOnlineStatus, bool? hideLastSeen, bool? readReceiptsEnabled}) async {
+    setState(() => _savingPrivacy = true);
+    try {
+      await AuthService().updateProfile(
+        hideOnlineStatus: hideOnlineStatus,
+        hideLastSeen: hideLastSeen,
+        readReceiptsEnabled: readReceiptsEnabled,
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ayar kaydedilemedi, tekrar dene.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingPrivacy = false);
+    }
   }
 
   Future<void> _setNotifications(bool value) async {
@@ -291,6 +340,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+                const SizedBox(height: 24),
+                _sectionTitle('Gizlilik'),
+                _switchTile(
+                  title: 'Çevrimiçi durumumu gizle',
+                  subtitle: 'Arkadaşların çevrimiçi olduğunu göremez',
+                  value: _hideOnlineStatus,
+                  onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                      ? _setHideOnlineStatus
+                      : null,
+                ),
+                _switchTile(
+                  title: 'Son görülmeyi gizle',
+                  subtitle: 'Arkadaşların son ne zaman çevrimiçi olduğunu göremez',
+                  value: _hideLastSeen,
+                  onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                      ? _setHideLastSeen
+                      : null,
+                ),
+                _switchTile(
+                  title: 'Okundu bilgisi gönder',
+                  subtitle: 'Kapatırsan mesajlarını okuduğun karşı tarafa gösterilmez',
+                  value: _readReceiptsEnabled,
+                  onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                      ? _setReadReceiptsEnabled
+                      : null,
+                ),
                 const SizedBox(height: 24),
                 _sectionTitle('Bildirimler'),
                 _switchTile(

@@ -44,6 +44,7 @@ class _ChatItem {
   // bkz. signaling_server/messageStore.js ve buradaki _buildBubble().
   final String kind;
   Map<String, dynamic>? meta;
+  DateTime? readAt;
 
   _ChatItem({
     required this.clientId,
@@ -59,6 +60,7 @@ class _ChatItem {
     this.replyToId,
     this.kind = 'text',
     this.meta,
+    this.readAt,
   });
 
   factory _ChatItem.fromMessage(PersistentMessage m, {required bool isMe}) =>
@@ -75,6 +77,7 @@ class _ChatItem {
         replyToId: m.replyToId,
         kind: m.kind,
         meta: m.meta,
+        readAt: m.readAt,
       );
 
   void applyUpdate(PersistentMessage m) {
@@ -84,6 +87,7 @@ class _ChatItem {
     pinned = m.pinned;
     reactions = m.reactions;
     meta = m.meta;
+    readAt = m.readAt;
   }
 }
 
@@ -246,6 +250,21 @@ class _ChatScreenState extends State<ChatScreen> {
             isMe: message.fromId == _myId));
       });
       _scrollToBottom();
+      // Bu sohbet ekranı zaten açık olduğu için gelen mesaj anlık "okundu"
+      // sayılır (#24 anket maddesi) - kendi gönderdiğimiz mesajlar için
+      // (Kendime Not) bu gereksiz ama zararsız.
+      if (!_isNoteToSelf) _messaging.markConversationRead(widget.friend.id);
+    };
+
+    _messaging.onConversationRead = (messageIds, readAt) {
+      if (!mounted) return;
+      setState(() {
+        for (final item in _persistentItems) {
+          if (item.serverId != null && messageIds.contains(item.serverId)) {
+            item.readAt = readAt;
+          }
+        }
+      });
     };
 
     _messaging.onPersistentMessageAck = (clientId, message) {
@@ -363,6 +382,9 @@ class _ChatScreenState extends State<ChatScreen> {
         _loadingHistory = false;
       });
       _scrollToBottom();
+      // Sohbet açıldığında karşı taraftan gelen okunmamış tüm mesajlar
+      // "okundu" işaretlenir (#24 anket maddesi).
+      if (!_isNoteToSelf) _messaging.markConversationRead(widget.friend.id);
     } catch (_) {
       if (mounted) setState(() => _loadingHistory = false);
     }
@@ -1188,6 +1210,21 @@ class _ChatScreenState extends State<ChatScreen> {
                         : Colors.white38,
                     fontSize: 10,
                   ),
+                ),
+              ),
+            if (item.isMe &&
+                item.state == _SendState.sent &&
+                !item.deleted &&
+                !_isNoteToSelf &&
+                _mode == _ChatMode.persistent)
+              Padding(
+                padding: const EdgeInsets.only(right: 4, bottom: 4),
+                child: Icon(
+                  item.readAt != null ? Icons.done_all_rounded : Icons.done_rounded,
+                  size: 14,
+                  color: item.readAt != null
+                      ? AppColors.secondaryLight
+                      : Colors.white38,
                 ),
               ),
           ],

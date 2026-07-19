@@ -25,6 +25,7 @@ class PersistentMessage {
   final bool pinned;
   // userId -> emoji. Bir kullanıcının bir mesaja aynı anda tek tepkisi olur.
   final Map<String, String> reactions;
+  final DateTime? readAt;
 
   const PersistentMessage({
     required this.id,
@@ -39,6 +40,7 @@ class PersistentMessage {
     this.deleted = false,
     this.pinned = false,
     this.reactions = const {},
+    this.readAt,
   });
 
   factory PersistentMessage.fromJson(Map<String, dynamic> json) =>
@@ -61,6 +63,9 @@ class PersistentMessage {
         reactions: json['reactions'] == null
             ? const {}
             : Map<String, String>.from(json['reactions'] as Map),
+        readAt: json['readAt'] == null
+            ? null
+            : DateTime.parse(json['readAt'] as String),
       );
 }
 
@@ -147,6 +152,9 @@ class MessagingService {
   // ama ayrı bir olay adı gerektirmeyen genel güncellemeler (bkz. server.js
   // 'message-updated' yayını).
   void Function(PersistentMessage message)? onMessageUpdated;
+  // Okundu bilgisi (#24 anket maddesi) - karşı taraf bir/birden fazla
+  // mesajımızı okuyunca (bkz. server.js 'conversation-read').
+  void Function(List<String> messageIds, DateTime readAt)? onConversationRead;
 
   void Function(DisappearingMessage message)? onDisappearingMessageReceived;
   void Function(String clientId, String id, DateTime createdAt)?
@@ -312,6 +320,17 @@ class MessagingService {
       }
     });
 
+    _socket!.on('conversation-read', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final ids = (map['messageIds'] as List).map((e) => e as String).toList();
+        onConversationRead?.call(ids, DateTime.parse(map['readAt'] as String));
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (conversation-read): $e');
+      }
+    });
+
     _socket!.on('disappearing-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -409,6 +428,12 @@ class MessagingService {
     _socket?.emit('message-view-once-open', {'messageId': messageId});
   }
 
+  /// Bir sohbeti "okundu" olarak işaretler (#24 anket maddesi) - chat_screen
+  /// açıldığında ve/ya o sohbet açıkken yeni bir mesaj geldiğinde çağrılır.
+  void markConversationRead(String friendId) {
+    _socket?.emit('conversation-mark-read', {'friendId': friendId});
+  }
+
   /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
   /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
   /// Dönen URL, ardından 'kind'e göre sendPersistentMessage'a meta olarak
@@ -495,6 +520,7 @@ class MessagingService {
     onMessageReacted = null;
     onMessagePinned = null;
     onMessageUpdated = null;
+    onConversationRead = null;
     onDisappearingMessageReceived = null;
     onDisappearingMessageAck = null;
     onDisappearingMessageError = null;
