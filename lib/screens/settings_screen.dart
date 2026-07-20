@@ -62,6 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // olanlarla eşleş" gibi daha katı bir tercih).
   bool _requireCommonInterest = false;
 
+  // Eşleşme (Dating) katmanı - Batch E. discoverInvisible SUNUCUDA hesaba
+  // bağlı (SharedPreferences DEĞİL - hideOnlineStatus/hideLastSeen ile AYNI
+  // desen), o yüzden _loadPrefs()'te değil kullanıcı yüklenince ayarlanıyor.
+  bool _discoverInvisible = false;
+
   // Gizlilik ayarları (#39/#24 anket maddeleri) - SharedPreferences DEĞİL,
   // sunucuda hesaba bağlı olarak saklanır (bkz. AuthService.updateProfile).
   // Misafir kullanıcılarda hiç hesap olmadığı için bu anahtarlar devre dışı.
@@ -127,6 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _hideOnlineStatus = user.hideOnlineStatus;
         _hideLastSeen = user.hideLastSeen;
         _readReceiptsEnabled = user.readReceiptsEnabled;
+        _discoverInvisible = user.discoverInvisible;
       }
       _loadingPrefs = false;
     });
@@ -147,14 +153,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _savePrivacyField(readReceiptsEnabled: value);
   }
 
+  Future<void> _setDiscoverInvisible(bool value) async {
+    setState(() => _discoverInvisible = value);
+    await _savePrivacyField(discoverInvisible: value);
+  }
+
   Future<void> _savePrivacyField(
-      {bool? hideOnlineStatus, bool? hideLastSeen, bool? readReceiptsEnabled}) async {
+      {bool? hideOnlineStatus, bool? hideLastSeen, bool? readReceiptsEnabled, bool? discoverInvisible}) async {
     setState(() => _savingPrivacy = true);
     try {
       await AuthService().updateProfile(
         hideOnlineStatus: hideOnlineStatus,
         hideLastSeen: hideLastSeen,
         readReceiptsEnabled: readReceiptsEnabled,
+        discoverInvisible: discoverInvisible,
       );
     } catch (_) {
       if (mounted) {
@@ -493,6 +505,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _readReceiptsEnabled,
                   onChanged: AuthService().isLoggedIn && !_savingPrivacy
                       ? _setReadReceiptsEnabled
+                      : null,
+                ),
+                _switchTile(
+                  title: 'Keşfet\'te gizli mod',
+                  subtitle: 'Açarsan başkalarının Keşfet akışında hiç görünmezsin '
+                      '(sen yine de başkalarını görüp beğenebilirsin)',
+                  value: _discoverInvisible,
+                  onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                      ? _setDiscoverInvisible
                       : null,
                 ),
                 const SizedBox(height: 24),

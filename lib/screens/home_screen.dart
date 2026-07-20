@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
+import 'discover_screen.dart';
 import 'friends_screen.dart';
 import 'group_call_pre_screen.dart';
 import 'pre_call_screen.dart';
@@ -198,34 +199,64 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFriendsEntry(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            AppPageRoute(builder: (_) => const FriendsScreen()),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: AppColors.surfaceBorder),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _pillEntry(
+            context,
+            icon: Icons.people_alt_rounded,
+            label: 'Arkadaşlar',
+            onTap: () => Navigator.of(context)
+                .push(AppPageRoute(builder: (_) => const FriendsScreen())),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.people_alt_rounded,
-                  color: AppColors.primaryLight, size: 16),
-              const SizedBox(width: 6),
-              Text(
-                'Arkadaşlar',
-                style: AppText.subheading.copyWith(fontSize: 13),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded,
-                  color: Colors.white38, size: 16),
-            ],
-          ),
+          // Keşfet (Batch E, Dating katmanı) - misafir kullanıcılara
+          // gösterilmiyor, DiscoverService REST çağrıları giriş yapılmış
+          // bir JWT token gerektiriyor.
+          if (AuthService().isLoggedIn) ...[
+            const SizedBox(width: 8),
+            _pillEntry(
+              context,
+              icon: Icons.favorite_rounded,
+              label: 'Keşfet',
+              iconColor: Colors.pinkAccent,
+              onTap: () => Navigator.of(context)
+                  .push(AppPageRoute(builder: (_) => const DiscoverScreen())),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _pillEntry(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color iconColor = AppColors.primaryLight,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.surfaceBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: iconColor, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppText.subheading.copyWith(fontSize: 13),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded,
+                color: Colors.white38, size: 16),
+          ],
         ),
       ),
     );

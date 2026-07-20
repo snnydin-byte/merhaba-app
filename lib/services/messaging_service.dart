@@ -398,6 +398,15 @@ class MessagingService {
   void Function(String fromId)? onTypingStart;
   void Function(String fromId)? onTypingStop;
 
+  // Eşleşme (Dating) katmanı - Batch E. onDiscoverMatched, BİZ swipe
+  // ATMADAN karşı taraf tetiklediğinde gelir (biz zaten önceden beğenmiştik,
+  // karşı taraf da az önce bizi beğenip eşleşme oluştu) - kendi ATTIĞIMIZ
+  // swipe'ın sonucu doğrudan DiscoverService.swipe()'ın dönüş değerinden
+  // gelir, bu event'e ihtiyaç duymaz.
+  void Function(String matchId, AppUser user, bool firstMessageIsYours)? onDiscoverMatched;
+  void Function(String matchId)? onDiscoverMatchExpired;
+  void Function(bool approved)? onSelfieVerificationReviewed;
+
   // Mesaj planlama (#12 anket maddesi) - bkz. yukarıdaki ScheduledMessage.
   void Function(String clientId, ScheduledMessage item)? onScheduleMessageAck;
   void Function(String? clientId, String? id, String message)?
@@ -523,6 +532,43 @@ class MessagingService {
       } catch (e) {
         // ignore: avoid_print
         print('HATA (typing-stop): $e');
+      }
+    });
+
+    // Eşleşme (Dating) katmanı - Batch E.
+    _socket!.on('discover-matched', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final matchId = map['matchId'] as String?;
+        final userJson = map['user'] as Map<String, dynamic>?;
+        if (matchId == null || userJson == null) return;
+        onDiscoverMatched?.call(
+          matchId,
+          AppUser.fromJson(userJson),
+          map['firstMessageIsYours'] as bool? ?? false,
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (discover-matched): $e');
+      }
+    });
+    _socket!.on('discover-match-expired', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final matchId = map['matchId'] as String?;
+        if (matchId != null) onDiscoverMatchExpired?.call(matchId);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (discover-match-expired): $e');
+      }
+    });
+    _socket!.on('selfie-verification-reviewed', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        onSelfieVerificationReviewed?.call(map['approved'] as bool? ?? false);
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (selfie-verification-reviewed): $e');
       }
     });
 
@@ -1321,6 +1367,9 @@ class MessagingService {
     onConversationRead = null;
     onTypingStart = null;
     onTypingStop = null;
+    onDiscoverMatched = null;
+    onDiscoverMatchExpired = null;
+    onSelfieVerificationReviewed = null;
     onScheduleMessageAck = null;
     onScheduleMessageError = null;
     onScheduleMessageCancelled = null;

@@ -56,6 +56,17 @@ class AppUser {
   // Günlük giriş serisi (GECE_GELISTIRME madde 7) - yalnızca kendi profilinde
   // dolu gelir (bkz. server.js publicUser()), saf görsel bir rozet.
   final int loginStreak;
+  // Eşleşme (Dating) katmanı - Batch E. profileBadges/selfieVerified/
+  // isBoosted HERKESE görünür. discoverInvisible/compatibilityAnswers
+  // yalnızca kendi profilinde dolu gelir (bkz. server.js publicUser()).
+  final List<String> profileBadges;
+  final bool selfieVerified;
+  // 'none' | 'pending' | 'approved' | 'rejected' - yalnızca kendi profilinde
+  // dolu (bkz. server.js publicUser()).
+  final String selfieVerificationStatus;
+  final bool isBoosted;
+  final bool discoverInvisible;
+  final Map<String, int> compatibilityAnswers;
 
   const AppUser({
     required this.id,
@@ -79,6 +90,12 @@ class AppUser {
     this.introVideoUrl,
     this.isPremium = false,
     this.loginStreak = 0,
+    this.profileBadges = const [],
+    this.selfieVerified = false,
+    this.selfieVerificationStatus = 'none',
+    this.isBoosted = false,
+    this.discoverInvisible = false,
+    this.compatibilityAnswers = const {},
   });
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
@@ -106,6 +123,17 @@ class AppUser {
         introVideoUrl: json['introVideoUrl'] as String?,
         isPremium: json['isPremium'] as bool? ?? false,
         loginStreak: json['loginStreak'] as int? ?? 0,
+        profileBadges: (json['profileBadges'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        selfieVerified: json['selfieVerified'] as bool? ?? false,
+        selfieVerificationStatus: json['selfieVerificationStatus'] as String? ?? 'none',
+        isBoosted: json['isBoosted'] as bool? ?? false,
+        discoverInvisible: json['discoverInvisible'] as bool? ?? false,
+        compatibilityAnswers: (json['compatibilityAnswers'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, v as int)) ??
+            const {},
       );
 }
 
@@ -281,6 +309,9 @@ class AuthService {
     bool? hideLastSeen,
     bool? readReceiptsEnabled,
     String? birthDate,
+    bool? discoverInvisible,
+    List<String>? profileBadges,
+    Map<String, int>? compatibilityAnswers,
   }) async {
     if (_token == null) throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
 
@@ -297,6 +328,9 @@ class AuthService {
     if (hideLastSeen != null) body['hideLastSeen'] = hideLastSeen;
     if (readReceiptsEnabled != null) body['readReceiptsEnabled'] = readReceiptsEnabled;
     if (birthDate != null) body['birthDate'] = birthDate;
+    if (discoverInvisible != null) body['discoverInvisible'] = discoverInvisible;
+    if (profileBadges != null) body['profileBadges'] = profileBadges;
+    if (compatibilityAnswers != null) body['compatibilityAnswers'] = compatibilityAnswers;
 
     final http.Response response;
     try {
@@ -407,6 +441,32 @@ class AuthService {
     } catch (_) {
       throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
+  }
+
+  /// Selfie doğrulama rozeti (Batch E) - fotoğraf Cloudinary'ye yüklenir,
+  /// onay AI DEĞİL, Sinan'ın manuel admin incelemesiyle olur (bkz.
+  /// server.js GET/POST /admin/selfie-verifications). Yükleme sonrası
+  /// `user.selfieVerificationStatus` 'pending' olur.
+  Future<void> uploadSelfieVerification(File file) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$signalingServerUrl/profile/selfie-verification'))
+          ..headers['Authorization'] = 'Bearer $_token'
+          ..files.add(await http.MultipartFile.fromPath('photo', file.path));
+
+    final http.Response response;
+    try {
+      final streamed = await request.send().timeout(const Duration(seconds: 20));
+      response = await http.Response.fromStream(streamed);
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Fotoğraf yüklenemedi, tekrar dene.');
+    }
+
     final data = _decodeOrThrow(response);
     _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
     await _persist();

@@ -37,9 +37,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _interests = [];
   // Batch C - burç/doğum tarihi (yalnızca kendi profilinde dolu gelir).
   DateTime? _birthDate;
+  // Eşleşme (Dating) katmanı - Batch E. Profil rozetleri, en fazla 3.
+  List<String> _selectedBadges = [];
 
   bool _uploadingPhoto = false;
   bool _uploadingVideo = false;
+  bool _uploadingSelfie = false;
+
+  // discoverStore.js PROFILE_BADGE_CATALOG ile BİREBİR aynı id'ler - sunucu
+  // bunun dışındaki bir değeri reddediyor (bkz. isValidProfileBadges).
+  static const Map<String, String> _badgeCatalog = {
+    'kahve-tutkunu': '☕ Kahve tutkunu',
+    'erken-kalkan': '🌅 Erken kalkan',
+    'gece-kusu': '🌙 Gece kuşu',
+    'sporcu': '🏃 Sporcu',
+    'kitap-kurdu': '📚 Kitap kurdu',
+    'gezgin': '✈️ Gezgin',
+    'evcil-hayvan-sever': '🐾 Evcil hayvan sever',
+    'yemek-tutkunu': '🍳 Yemek tutkunu',
+    'muzisyen': '🎵 Müzisyen',
+    'sanatci': '🎨 Sanatçı',
+    'oyuncu': '🎮 Oyuncu',
+    'doga-sever': '🌿 Doğa sever',
+  };
 
   @override
   void dispose() {
@@ -61,6 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _gender = user.gender;
     _interests = List.of(user.interests);
     _birthDate = user.birthDate != null ? DateTime.tryParse(user.birthDate!) : null;
+    _selectedBadges = List.of(user.profileBadges);
   }
 
   void _startEditing(AppUser user) {
@@ -210,6 +231,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Selfie doğrulama rozeti (Batch E) - kameradan çekilir (galeriden değil,
+  /// eski bir fotoğrafın "gerçek zamanlı" olmadığı bariz olmasın diye en
+  /// azından kamerayı zorunlu kılıyoruz - tam bir canlılık/liveness kontrolü
+  /// DEĞİL, ama basit bir caydırıcı). Onay AI DEĞİL, Sinan'ın manuel admin
+  /// incelemesiyle olur (bkz. server.js).
+  Future<void> _pickAndUploadSelfie() async {
+    final picker = ImagePicker();
+    final XFile? picked;
+    try {
+      picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+    } catch (_) {
+      _showSnack('Fotoğraf çekilemedi, tekrar dene.');
+      return;
+    }
+    if (picked == null) return;
+
+    setState(() => _uploadingSelfie = true);
+    try {
+      await _authService.uploadSelfieVerification(File(picked.path));
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    } catch (_) {
+      _showSnack('Fotoğraf yüklenemedi, tekrar dene.');
+    } finally {
+      if (mounted) setState(() => _uploadingSelfie = false);
+    }
+  }
+
   Future<void> _removeIntroVideo() async {
     setState(() => _uploadingVideo = true);
     try {
@@ -271,6 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : '${_birthDate!.year.toString().padLeft(4, '0')}-'
                 '${_birthDate!.month.toString().padLeft(2, '0')}-'
                 '${_birthDate!.day.toString().padLeft(2, '0')}',
+        profileBadges: _selectedBadges,
       );
       if (mounted) setState(() => _editing = false);
     } on AuthException catch (e) {
@@ -576,6 +627,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Selfie doğrulama rozeti kartı (Batch E) - durum makinesi: none ->
+  /// (yükle) -> pending -> (Sinan admin panelinden onaylar/reddeder) ->
+  /// approved/rejected. rejected'ta tekrar yüklemeye izin veriliyor.
+  Widget _selfieVerificationCard(AppUser user) {
+    if (_uploadingSelfie) {
+      return const GlassCard(
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+          ),
+        ),
+      );
+    }
+    switch (user.selfieVerificationStatus) {
+      case 'pending':
+        return GlassCard(
+          child: const Row(
+            children: [
+              Icon(Icons.hourglass_top_rounded, color: Colors.amber),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Selfie doğrulaman inceleniyor',
+                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+              ),
+            ],
+          ),
+        );
+      case 'approved':
+        return GlassCard(
+          child: const Row(
+            children: [
+              Icon(Icons.face_retouching_natural_rounded, color: AppColors.secondary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text('Selfie doğrulaman onaylandı ✓',
+                    style: TextStyle(color: Colors.white, fontSize: 14)),
+              ),
+            ],
+          ),
+        );
+      default:
+        // 'none' ya da 'rejected'.
+        return InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: _pickAndUploadSelfie,
+          child: GlassCard(
+            child: Row(
+              children: [
+                Icon(Icons.face_retouching_natural_outlined, color: AppColors.textMuted),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    user.selfieVerificationStatus == 'rejected'
+                        ? 'Doğrulama reddedildi - tekrar dene'
+                        : 'Selfie ile doğrulama rozeti al',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  ),
+                ),
+                const Icon(Icons.camera_alt_outlined, color: Colors.white38),
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
   Widget _buildProfileBody(AppUser user) {
     final genderLabel = user.gender == 'erkek'
         ? 'Erkek'
@@ -622,8 +740,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.language?.isNotEmpty == true
                 ? user.language!
                 : 'Belirtilmemiş'),
+        if (user.profileBadges.isNotEmpty)
+          _infoCard(
+            label: 'Rozetler',
+            value: user.profileBadges
+                .map((b) => _badgeCatalog[b] ?? b)
+                .join(', '),
+          ),
         const SizedBox(height: AppSpacing.md),
         _introVideoCard(user),
+        const SizedBox(height: AppSpacing.md),
+        _selfieVerificationCard(user),
         const SizedBox(height: AppSpacing.md),
         _premiumBanner(user),
         const SizedBox(height: AppSpacing.md),
@@ -764,6 +891,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: const Icon(Icons.add_circle, color: AppColors.primary),
             ),
           ],
+        ),
+        const SizedBox(height: 14),
+        Text('Profil Rozetleri (en fazla 3)', style: AppText.caption),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: _badgeCatalog.entries.map((entry) {
+            final selected = _selectedBadges.contains(entry.key);
+            return ChoiceChip(
+              label: Text(entry.value, style: const TextStyle(fontSize: 12)),
+              selected: selected,
+              selectedColor: AppColors.primary.withValues(alpha: 0.4),
+              backgroundColor: Colors.white.withValues(alpha: 0.06),
+              labelStyle: TextStyle(color: selected ? Colors.white : Colors.white70),
+              onSelected: (value) {
+                setState(() {
+                  if (value) {
+                    if (_selectedBadges.length < 3) _selectedBadges.add(entry.key);
+                  } else {
+                    _selectedBadges.remove(entry.key);
+                  }
+                });
+              },
+            );
+          }).toList(),
         ),
         if (_error != null) ...[
           const SizedBox(height: 12),
