@@ -8,6 +8,7 @@ import '../services/call_service.dart';
 import '../services/messaging_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/text_scale_notifier.dart';
 import 'login_screen.dart';
 import 'trusted_contacts_screen.dart';
 
@@ -537,6 +538,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Icon(Icons.chevron_right, color: Colors.white38),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _sectionTitle('Görünüm'),
+                GlassCard(
+                  child: Row(
+                    children: [
+                      Icon(Icons.text_fields_rounded, color: AppColors.textMuted),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text('Yazı boyutu', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      ),
+                      ValueListenableBuilder<double>(
+                        valueListenable: textScaleNotifier,
+                        builder: (context, scale, _) => DropdownButton<double>(
+                          value: scale,
+                          dropdownColor: AppColors.surfaceElevated,
+                          underline: const SizedBox.shrink(),
+                          items: const [
+                            DropdownMenuItem(value: 0.85, child: Text('Küçük', style: TextStyle(color: Colors.white))),
+                            DropdownMenuItem(value: 1.0, child: Text('Normal', style: TextStyle(color: Colors.white))),
+                            DropdownMenuItem(value: 1.2, child: Text('Büyük', style: TextStyle(color: Colors.white))),
+                            DropdownMenuItem(value: 1.4, child: Text('Çok Büyük', style: TextStyle(color: Colors.white))),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setTextScalePreference(value);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 24),

@@ -9,6 +9,8 @@ import '../services/call_service.dart';
 import '../services/messaging_service.dart';
 import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
+import 'achievements_screen.dart';
+import 'leaderboard_screen.dart';
 import 'login_screen.dart';
 
 /// Giriş yapmış kullanıcı için profil bilgileri (isim, biyografi, cinsiyet,
@@ -124,6 +126,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(color: Colors.white)),
               onTap: () => Navigator.of(sheetContext).pop('pick'),
             ),
+            ListTile(
+              leading: const Icon(Icons.emoji_emotions_outlined, color: Colors.white70),
+              title: const Text('Emoji Avatarı Kullan', style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.of(sheetContext).pop('avatar'),
+            ),
+            if (user.avatarConfig != null)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                title: const Text('Emoji Avatarını Kaldır', style: TextStyle(color: AppColors.danger)),
+                onTap: () => Navigator.of(sheetContext).pop('remove-avatar'),
+              ),
             if (user.photoUrl != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline,
@@ -141,7 +154,103 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _pickAndUploadPhoto();
     } else if (choice == 'remove') {
       await _removePhoto();
+    } else if (choice == 'avatar') {
+      await _showAvatarBuilderDialog();
+    } else if (choice == 'remove-avatar') {
+      try {
+        await _authService.updateProfile(clearAvatarConfig: true);
+        if (mounted) setState(() {});
+      } on AuthException catch (e) {
+        _showSnack(e.message);
+      }
     }
+  }
+
+  static const List<String> _avatarColors = [
+    '#7C4DFF', '#00BFA5', '#FF5470', '#FFB74D', '#2E7D32', '#1976D2',
+  ];
+  static const List<String> _avatarEmojis = [
+    '😀', '😎', '🥳', '🤓', '😺', '🦊', '🐼', '🌟', '🔥', '🌈', '🎧', '🚀',
+  ];
+
+  /// Avatar oluşturucu (Batch G) - basit renk+emoji seçici, yeni bir
+  /// illüstrasyon/ML paketi GEREKTİRMİYOR (bkz. server.js doğrulaması).
+  Future<void> _showAvatarBuilderDialog() async {
+    String selectedColor = _avatarColors.first;
+    String selectedEmoji = _avatarEmojis.first;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surfaceElevated,
+          title: const Text('Emoji Avatarı', style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 32,
+                backgroundColor: _parseHexColor(selectedColor),
+                child: Text(selectedEmoji, style: const TextStyle(fontSize: 28)),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                children: _avatarColors.map((hex) {
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedColor = hex),
+                    child: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: _parseHexColor(hex),
+                      child: selectedColor == hex
+                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                children: _avatarEmojis.map((emoji) {
+                  final selected = selectedEmoji == emoji;
+                  return GestureDetector(
+                    onTap: () => setDialogState(() => selectedEmoji = emoji),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: selected ? AppColors.primary.withValues(alpha: 0.3) : null,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Vazgeç')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kaydet')),
+          ],
+        ),
+      ),
+    );
+    if (result != true || !mounted) return;
+    try {
+      await _authService.updateProfile(
+        avatarConfig: AvatarConfig(backgroundColor: selectedColor, emoji: selectedEmoji),
+      );
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      _showSnack(e.message);
+    }
+  }
+
+  Color _parseHexColor(String hex) {
+    final value = int.parse(hex.replaceAll('#', ''), radix: 16);
+    return Color(0xFF000000 | value);
   }
 
   // Profil GÖRÜNTÜLEME ekranında ayrı bir hata metni alanı yok (o sadece
@@ -424,16 +533,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 44,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                  backgroundColor: user.photoUrl == null && user.avatarConfig != null
+                      ? _parseHexColor(user.avatarConfig!.backgroundColor)
+                      : AppColors.primary.withValues(alpha: 0.25),
                   backgroundImage: user.photoUrl != null
                       ? NetworkImage(user.photoUrl!)
                       : null,
                   child: user.photoUrl != null
                       ? null
+                      // Avatar oluşturucu (Batch G) - fotoğraf yoksa, emoji
+                      // avatarı ayarlanmışsa isim baş harfi yerine ONU göster.
                       : Text(
-                          user.displayName.isNotEmpty
-                              ? user.displayName[0].toUpperCase()
-                              : '?',
+                          user.avatarConfig?.emoji ??
+                              (user.displayName.isNotEmpty
+                                  ? user.displayName[0].toUpperCase()
+                                  : '?'),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 32,
@@ -747,6 +861,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 .map((b) => _badgeCatalog[b] ?? b)
                 .join(', '),
           ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                onTap: () => Navigator.of(context)
+                    .push(AppPageRoute(builder: (_) => const AchievementsScreen())),
+                child: GlassCard(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.emoji_events_outlined, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Text('Sv. ${user.level}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                onTap: () => Navigator.of(context)
+                    .push(AppPageRoute(builder: (_) => const LeaderboardScreen())),
+                child: GlassCard(
+                  child: Row(
+                    children: const [
+                      Icon(Icons.leaderboard_outlined, color: AppColors.primaryLight),
+                      SizedBox(width: 8),
+                      Text('Liderlik', style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.md),
         _introVideoCard(user),
         const SizedBox(height: AppSpacing.md),

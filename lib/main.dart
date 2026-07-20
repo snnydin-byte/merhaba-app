@@ -10,6 +10,7 @@ import 'services/messaging_service.dart';
 import 'services/navigation_service.dart';
 import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
+import 'utils/text_scale_notifier.dart';
 
 void main() {
   runZonedGuarded(() async {
@@ -84,6 +85,7 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    loadTextScalePreference();
   }
 
   @override
@@ -166,6 +168,20 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
       title: 'Merhaba',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      // Yazı boyutu kişiselleştirmesi (Batch G) - bkz. text_scale_notifier
+      // .dart'taki kapsam notu. AppColors'a dokunmuyor, yalnızca MediaQuery
+      // üzerinden metin ölçeğini değiştiriyor.
+      builder: (context, child) {
+        return ValueListenableBuilder<double>(
+          valueListenable: textScaleNotifier,
+          builder: (context, scale, _) {
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            );
+          },
+        );
+      },
       home: const SplashScreen(),
     );
   }

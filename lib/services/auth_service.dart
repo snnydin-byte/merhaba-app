@@ -69,6 +69,12 @@ class AppUser {
   final bool isBoosted;
   final bool discoverInvisible;
   final Map<String, int> compatibilityAnswers;
+  // Sosyal/Oyunlaştırma (Batch G) - level/xp/avatarConfig HERKESE görünür,
+  // achievementIds de öyle (bir profildeki kazanılmış rozetler gibi).
+  final int level;
+  final int xp;
+  final AvatarConfig? avatarConfig;
+  final List<String> achievementIds;
 
   const AppUser({
     required this.id,
@@ -94,6 +100,10 @@ class AppUser {
     this.loginStreak = 0,
     this.closeFriendIds = const [],
     this.trustedContacts = const [],
+    this.level = 1,
+    this.xp = 0,
+    this.avatarConfig,
+    this.achievementIds = const [],
     this.profileBadges = const [],
     this.selfieVerified = false,
     this.selfieVerificationStatus = 'none',
@@ -146,6 +156,15 @@ class AppUser {
         compatibilityAnswers: (json['compatibilityAnswers'] as Map<String, dynamic>?)
                 ?.map((k, v) => MapEntry(k, v as int)) ??
             const {},
+        level: json['level'] as int? ?? 1,
+        xp: json['xp'] as int? ?? 0,
+        avatarConfig: json['avatarConfig'] != null
+            ? AvatarConfig.fromJson(Map<String, dynamic>.from(json['avatarConfig'] as Map))
+            : null,
+        achievementIds: (json['achievementIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
       );
 
   AppUser copyWith({List<String>? closeFriendIds}) => AppUser(
@@ -178,7 +197,26 @@ class AppUser {
         isBoosted: isBoosted,
         discoverInvisible: discoverInvisible,
         compatibilityAnswers: compatibilityAnswers,
+        level: level,
+        xp: xp,
+        avatarConfig: avatarConfig,
+        achievementIds: achievementIds,
       );
+}
+
+/// Avatar oluşturucu (Batch G) - gerçek bir illüstrasyon sistemi DEĞİL,
+/// yalnızca renk+emoji (bkz. server.js doğrulaması: hex renk + tek emoji).
+class AvatarConfig {
+  final String backgroundColor;
+  final String emoji;
+  const AvatarConfig({required this.backgroundColor, required this.emoji});
+
+  factory AvatarConfig.fromJson(Map<String, dynamic> json) => AvatarConfig(
+        backgroundColor: json['backgroundColor'] as String,
+        emoji: json['emoji'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {'backgroundColor': backgroundColor, 'emoji': emoji};
 }
 
 /// Güvenilir kişi (Batch F) - gerçek bir hesap DEĞİL, yalnızca isim+telefon.
@@ -371,6 +409,8 @@ class AuthService {
     bool? discoverInvisible,
     List<String>? profileBadges,
     Map<String, int>? compatibilityAnswers,
+    AvatarConfig? avatarConfig,
+    bool clearAvatarConfig = false,
   }) async {
     if (_token == null) throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
 
@@ -390,6 +430,11 @@ class AuthService {
     if (discoverInvisible != null) body['discoverInvisible'] = discoverInvisible;
     if (profileBadges != null) body['profileBadges'] = profileBadges;
     if (compatibilityAnswers != null) body['compatibilityAnswers'] = compatibilityAnswers;
+    if (avatarConfig != null) {
+      body['avatarConfig'] = avatarConfig.toJson();
+    } else if (clearAvatarConfig) {
+      body['avatarConfig'] = null;
+    }
 
     final http.Response response;
     try {
