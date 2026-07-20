@@ -59,6 +59,8 @@ class AppUser {
   // Eşleşme (Dating) katmanı - Batch E. profileBadges/selfieVerified/
   // isBoosted HERKESE görünür. discoverInvisible/compatibilityAnswers
   // yalnızca kendi profilinde dolu gelir (bkz. server.js publicUser()).
+  final List<String> closeFriendIds;
+  final List<TrustedContact> trustedContacts;
   final List<String> profileBadges;
   final bool selfieVerified;
   // 'none' | 'pending' | 'approved' | 'rejected' - yalnızca kendi profilinde
@@ -90,6 +92,8 @@ class AppUser {
     this.introVideoUrl,
     this.isPremium = false,
     this.loginStreak = 0,
+    this.closeFriendIds = const [],
+    this.trustedContacts = const [],
     this.profileBadges = const [],
     this.selfieVerified = false,
     this.selfieVerificationStatus = 'none',
@@ -123,6 +127,14 @@ class AppUser {
         introVideoUrl: json['introVideoUrl'] as String?,
         isPremium: json['isPremium'] as bool? ?? false,
         loginStreak: json['loginStreak'] as int? ?? 0,
+        closeFriendIds: (json['closeFriendIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [],
+        trustedContacts: (json['trustedContacts'] as List<dynamic>?)
+                ?.map((e) => TrustedContact.fromJson(Map<String, dynamic>.from(e as Map)))
+                .toList() ??
+            const [],
         profileBadges: (json['profileBadges'] as List<dynamic>?)
                 ?.map((e) => e.toString())
                 .toList() ??
@@ -135,6 +147,53 @@ class AppUser {
                 ?.map((k, v) => MapEntry(k, v as int)) ??
             const {},
       );
+
+  AppUser copyWith({List<String>? closeFriendIds}) => AppUser(
+        id: id,
+        email: email,
+        displayName: displayName,
+        bio: bio,
+        gender: gender,
+        interests: interests,
+        country: country,
+        language: language,
+        age: age,
+        verified: verified,
+        online: online,
+        lastSeen: lastSeen,
+        photoUrl: photoUrl,
+        hideOnlineStatus: hideOnlineStatus,
+        hideLastSeen: hideLastSeen,
+        readReceiptsEnabled: readReceiptsEnabled,
+        birthDate: birthDate,
+        zodiac: zodiac,
+        introVideoUrl: introVideoUrl,
+        isPremium: isPremium,
+        loginStreak: loginStreak,
+        closeFriendIds: closeFriendIds ?? this.closeFriendIds,
+        trustedContacts: trustedContacts,
+        profileBadges: profileBadges,
+        selfieVerified: selfieVerified,
+        selfieVerificationStatus: selfieVerificationStatus,
+        isBoosted: isBoosted,
+        discoverInvisible: discoverInvisible,
+        compatibilityAnswers: compatibilityAnswers,
+      );
+}
+
+/// Güvenilir kişi (Batch F) - gerçek bir hesap DEĞİL, yalnızca isim+telefon.
+/// Panik butonu/buluşma detayı paylaşma bunları SMS ile ulaşmak için kullanır.
+class TrustedContact {
+  final String name;
+  final String phone;
+  const TrustedContact({required this.name, required this.phone});
+
+  factory TrustedContact.fromJson(Map<String, dynamic> json) => TrustedContact(
+        name: json['name'] as String,
+        phone: json['phone'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {'name': name, 'phone': phone};
 }
 
 /// Sunucudan dönen kullanıcıya-gösterilebilir bir hata (ör. "şifre en az 6
@@ -551,6 +610,56 @@ class AuthService {
     final response = await _post('/translate', {'text': text, 'targetLang': targetLang});
     final data = _decodeOrThrow(response);
     return data['translatedText'] as String? ?? text;
+  }
+
+  /// Kısıtlı liste / yakın arkadaşlar (Batch F) - toggle, yalnızca
+  /// ARKADAŞLAR arasından seçilebilir (sunucu tarafında da kontrol edilir).
+  Future<void> toggleCloseFriend(String friendId) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('$signalingServerUrl/friends/$friendId/close-friend'),
+            headers: {'Authorization': 'Bearer $_token'},
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    final data = _decodeOrThrow(response);
+    final ids = (data['closeFriendIds'] as List<dynamic>).map((e) => e.toString()).toList();
+    if (_currentUser != null) {
+      _currentUser = _currentUser!.copyWith(closeFriendIds: ids);
+    }
+  }
+
+  /// Güvenilir kişiler listesini günceller (Batch F) - en fazla 5, sunucu
+  /// tarafında da kırpılır (bkz. userStore.setTrustedContacts).
+  Future<void> updateTrustedContacts(List<TrustedContact> contacts) async {
+    if (_token == null) {
+      throw AuthException('Bu işlem için giriş yapmış olman gerekiyor.');
+    }
+    final http.Response response;
+    try {
+      response = await http
+          .put(
+            Uri.parse('$signalingServerUrl/profile/trusted-contacts'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_token',
+            },
+            body: jsonEncode({'contacts': contacts.map((c) => c.toJson()).toList()}),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      throw AuthException('Sunucuya ulaşılamıyor. Tekrar dene.');
+    }
+    final data = _decodeOrThrow(response);
+    _currentUser = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+    await _persist();
   }
 
   Future<void> logout() async {

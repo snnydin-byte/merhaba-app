@@ -492,30 +492,35 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             icon: Icons.replay_rounded,
             color: Colors.amber,
             size: 44,
+            label: 'Geri al',
             onTap: _rewind,
           ),
           _roundButton(
             icon: Icons.close_rounded,
             color: Colors.redAccent,
             size: 56,
+            label: 'Geç',
             onTap: () => _performSwipe('pass'),
           ),
           _roundButton(
             icon: Icons.star_rounded,
             color: Colors.blueAccent,
             size: 44,
+            label: 'Süper beğen',
             onTap: () => _performSwipe('superlike'),
           ),
           _roundButton(
             icon: Icons.favorite_rounded,
             color: AppColors.secondary,
             size: 56,
+            label: 'Beğen',
             onTap: () => _performSwipe('like'),
           ),
           _roundButton(
             icon: _pendingNote != null ? Icons.edit_note_rounded : Icons.message_outlined,
             color: _pendingNote != null ? AppColors.primary : Colors.white54,
             size: 44,
+            label: 'Ön-mesaj ekle',
             onTap: _showNoteDialog,
           ),
         ],
@@ -523,23 +528,33 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     );
   }
 
+  // Ekran okuyucu uyumluluğu (Batch F) - bkz. video_chat_screen.dart
+  // _controlButton'daki aynı yorum.
   Widget _roundButton({
     required IconData icon,
     required Color color,
     required double size,
+    required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppColors.surfaceElevated,
-          border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceElevated,
+              border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+            ),
+            child: Icon(icon, color: color, size: size * 0.45),
+          ),
         ),
-        child: Icon(icon, color: color, size: size * 0.45),
       ),
     );
   }

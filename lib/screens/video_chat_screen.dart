@@ -1082,6 +1082,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                   _controlButton(
                     icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
                     active: _micOn,
+                    label: _micOn ? 'Mikrofonu kapat' : 'Mikrofonu aç',
                     onTap: () {
                       setState(() => _micOn = !_micOn);
                       _webrtc.toggleMic(_micOn);
@@ -1090,24 +1091,30 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                   _controlButton(
                     icon: Icons.chat_bubble_rounded,
                     active: _chatOpen,
+                    label: _chatOpen ? 'Sohbeti kapat' : 'Sohbeti aç',
                     onTap: () => setState(() => _chatOpen = !_chatOpen),
                   ),
                   _controlButton(
                     icon: Icons.emoji_emotions_outlined,
                     active: false,
+                    label: 'Hızlı tepki gönder',
                     onTap: _showReactionPicker,
                   ),
-                  GestureDetector(
-                    onTap: _nextPerson,
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppGradients.liveAccent,
+                  Semantics(
+                    button: true,
+                    label: 'Sıradaki kişi',
+                    child: GestureDetector(
+                      onTap: _nextPerson,
+                      child: Container(
+                        width: 58,
+                        height: 58,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: AppGradients.liveAccent,
+                        ),
+                        child: const Icon(Icons.skip_next_rounded,
+                            color: Colors.white, size: 28),
                       ),
-                      child: const Icon(Icons.skip_next_rounded,
-                          color: Colors.white, size: 28),
                     ),
                   ),
                   if (_hasCamera)
@@ -1116,6 +1123,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                           ? Icons.videocam_rounded
                           : Icons.videocam_off_rounded,
                       active: _camOn,
+                      label: _camOn ? 'Kamerayı kapat' : 'Kamerayı aç',
                       onTap: () {
                         setState(() => _camOn = !_camOn);
                         _webrtc.toggleCamera(_camOn);
@@ -1125,6 +1133,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                     icon: Icons.call_end_rounded,
                     active: false,
                     isDanger: true,
+                    label: 'Görüşmeyi bitir',
                     onTap: _endCall,
                   ),
                 ],
@@ -1333,26 +1342,38 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     );
   }
 
+  // Ekran okuyucu uyumluluğu (Batch F, madde "ekran okuyucu uyumluluğu") -
+  // yalnızca ikon içeren düğmeler TalkBack/VoiceOver için anlamsız kalıyordu
+  // (tıklanabilir olduğu bile duyurulmuyordu). [label] hem Semantics hem de
+  // görsel bir Tooltip (uzun basınca) olarak kullanılıyor - tek bir kaynak.
   Widget _controlButton({
     required IconData icon,
     required bool active,
     required VoidCallback onTap,
+    required String label,
     bool isDanger = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isDanger
-              ? Colors.redAccent
-              : (active
-                  ? Colors.white.withValues(alpha: 0.15)
-                  : Colors.white.withValues(alpha: 0.08)),
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isDanger
+                  ? Colors.redAccent
+                  : (active
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
       ),
     );
   }

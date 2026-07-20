@@ -14,6 +14,7 @@ import '../services/auth_service.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/message_safety.dart';
 
 enum _ChatMode { persistent, disappearing }
 
@@ -508,9 +509,50 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void _send() {
+  Future<bool?> _confirmSendAnyway(String title, String message) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yine de gönder'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _connecting || _connectionError != null) return;
+
+    // Gönderim öncesi uyarılar (Batch F) - kendine not/bot sohbetinde
+    // anlamsız (karşı taraf yok), yalnızca gerçek bir kişiyle konuşurken
+    // gösteriliyor. Hiçbiri ENGELLEMİYOR, yalnızca bir kez "emin misin?"
+    // soruyor - kullanıcı onaylarsa aynen gönderiliyor.
+    if (!_isNoteToSelf && widget.friend.id != 'merhaba-bot') {
+      if (containsPersonalInfo(text)) {
+        final proceed = await _confirmSendAnyway(
+          'Kişisel bilgi paylaşıyor olabilirsin',
+          'Mesajın bir telefon numarası veya adres içeriyor gibi görünüyor. '
+              'Yine de göndermek istiyor musun?',
+        );
+        if (proceed != true) return;
+      } else if (containsOffensiveLanguage(text)) {
+        final proceed = await _confirmSendAnyway(
+          'Bir an dur',
+          'Bu mesaj sert bir dil içeriyor gibi görünüyor. Yine de göndermek '
+              'istiyor musun?',
+        );
+        if (proceed != true) return;
+      }
+    }
+    if (!mounted) return;
 
     final clientId =
         'c${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';

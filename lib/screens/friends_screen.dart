@@ -158,6 +158,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
+  /// Kısıtlı liste / yakın arkadaşlar (Batch F) - yalnızca closeFriendsOnly
+  /// hikayelerin kimlere görüneceğini belirler (bkz. story_creator_sheet.dart).
+  Future<void> _toggleCloseFriend(AppUser friend) async {
+    try {
+      await AuthService().toggleCloseFriend(friend.id);
+      if (mounted) setState(() {});
+    } on AuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
   Future<void> _confirmRemove(AppUser friend) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -767,9 +780,34 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   _showReportDialog(friend);
                 } else if (value == 'remove') {
                   _confirmRemove(friend);
+                } else if (value == 'close-friend') {
+                  _toggleCloseFriend(friend);
                 }
               },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'close-friend',
+                  child: Row(
+                    children: [
+                      Icon(
+                        (AuthService().currentUser?.closeFriendIds ?? [])
+                                .contains(friend.id)
+                            ? Icons.star_rounded
+                            : Icons.star_border_rounded,
+                        color: Colors.amber,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        (AuthService().currentUser?.closeFriendIds ?? [])
+                                .contains(friend.id)
+                            ? 'Yakın arkadaşlıktan çıkar'
+                            : 'Yakın arkadaş yap',
+                        style: TextStyle(color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'report',
                   child: Row(

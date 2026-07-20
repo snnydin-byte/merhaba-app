@@ -9,6 +9,7 @@ import '../services/messaging_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
+import 'trusted_contacts_screen.dart';
 
 // GitHub Pages üzerinde barındırılan statik sayfalar (bkz. proje kökündeki
 // docs/ klasörü). Play Store yayını öncesi GERÇEK içerikle
@@ -515,6 +516,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onChanged: AuthService().isLoggedIn && !_savingPrivacy
                       ? _setDiscoverInvisible
                       : null,
+                ),
+                const SizedBox(height: 24),
+                _sectionTitle('Güvenlik'),
+                InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  onTap: AuthService().isLoggedIn
+                      ? () => Navigator.of(context).push(
+                          AppPageRoute(builder: (_) => const TrustedContactsScreen()))
+                      : null,
+                  child: GlassCard(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.emergency_share_rounded, color: AppColors.danger),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text('Güvenilir kişiler ve panik butonu',
+                              style: TextStyle(color: Colors.white, fontSize: 14)),
+                        ),
+                        const Icon(Icons.chevron_right, color: Colors.white38),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 _sectionTitle('Bildirimler'),

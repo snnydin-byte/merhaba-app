@@ -88,6 +88,30 @@ Future<void> _createPhotoStory(BuildContext context) async {
   }
   if (picked == null || !context.mounted) return;
 
+  // Kısıtlı liste / yakın arkadaşlar (Batch F) - metin durumundaki
+  // onay kutusuyla AYNI tercih, burada fotoğraf küçük bir onay diyaloğuyla
+  // soruluyor (fotoğraf akışı zaten ayrı bir composer ekranı DEĞİL).
+  final closeFriendsOnly = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      backgroundColor: AppColors.surfaceElevated,
+      title: const Text('Kimler görsün?', style: TextStyle(color: Colors.white)),
+      content: const Text('Bu hikayeyi tüm arkadaşların mı, yalnızca yakın '
+          'arkadaşların mı görsün?', style: TextStyle(color: Colors.white70)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Tüm arkadaşlar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Yalnızca yakın arkadaşlar'),
+        ),
+      ],
+    ),
+  );
+  if (closeFriendsOnly == null || !context.mounted) return;
+
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(const SnackBar(content: Text('Hikaye yükleniyor...')));
   try {
@@ -98,6 +122,7 @@ Future<void> _createPhotoStory(BuildContext context) async {
       kind: 'photo',
       clientId: clientId,
       mediaUrl: result['url'] as String,
+      closeFriendsOnly: closeFriendsOnly,
     );
   } catch (e) {
     messenger.showSnackBar(
@@ -126,6 +151,8 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
   final _controller = TextEditingController();
   String _selectedColor = _kStoryColors.first;
   bool _sending = false;
+  // Kısıtlı liste / yakın arkadaşlar (Batch F).
+  bool _closeFriendsOnly = false;
 
   @override
   void dispose() {
@@ -148,6 +175,7 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
       clientId: clientId,
       text: text,
       backgroundColor: _selectedColor,
+      closeFriendsOnly: _closeFriendsOnly,
     );
     Navigator.of(context).pop();
   }
@@ -212,6 +240,18 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
                     ),
                   );
                 }).toList(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: CheckboxListTile(
+                value: _closeFriendsOnly,
+                onChanged: (v) => setState(() => _closeFriendsOnly = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                activeColor: Colors.white,
+                checkColor: _parseColor(_selectedColor),
+                title: const Text('Yalnızca yakın arkadaşlarım görsün',
+                    style: TextStyle(color: Colors.white, fontSize: 13)),
               ),
             ),
           ],

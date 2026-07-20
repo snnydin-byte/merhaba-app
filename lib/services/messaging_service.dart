@@ -1109,13 +1109,15 @@ class MessagingService {
       required String clientId,
       String? text,
       String? mediaUrl,
-      String? backgroundColor}) {
+      String? backgroundColor,
+      bool closeFriendsOnly = false}) {
     _socket?.emit('story-create', {
       'clientId': clientId,
       'kind': kind,
       if (text != null) 'text': text,
       if (mediaUrl != null) 'mediaUrl': mediaUrl,
       if (backgroundColor != null) 'backgroundColor': backgroundColor,
+      'closeFriendsOnly': closeFriendsOnly,
     });
   }
 
