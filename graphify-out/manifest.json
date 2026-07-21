@@ -424,16 +424,6 @@
     "ast_hash": "7569387d58711ab975940f4df3b4bcda",
     "semantic_hash": "7569387d58711ab975940f4df3b4bcda"
   },
-  ".claude/sessions/snapshot.md": {
-    "mtime": 1784652561.986146,
-    "ast_hash": "f040b22ab3b7aff4173a3aee0b8b64ed",
-    "semantic_hash": ""
-  },
-  ".claude/sessions/write-log.md": {
-    "mtime": 1784652653.7935872,
-    "ast_hash": "1aab81e02548592d41318f30ef201693",
-    "semantic_hash": ""
-  },
   "AGENTS.md": {
     "mtime": 1784117720.3745792,
     "ast_hash": "41b83367a766e94c6884c407cd6f8ed2",
