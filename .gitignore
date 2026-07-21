@@ -70,3 +70,4 @@ agents-watcher.js
 start-agents-watcher.bat
 agents-watcher.code-workspace
 .claude/skills/
+.claude/sessions/
