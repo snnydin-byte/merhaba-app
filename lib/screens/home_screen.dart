@@ -199,8 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// içinde giriş yapmasını isteyen bir durum gösterir (bkz.
   /// friends_screen.dart).
   Widget _buildFriendsEntry(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
