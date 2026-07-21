@@ -34,6 +34,9 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   int _viewerCount = 0;
   bool _ended = false;
   String? _error;
+  List<LiveRoomViewer> _viewers = [];
+  void Function(void Function())? _viewerSheetSetState;
+  bool _friendRequestSent = false;
 
   @override
   void initState() {
@@ -70,6 +73,72 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         _status = 'Yayın sona erdi.';
       });
     };
+    _service.onViewerList = (viewers) {
+      if (!mounted) return;
+      setState(() => _viewers = viewers);
+      _viewerSheetSetState?.call(() {});
+    };
+    _service.onModeratorChanged = (userId, isMod) {
+      if (!mounted) return;
+      // Kendi rolüm değiştiyse AppBar'daki moderasyon butonu görünürlüğü
+      // canModerate'e göre anında güncellensin.
+      setState(() {});
+      _viewerSheetSetState?.call(() {});
+    };
+    _service.onMuteChanged = (userId, muted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(muted ? 'Yayıncı susturuldu.' : 'Yayıncının sesi açıldı.')),
+      );
+    };
+    _service.onKicked = () {
+      if (!mounted) return;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          backgroundColor: AppColors.surfaceElevated,
+          title: const Text('Yayından atıldın', style: TextStyle(color: Colors.white)),
+          content: const Text('Host seni bu canlı yayından çıkardı.', style: TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).maybePop();
+              },
+              child: const Text('Tamam'),
+            ),
+          ],
+        ),
+      );
+    };
+    _service.onFriendRequestReceived = (fromUserId, fromDisplayName) {
+      if (!mounted) return;
+      _showFriendRequestDialog(fromDisplayName);
+    };
+    _service.onFriendRequestResult = (accepted, displayName) {
+      if (!mounted) return;
+      setState(() => _friendRequestSent = false);
+      final name = displayName ?? 'Kullanıcı';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(accepted ? '$name artık arkadaşın!' : '$name isteği reddetti.')),
+      );
+    };
+    _service.onFriendRequestError = (message) {
+      if (!mounted) return;
+      setState(() => _friendRequestSent = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    };
+    _service.onReportSent = (id) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bildirimin alındı, incelenecek.')),
+      );
+    };
+    _service.onReportError = (message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    };
   }
 
   Future<void> _start() async {
@@ -92,6 +161,237 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     _chatController.clear();
   }
 
+  void _sendFriendRequestToHost() {
+    if (_friendRequestSent || _service.hostUserId == null) return;
+    _service.sendFriendRequest(_service.hostUserId!);
+    setState(() => _friendRequestSent = true);
+  }
+
+  // 1'e1 görüşmedeki arkadaşlık isteği diyaloğuyla (video_chat_screen.dart)
+  // AYNI görsel dil - PopScope ile geri tuşu engelleniyor ki istek
+  // yanıtlanmadan diyalog kapanmasın (karşı taraf sonsuza dek beklemesin).
+  void _showFriendRequestDialog(String fromDisplayName) {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          backgroundColor: AppColors.surfaceElevated,
+          title: const Text('Arkadaşlık isteği', style: TextStyle(color: Colors.white)),
+          content: Text(
+            '$fromDisplayName seni arkadaş olarak eklemek istiyor.',
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _service.respondToFriendRequest(false);
+              },
+              child: const Text('Reddet'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _service.respondToFriendRequest(true);
+              },
+              child: Text('Kabul Et', style: TextStyle(color: AppColors.secondary)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // reportStore.js VALID_REASONS ile aynı sabit nedenler, video_chat_screen
+  // .dart'taki _showReportDialog ile BİREBİR aynı liste/görsel dil.
+  void _showReportDialog(String targetUserId) {
+    const reasons = [
+      ('uygunsuz-goruntu', 'Uygunsuz görüntü/içerik'),
+      ('taciz', 'Taciz veya kötüye kullanım'),
+      ('kucuk-yasta', 'Reşit olmayan biri gibi görünüyor'),
+      ('spam', 'Spam / reklam'),
+      ('sahte-hesap', 'Sahte hesap'),
+      ('diger', 'Diğer'),
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: const Text('Kullanıcıyı bildir', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: reasons
+              .map((r) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(r.$2, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _service.reportUser(targetUserId, reason: r.$1);
+                    },
+                  ))
+              .toList(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+        ],
+      ),
+    );
+  }
+
+  void _confirmKick(LiveRoomViewer viewer) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Text('İzleyiciyi at', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('${viewer.displayName} bu yayından atılacak.', style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _service.kickUser(viewer.userId);
+            },
+            child: Text('At', style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // İzleyici listesi paneli - group_info_screen.dart'taki üye listesi
+  // (GlassCard + PopupMenuButton) ile AYNI görsel dil. StatefulBuilder,
+  // liste geldiğinde (onViewerList) sheet'i canlı güncelleyebilmek için.
+  void _openViewerList() {
+    _service.requestViewerList();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surfaceElevated,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setModalState) {
+            _viewerSheetSetState = setModalState;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('İzleyiciler (${_viewers.length})',
+                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 12),
+                    if (_viewers.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text('Henüz izleyici yok.', style: TextStyle(color: AppColors.textSecondary)),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetContext).size.height * 0.5),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _viewers.length,
+                          itemBuilder: (_, index) => _buildViewerRow(_viewers[index]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => _viewerSheetSetState = null);
+  }
+
+  Widget _buildViewerRow(LiveRoomViewer viewer) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+              backgroundImage: viewer.photoUrl != null ? NetworkImage(viewer.photoUrl!) : null,
+              child: viewer.photoUrl == null
+                  ? Text(viewer.displayName.isNotEmpty ? viewer.displayName[0].toUpperCase() : '?')
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      viewer.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                    ),
+                  ),
+                  if (viewer.isModerator)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Text('Moderatör', style: TextStyle(color: AppColors.secondaryLight, fontSize: 10)),
+                    ),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              icon: Icon(Icons.more_vert, color: AppColors.textFaint, size: 18),
+              color: AppColors.surfaceElevated,
+              onSelected: (value) {
+                switch (value) {
+                  case 'toggle-moderator':
+                    if (viewer.isModerator) {
+                      _service.removeModerator(viewer.userId);
+                    } else {
+                      _service.addModerator(viewer.userId);
+                    }
+                    break;
+                  case 'kick':
+                    _confirmKick(viewer);
+                    break;
+                  case 'friend-request':
+                    _service.sendFriendRequest(viewer.userId);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Arkadaşlık isteği gönderildi.')),
+                    );
+                    break;
+                  case 'report':
+                    _showReportDialog(viewer.userId);
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                // Moderatör atama/kaldırma yalnızca host'a açık - co-host'lar
+                // ve moderatörler bunu yapamaz (bkz. server.js live-room-add-
+                // moderator, isHost kontrolü).
+                if (widget.isHost)
+                  PopupMenuItem(
+                    value: 'toggle-moderator',
+                    child: Text(
+                      viewer.isModerator ? 'Moderatörlükten al' : 'Moderatör yap',
+                      style: TextStyle(color: AppColors.textPrimary),
+                    ),
+                  ),
+                PopupMenuItem(value: 'kick', child: Text('At', style: TextStyle(color: AppColors.danger))),
+                PopupMenuItem(value: 'friend-request', child: Text('Arkadaş ekle', style: TextStyle(color: AppColors.textPrimary))),
+                PopupMenuItem(value: 'report', child: Text('Bildir', style: TextStyle(color: AppColors.textPrimary))),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _service.leaveRoom();
@@ -111,7 +411,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         actions: [
           if (_viewerCount > 0)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Center(
                 child: Row(
                   children: [
@@ -120,6 +420,27 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                     Text('$_viewerCount', style: const TextStyle(color: Colors.white70)),
                   ],
                 ),
+              ),
+            ),
+          // İzleyici listesi/moderasyon paneli - yalnızca host/co-host/
+          // moderatöre görünür (bkz. LiveRoomService.canModerate).
+          if (_service.canModerate)
+            IconButton(
+              tooltip: 'İzleyiciler',
+              icon: const Icon(Icons.groups_outlined, color: Colors.white),
+              onPressed: _openViewerList,
+            ),
+          // Yayına izleyici olarak katılan biri host'a arkadaşlık isteği
+          // gönderebilsin - video_chat_screen.dart'taki 1'e1 "Arkadaş Ekle"
+          // butonuyla AYNI görsel dil.
+          if (!widget.isHost && AuthService().isLoggedIn && !_friendRequestSent)
+            IconButton(
+              tooltip: 'Arkadaş Ekle',
+              onPressed: _sendFriendRequestToHost,
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), shape: BoxShape.circle),
+                child: const Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
               ),
             ),
         ],

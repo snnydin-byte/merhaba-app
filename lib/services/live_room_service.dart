@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'auth_service.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
 /// Canlı Yayın/Sesli Oda (Faz 1 - MVP). group_call_service.dart'taki MESH
@@ -40,16 +41,42 @@ class LiveRoomChatMessage {
 
 enum LiveRoomRole { host, coHost, viewer }
 
+class LiveRoomViewer {
+  final String userId;
+  final String displayName;
+  final String? photoUrl;
+  final bool verified;
+  final bool isModerator;
+
+  LiveRoomViewer({
+    required this.userId,
+    required this.displayName,
+    this.photoUrl,
+    required this.verified,
+    required this.isModerator,
+  });
+}
+
 class LiveRoomService {
   io.Socket? _socket;
   livekit.Room? _room;
   livekit.EventsListener<livekit.RoomEvent>? _roomListener;
   String? _roomId;
+  String? _hostUserId;
   LiveRoomRole? _myRole;
   bool _disposed = false;
+  // Host'tan bağımsız, host'un sonradan atadığı bir yetki - bkz. server.js
+  // 'live-room-moderator-changed'. myRole zaten host/co-host'u kapsıyor,
+  // bu yalnızca "moderatör yapılmış bir izleyici" durumunu ekliyor.
+  bool _isModerator = false;
 
   String? get roomId => _roomId;
+  String? get hostUserId => _hostUserId;
   LiveRoomRole? get myRole => _myRole;
+  bool get isModerator => _isModerator;
+  // Kick/mute/moderatör-ata butonlarını göstermek için - host, co-host ya
+  // da sonradan moderatör yapılmış biri.
+  bool get canModerate => _myRole == LiveRoomRole.host || _myRole == LiveRoomRole.coHost || _isModerator;
   livekit.Room? get room => _room;
 
   /// Anlık (SFU'dan gelen) uzak katılımcılar - host/co-host video/ses
@@ -64,6 +91,16 @@ class LiveRoomService {
   void Function()? onRoomEnded;
   void Function(int viewerCount)? onViewerCountChanged;
   void Function(LiveRoomChatMessage message)? onChatMessage;
+  // Moderasyon (Faz 2) - bkz. server.js'deki karşılık gelen event'ler.
+  void Function(List<LiveRoomViewer> viewers)? onViewerList;
+  void Function(String userId, bool isModerator)? onModeratorChanged;
+  void Function(String userId, bool muted)? onMuteChanged;
+  void Function()? onKicked;
+  void Function(String fromUserId, String fromDisplayName)? onFriendRequestReceived;
+  void Function(bool accepted, String? displayName)? onFriendRequestResult;
+  void Function(String message)? onFriendRequestError;
+  void Function(String id)? onReportSent;
+  void Function(String message)? onReportError;
 
   void _connectSocket(String authToken) {
     _socket?.disconnect();
@@ -98,7 +135,73 @@ class LiveRoomService {
         sentAt: sentAtRaw != null ? DateTime.tryParse(sentAtRaw) ?? DateTime.now() : DateTime.now(),
       ));
     });
+    _socket!.on('live-room-viewer-list', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final rawViewers = (map['viewers'] as List<dynamic>?) ?? [];
+      final viewers = rawViewers.map((v) {
+        final vm = Map<String, dynamic>.from(v as Map);
+        return LiveRoomViewer(
+          userId: vm['userId'] as String,
+          displayName: (vm['displayName'] as String?) ?? 'Kullanıcı',
+          photoUrl: vm['photoUrl'] as String?,
+          verified: (vm['verified'] as bool?) ?? false,
+          isModerator: (vm['isModerator'] as bool?) ?? false,
+        );
+      }).toList();
+      onViewerList?.call(viewers);
+    });
+    _socket!.on('live-room-moderator-changed', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final userId = map['userId'] as String?;
+      final isMod = (map['isModerator'] as bool?) ?? false;
+      if (userId == null) return;
+      // Kendi rolüm değiştiyse (host tarafından moderatör yapıldım/
+      // moderatörlükten alındım) _isModerator'ü de güncelle - UI'daki
+      // canModerate butonları buna göre anında değişsin.
+      _updateSelfModeratorFlag(userId, isMod);
+      onModeratorChanged?.call(userId, isMod);
+    });
+    _socket!.on('live-room-mute-changed', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final userId = map['userId'] as String?;
+      final muted = (map['muted'] as bool?) ?? false;
+      if (userId != null) onMuteChanged?.call(userId, muted);
+    });
+    _socket!.on('live-room-kicked', (_) {
+      onKicked?.call();
+      _teardown();
+    });
+    _socket!.on('live-room-friend-request-received', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onFriendRequestReceived?.call(
+        (map['fromUserId'] as String?) ?? '',
+        (map['fromDisplayName'] as String?) ?? 'Kullanıcı',
+      );
+    });
+    _socket!.on('friend-request-result', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onFriendRequestResult?.call((map['accepted'] as bool?) ?? false, map['displayName'] as String?);
+    });
+    _socket!.on('friend-request-error', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onFriendRequestError?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
+    });
+    _socket!.on('report-user-sent', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onReportSent?.call((map['id'] as String?) ?? '');
+    });
+    _socket!.on('report-user-error', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onReportError?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
+    });
+
     _socket!.connect();
+  }
+
+  void _updateSelfModeratorFlag(String userId, bool isMod) {
+    if (userId == AuthService().currentUser?.id) {
+      _isModerator = isMod;
+    }
   }
 
   Future<void> _joinLiveKitRoom(String livekitUrl, String token) async {
@@ -139,6 +242,7 @@ class LiveRoomService {
       final map = Map<String, dynamic>.from(data as Map);
       final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
       _roomId = roomInfo['id'] as String?;
+      _hostUserId = roomInfo['hostUserId'] as String?;
       final token = map['token'] as String;
       final livekitUrl = map['livekitUrl'] as String;
       try {
@@ -173,6 +277,8 @@ class LiveRoomService {
 
     _socket!.on('live-room-joined', (data) async {
       final map = Map<String, dynamic>.from(data as Map);
+      final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
+      _hostUserId = roomInfo['hostUserId'] as String?;
       final token = map['token'] as String;
       final livekitUrl = map['livekitUrl'] as String;
       try {
@@ -189,6 +295,61 @@ class LiveRoomService {
   void sendChatMessage(String text) {
     if (_roomId == null || text.trim().isEmpty) return;
     _socket?.emit('live-room-chat-send', {'roomId': _roomId, 'text': text.trim()});
+  }
+
+  /// İzleyici listesini ister - yalnızca host/co-host/moderatör için
+  /// anlamlı, sunucu yetkisiz istekte 'live-room-error' döner (bkz.
+  /// onError). Sonuç onViewerList üzerinden gelir.
+  void requestViewerList() {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-viewer-list', {'roomId': _roomId});
+  }
+
+  void addModerator(String targetUserId) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-add-moderator', {'roomId': _roomId, 'targetUserId': targetUserId});
+  }
+
+  void removeModerator(String targetUserId) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-remove-moderator', {'roomId': _roomId, 'targetUserId': targetUserId});
+  }
+
+  void kickUser(String targetUserId) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-kick', {'roomId': _roomId, 'targetUserId': targetUserId});
+  }
+
+  void muteUser(String targetUserId) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-mute', {'roomId': _roomId, 'targetUserId': targetUserId});
+  }
+
+  void unmuteUser(String targetUserId) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-unmute', {'roomId': _roomId, 'targetUserId': targetUserId});
+  }
+
+  void reportUser(String targetUserId, {required String reason, String? note}) {
+    if (_roomId == null) return;
+    _socket?.emit('live-room-report-user', {
+      'roomId': _roomId,
+      'targetUserId': targetUserId,
+      'reason': reason,
+      'note': note ?? '',
+    });
+  }
+
+  /// Yayın içinden arkadaşlık isteği gönderir - 1'e1 görüşmedeki
+  /// 'friend-request'ten farklı bir sunucu event'i kullanır çünkü hedef
+  /// tek bir "partner" değil, odadaki herhangi biri olabilir (bkz.
+  /// server.js pendingLiveRoomFriendRequests yorumu).
+  void sendFriendRequest(String targetUserId) {
+    _socket?.emit('live-room-friend-request', {'targetUserId': targetUserId});
+  }
+
+  void respondToFriendRequest(bool accepted) {
+    _socket?.emit('live-room-friend-request-response', {'accepted': accepted});
   }
 
   void leaveRoom() {
