@@ -7,13 +7,15 @@ import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import 'group_call_screen.dart';
 
-/// Küçük grup rastgele görüşmesi (mesh, 3-4 kişi) için kamera önizlemesi +
-/// grup büyüklüğü seçimi + rıza ekranı - pre_call_screen.dart'ın 1:1 eşiti.
-/// Kamera/mikrofon edinme WebRTCService.initLocalMedia() ile YAPILIR (kod
-/// tekrarı yok) ama WebRTCService.connectAndFindMatch() ASLA çağrılmaz -
-/// bu örnek yalnızca medya akışını taşımak (GroupCallScreen'e devretmek) ve
-/// mic/kamera aç-kapa/switchCamera gibi hazır yardımcıları kullanmak için
-/// var, gerçek grup sinyalleşmesi GroupCallService'te.
+/// Grup Eşleşme (3-8 kişi) için kamera önizlemesi + grup büyüklüğü seçimi +
+/// rıza ekranı - pre_call_screen.dart'ın grup eşiti. Kamera/mikrofon edinme
+/// yalnızca burada, YEREL ÖNİZLEME için WebRTCService.initLocalMedia() ile
+/// yapılıyor (kod tekrarı yok, aynı izin/önizleme akışı) - ama bu akış
+/// GroupCallScreen'e DEVREDİLMİYOR: sunucu tarafı artık LiveKit (SFU)
+/// kullanıyor (bkz. group_call_service.dart), LiveKit kendi kamera/mikrofon
+/// erişimini kendisi yönetiyor. Bu yüzden _start()'ta önizleme akışı
+/// kapatılır, yalnızca kullanıcının başlangıç mic/kamera tercihi (booleans)
+/// GroupCallScreen'e taşınır.
 class GroupCallPreScreen extends StatefulWidget {
   const GroupCallPreScreen({super.key});
 
@@ -36,7 +38,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
   bool _rulesAcceptedBefore = false;
   bool _rulesCheckboxChecked = false;
   bool _starting = false;
-  bool _handedOff = false;
+  static const _groupSizes = [3, 4, 5, 6, 7, 8];
 
   @override
   void initState() {
@@ -62,7 +64,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
     try {
       await _webrtc.initLocalMedia(
         onLocal: (stream) {
-          if (!mounted || _handedOff) return;
+          if (!mounted) return;
           _previewRenderer.srcObject = stream;
           setState(() {});
         },
@@ -115,7 +117,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
     try {
       await _webrtc.initLocalMedia(
         onLocal: (stream) {
-          if (!mounted || _handedOff) return;
+          if (!mounted) return;
           _previewRenderer.srcObject = stream;
           setState(() {});
         },
@@ -141,13 +143,20 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
       await prefs.setBool(_rulesAcceptedPrefKey, true);
     }
 
+    // Önizleme akışının artık bir alıcısı yok - LiveKit kendi kamera/
+    // mikrofon erişimini kendisi kuracak (bkz. sınıf üstü not), bu yüzden
+    // burada kapatıyoruz, GroupCallScreen'e devretmiyoruz.
+    final initialMicOn = _micOn;
+    final initialCamOn = _camOn;
+    _webrtc.dispose();
+
     if (!mounted) return;
-    _handedOff = true;
     Navigator.of(context).pushReplacement(
       AppPageRoute(
         builder: (_) => GroupCallScreen(
           groupSize: _groupSize,
-          webrtcForMedia: _webrtc,
+          initialMicOn: initialMicOn,
+          initialCamOn: initialCamOn,
         ),
       ),
     );
@@ -156,7 +165,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
   @override
   void dispose() {
     _previewRenderer.dispose();
-    if (!_handedOff) _webrtc.dispose();
+    _webrtc.dispose();
     super.dispose();
   }
 
@@ -297,23 +306,31 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
     );
   }
 
+  // 6 seçenek (3-8) tek satıra sığmayabileceği için (bkz. home_screen.dart'ta
+  // bu sezon düzeltilen benzer bir taşma hatası) etiket ayrı satırda, chip'ler
+  // Wrap içinde - hiçbir ekran genişliğinde taşma riski yok.
   Widget _buildSizePicker() {
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.groups_rounded,
-              color: AppColors.primaryLight, size: 20),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Kaç kişilik grup?',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
-            ),
+          Row(
+            children: [
+              Icon(Icons.groups_rounded, color: AppColors.primaryLight, size: 20),
+              const SizedBox(width: 10),
+              const Text(
+                'Kaç kişilik grup?',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ],
           ),
-          _sizeChip(3),
-          const SizedBox(width: 8),
-          _sizeChip(4),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _groupSizes.map(_sizeChip).toList(),
+          ),
         ],
       ),
     );

@@ -1,110 +1,44 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:http/http.dart' as http;
+import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'webrtc_service.dart' show signalingServerUrl;
 
-/// Küçük grup rastgele görüşmesi (mesh, 3-4 kişi) - Batch C'nin ertelenen
-/// maddesi. WebRTCService (1:1 eşleştirme) ile KASITLI olarak AYRI bir
-/// servis: veri modeli temelden farklı (tek partnerId/tek RTCPeerConnection
-/// yerine, odadaki her diğer katılımcı için AYRI bir RTCPeerConnection).
-///
-/// SFU (merkezi medya sunucusu) DEĞİL - N kişilik bir odada her katılımcı
-/// diğer N-1 kişiyle doğrudan bağlantı kurar (bkz. signaling_server/
-/// server.js'deki aynı not). 4 kişide bu 6 eşzamanlı bağlantı demek.
-///
-/// Kamera/mikrofon EDİNME mantığını (getUserMedia, izin akışı) burada TEKRAR
-/// YAZMIYORUZ - GroupCallPreScreen bunun için WebRTCService.initLocalMedia()
-/// kullanır, buraya yalnızca hazır bir MediaStream referansı verilir. Bu
-/// servis o akışın SAHİBİ değildir, kapatmaz - yalnızca her peer
-/// connection'a track ekler.
-class GroupCallPeer {
-  final String socketId;
-  final String? displayName;
-  final bool verified;
-  final String? photoUrl;
-  RTCPeerConnection? pc;
-  MediaStream? remoteStream;
-
-  GroupCallPeer({
-    required this.socketId,
-    this.displayName,
-    this.verified = false,
-    this.photoUrl,
-  });
-}
-
+/// Grup Eşleşme (3-8 kişi) - live_room_service.dart ile AYNI LiveKit (SFU)
+/// mimarisi, tek fark: host/viewer ayrımı YOK, herkes eşit katılımcı (hepsi
+/// yayınlar+izler). ESKİ mesh sürümünün (her katılımcı N-1 ayrı
+/// RTCPeerConnection açardı, 8 kişide 28 bağlantı) YERİNE geçti - hem 8
+/// kişiye ölçeklenebiliyor hem de sunucu tarafında "boşluk doldurma"
+/// (groupMatchStore.js) artık mümkün, çünkü LiveKit'e sonradan katılmak
+/// mesh'teki gibi TÜM mevcut katılımcılarla yeniden el sıkışma gerektirmiyor
+/// - yalnızca aynı LiveKit odasına bağlanmak yeterli.
 class GroupCallService {
   io.Socket? _socket;
-  MediaStream? _localStream;
+  livekit.Room? _room;
+  livekit.EventsListener<livekit.RoomEvent>? _roomListener;
   String? _roomId;
+  int? _targetSize;
   bool _disposed = false;
 
-  final Map<String, GroupCallPeer> _peers = {};
-  // socketId -> pc kurulum Future'ı - hem 'group-call-matched' anında
-  // proaktif olarak BAŞLATILIYOR hem de erken gelen bir 'signal' bunu
-  // bulup bekleyebiliyor (bkz. _ensurePc notu). Bu, "offer'ı gönderen taraf
-  // daha hızlı davranıp biz henüz pc kurmadan sinyal gönderdi" yarış
-  // durumunu (race condition) çözüyor.
-  final Map<String, Future<RTCPeerConnection>> _pcFutures = {};
-  final Map<String, bool> _handlingOffer = {};
-  final Map<String, bool> _handlingAnswer = {};
-
-  List<GroupCallPeer> get peers => _peers.values.toList(growable: false);
   String? get roomId => _roomId;
+  int? get targetSize => _targetSize;
+  livekit.Room? get room => _room;
+  Iterable<livekit.RemoteParticipant> get remoteParticipants =>
+      _room?.remoteParticipants.values ?? const [];
 
-  /// Katılımcı listesi VEYA herhangi bir uzak akış değiştiğinde tetiklenir -
-  /// UI bunu görüp setState çağırmalı (ChangeNotifier kullanılmıyor, projenin
-  /// geri kalanındaki basit callback deseniyle tutarlı olsun diye).
   void Function()? onUpdate;
   void Function(String status)? onStatusChange;
-  void Function(String socketId)? onPeerLeft;
+  void Function(String message)? onError;
   void Function()? onCallEnded;
   void Function(String message)? onAccountRestricted;
   void Function(String reportId)? onReportSent;
   void Function(String message)? onReportError;
 
-  Map<String, dynamic> _iceServers = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-    ]
-  };
-  Future<void>? _iceServersFuture;
-
-  Future<void> _refreshIceServers() async {
-    try {
-      final response = await http
-          .get(Uri.parse('$signalingServerUrl/turn-credentials'))
-          .timeout(const Duration(seconds: 20));
-      if (response.statusCode != 200) return;
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final servers = data['iceServers'] as List<dynamic>?;
-      if (servers == null || servers.isEmpty) return;
-      _iceServers = {
-        'iceServers':
-            servers.map((s) => Map<String, dynamic>.from(s as Map)).toList(),
-      };
-    } catch (_) {
-      // Sessizce STUN-only ile devam - bkz. webrtc_service.dart'taki aynı not.
-    }
-  }
-
-  /// [localStream] çağıran ekranın (GroupCallPreScreen) ZATEN başlattığı bir
-  /// kamera/mikrofon akışı - burada YALNIZCA referans olarak tutulur, sahibi
-  /// değiliz (dispose()'da durdurmuyoruz).
-  void connectAndFind({
-    required int size,
-    required MediaStream localStream,
-    String? authToken,
-  }) {
+  void connectAndFind({required int size, String? authToken}) {
     _socket?.disconnect();
     _socket?.dispose();
-    _localStream = localStream;
-    _iceServersFuture = _refreshIceServers();
+    _targetSize = size;
 
     final optionBuilder =
         io.OptionBuilder().setTransports(['websocket']).disableAutoConnect();
@@ -113,228 +47,78 @@ class GroupCallService {
 
     _socket!.onConnect((_) {
       onStatusChange?.call('Grup aranıyor...');
-      _socket!.emit('group-call-find', {'size': size});
+      _socket!.emit('group-match-find', {'size': size});
     });
     _socket!.onConnectError((_) {
       onStatusChange?.call('Bağlantı hatası: sunucuya ulaşılamıyor.');
     });
+    _socket!.on('group-match-error', (data) {
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onError?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
+    });
 
-    _socket!.on('group-call-matched', (data) {
+    _socket!.on('group-match-joined', (data) async {
+      final map = Map<String, dynamic>.from(data as Map);
+      _roomId = map['roomId'] as String?;
+      _targetSize = map['targetSize'] as int? ?? _targetSize;
+      final token = map['token'] as String;
+      final livekitUrl = map['livekitUrl'] as String;
+      onStatusChange?.call('Gruba bağlanılıyor...');
       try {
-        final map = Map<String, dynamic>.from(data as Map);
-        _roomId = map['roomId'] as String?;
-        final participantsRaw = (map['participants'] as List?) ?? const [];
-        final initiatorForIds =
-            Set<String>.from((map['initiatorForIds'] as List?) ?? const []);
-
-        _peers.clear();
-        for (final raw in participantsRaw) {
-          final p = Map<String, dynamic>.from(raw as Map);
-          final id = p['socketId'] as String;
-          _peers[id] = GroupCallPeer(
-            socketId: id,
-            displayName: p['displayName'] as String?,
-            verified: p['verified'] as bool? ?? false,
-            photoUrl: p['photoUrl'] as String?,
-          );
-        }
+        await _joinLiveKitRoom(livekitUrl, token);
+        if (_disposed) return;
+        await _room!.localParticipant?.setCameraEnabled(true);
+        await _room!.localParticipant?.setMicrophoneEnabled(true);
+        onStatusChange?.call('Grupta yayındasın.');
         onUpdate?.call();
-        onStatusChange?.call('Grup bulundu, bağlanılıyor...');
-
-        for (final id in _peers.keys) {
-          unawaited(_startPeer(id, initiatorForIds.contains(id)));
-        }
-      } catch (e) {
-        // ignore: avoid_print
-        print('HATA (group-call-matched): $e');
+      } catch (err) {
+        onError?.call('Gruba bağlanılamadı: $err');
       }
-    });
-
-    _socket!.on('signal', (data) async {
-      try {
-        final outer = Map<String, dynamic>.from(data as Map);
-        final fromId = outer['fromId'] as String?;
-        if (fromId == null || !_peers.containsKey(fromId)) return;
-        final payload = Map<String, dynamic>.from(outer['data'] as Map);
-        await _handleSignal(fromId, payload);
-      } catch (e) {
-        // ignore: avoid_print
-        print('HATA (group signal): $e');
-      }
-    });
-
-    _socket!.on('group-call-peer-left', (data) {
-      try {
-        final map = Map<String, dynamic>.from(data as Map);
-        final socketId = map['socketId'] as String?;
-        if (socketId == null) return;
-        _closePeer(socketId);
-        _peers.remove(socketId);
-        onPeerLeft?.call(socketId);
-        onUpdate?.call();
-      } catch (e) {
-        // ignore: avoid_print
-        print('HATA (group-call-peer-left): $e');
-      }
-    });
-
-    _socket!.on('group-call-ended', (_) {
-      _cleanupAllPeers();
-      onStatusChange?.call('Görüşme sona erdi.');
-      onCallEnded?.call();
     });
 
     _socket!.on('account-restricted', (data) {
-      try {
-        final map = Map<String, dynamic>.from(data as Map);
-        onAccountRestricted
-            ?.call(map['message'] as String? ?? 'Hesabın incelemeye alındı.');
-      } catch (_) {}
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onAccountRestricted?.call((map['message'] as String?) ?? 'Hesabın incelemeye alındı.');
     });
-
     _socket!.on('report-user-sent', (data) {
-      try {
-        final map = Map<String, dynamic>.from(data as Map);
-        onReportSent?.call(map['id'] as String? ?? '');
-      } catch (_) {}
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onReportSent?.call((map['id'] as String?) ?? '');
     });
-
     _socket!.on('report-user-error', (data) {
-      try {
-        final map = Map<String, dynamic>.from(data as Map);
-        onReportError?.call(map['message'] as String? ?? 'Şikayet gönderilemedi.');
-      } catch (_) {}
+      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      onReportError?.call((map['message'] as String?) ?? 'Şikayet gönderilemedi.');
     });
 
     _socket!.connect();
   }
 
-  Future<RTCPeerConnection> _ensurePc(String socketId) {
-    return _pcFutures.putIfAbsent(socketId, () => _createPc(socketId));
-  }
+  Future<void> _joinLiveKitRoom(String livekitUrl, String token) async {
+    _room = livekit.Room();
+    _roomListener = _room!.createListener();
+    _roomListener!
+      ..on<livekit.TrackSubscribedEvent>((_) => onUpdate?.call())
+      ..on<livekit.TrackUnsubscribedEvent>((_) => onUpdate?.call())
+      ..on<livekit.ParticipantConnectedEvent>((_) => onUpdate?.call())
+      ..on<livekit.ParticipantDisconnectedEvent>((_) => onUpdate?.call())
+      ..on<livekit.RoomDisconnectedEvent>((_) => onCallEnded?.call());
 
-  Future<RTCPeerConnection> _createPc(String socketId) async {
-    if (_iceServersFuture != null) await _iceServersFuture;
-    final pc = await createPeerConnection(_iceServers);
+    await _room!.connect(livekitUrl, token);
     if (_disposed) {
-      pc.close();
-      throw StateError('disposed');
-    }
-    _localStream?.getTracks().forEach((track) {
-      pc.addTrack(track, _localStream!);
-    });
-    pc.onTrack = (RTCTrackEvent event) {
-      if (event.streams.isNotEmpty) {
-        _peers[socketId]?.remoteStream = event.streams[0];
-        onUpdate?.call();
-      }
-    };
-    pc.onIceCandidate = (RTCIceCandidate candidate) {
-      _socket?.emit('signal', {
-        'targetId': socketId,
-        'data': {
-          'type': 'candidate',
-          'candidate': candidate.candidate,
-          'sdpMid': candidate.sdpMid,
-          'sdpMLineIndex': candidate.sdpMLineIndex,
-        },
-      });
-    };
-    final peer = _peers[socketId];
-    if (peer != null) peer.pc = pc;
-    return pc;
-  }
-
-  Future<void> _startPeer(String socketId, bool isInitiator) async {
-    try {
-      final pc = await _ensurePc(socketId);
-      if (_disposed || !_peers.containsKey(socketId)) return;
-      if (isInitiator) {
-        final offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        if (_disposed || !_peers.containsKey(socketId)) return;
-        _socket?.emit('signal', {
-          'targetId': socketId,
-          'data': {'type': 'offer', 'sdp': offer.sdp},
-        });
-      }
-    } catch (_) {
-      // pc kurulamadı (ör. ekran bu sırada kapandı) - sessizce vazgeç,
-      // ilgili katılımcı zaten group-call-peer-left ile temizlenecek.
+      // bkz. live_room_service.dart'taki AYNI desen - ekran, LiveKit
+      // bağlantısı kurulurken kapandıysa kimsenin sahiplenmeyeceği odayı
+      // hemen bırakıyoruz.
+      await _room?.disconnect();
+      await _room?.dispose();
+      _room = null;
     }
   }
 
-  Future<void> _handleSignal(String fromId, Map<String, dynamic> payload) async {
-    final pc = await _ensurePc(fromId);
-    if (_disposed) return;
-    final type = payload['type'];
-
-    if (type == 'offer') {
-      // bkz. webrtc_service.dart _handleOffer() - AYNI kilit deseni, burada
-      // katılımcı BAŞINA (per-peer) uygulanıyor ki bir katılımcının sinyali
-      // diğerininkini bloklamasın.
-      if (_handlingOffer[fromId] == true) return;
-      _handlingOffer[fromId] = true;
-      try {
-        await pc.setRemoteDescription(
-          RTCSessionDescription(payload['sdp'] as String, 'offer'),
-        );
-        if (pc.signalingState != RTCSignalingState.RTCSignalingStateHaveRemoteOffer &&
-            pc.signalingState != RTCSignalingState.RTCSignalingStateHaveLocalPrAnswer) {
-          return;
-        }
-        final answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        _socket?.emit('signal', {
-          'targetId': fromId,
-          'data': {'type': 'answer', 'sdp': answer.sdp},
-        });
-      } finally {
-        _handlingOffer[fromId] = false;
-      }
-    } else if (type == 'answer') {
-      if (pc.signalingState != RTCSignalingState.RTCSignalingStateHaveLocalOffer) return;
-      if (_handlingAnswer[fromId] == true) return;
-      _handlingAnswer[fromId] = true;
-      try {
-        await pc.setRemoteDescription(
-          RTCSessionDescription(payload['sdp'] as String, 'answer'),
-        );
-      } finally {
-        _handlingAnswer[fromId] = false;
-      }
-    } else if (type == 'candidate') {
-      if (payload['candidate'] == null) return;
-      await pc.addCandidate(
-        RTCIceCandidate(
-          payload['candidate'] as String,
-          payload['sdpMid'] as String?,
-          payload['sdpMLineIndex'] as int?,
-        ),
-      );
-    }
-  }
-
-  void _closePeer(String socketId) {
-    _peers[socketId]?.pc?.close();
-    _pcFutures.remove(socketId);
-    _handlingOffer.remove(socketId);
-    _handlingAnswer.remove(socketId);
-  }
-
-  void _cleanupAllPeers() {
-    for (final id in _peers.keys.toList()) {
-      _closePeer(id);
-    }
-    _peers.clear();
-    _roomId = null;
-  }
-
-  /// Bildir/şikayet et - grup görüşmesinde tek bir "partner" olmadığı için
-  /// (1:1'deki reportUser'dan farklı) hedef AÇIKÇA belirtilmeli.
-  void reportUser(String targetSocketId, String reason, {String? note}) {
-    _socket?.emit('group-call-report-user', {
-      'targetSocketId': targetSocketId,
+  /// Bildir/şikayet et - grup eşleşmesinde tek bir "partner" olmadığı için
+  /// hedef userId AÇIKÇA belirtilmeli (LiveKit'te participant.identity ==
+  /// userId, bkz. server.js generateJoinToken).
+  void reportUser(String targetUserId, String reason, {String? note}) {
+    _socket?.emit('group-match-report-user', {
+      'targetUserId': targetUserId,
       'reason': reason,
       'note': note,
     });
@@ -342,28 +126,36 @@ class GroupCallService {
 
   /// Odadan ayrılır ve YENİDEN kuyruğa girmez - ekran kapanırken kullanılır.
   void leaveRoom() {
-    _socket?.emit('group-call-leave');
-    _cleanupAllPeers();
+    _socket?.emit('group-match-leave');
+    _teardown();
   }
 
   /// Mevcut odadan ayrılıp YENİ bir grup arar - "Sıradaki grup" butonu için.
-  /// Sunucu tarafı 'group-call-find' zaten önceki oda/kuyruk kaydını temizliyor
-  /// (bkz. server.js), bu yüzden burada ayrıca 'group-call-leave' göndermeye
-  /// gerek yok.
+  /// Sunucu tarafı 'group-match-find' zaten önceki oda/kuyruk kaydını
+  /// temizliyor (bkz. server.js doLeaveGroupMatch), ayrıca 'group-match-
+  /// leave' göndermeye gerek yok.
   void findNewGroup(int size) {
-    _cleanupAllPeers();
+    _teardown();
     onUpdate?.call();
     onStatusChange?.call('Yeni grup aranıyor...');
-    _socket?.emit('group-call-find', {'size': size});
+    _targetSize = size;
+    _socket?.emit('group-match-find', {'size': size});
+  }
+
+  void _teardown() {
+    _roomListener?.dispose();
+    _roomListener = null;
+    _room?.disconnect();
+    _room?.dispose();
+    _room = null;
+    _roomId = null;
   }
 
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
-    _cleanupAllPeers();
+    _teardown();
     _socket?.disconnect();
     _socket?.dispose();
-    // ÖNEMLİ: _localStream burada durdurulmuyor - bu servisin sahibi değil
-    // (bkz. sınıf üstü not), onu kimin başlattıysa (GroupCallScreen'in
-    // sahip olduğu WebRTCService örneği) onun dispose()'u kapatır.
   }
 }
