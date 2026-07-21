@@ -1,0 +1,379 @@
+<title>Merhaba — Miami: Gerçek Ekran Tasarımları</title>
+<style>
+  :root{
+    --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#D6408C;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --chrome-bg:#100D14; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+      --chrome-line:#2A2436; --chrome-card:#17131F; --chrome-accent:#FF7BB8; }
+  }
+  :root[data-theme="dark"]{ --chrome-bg:#100D14; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+    --chrome-line:#2A2436; --chrome-card:#17131F; --chrome-accent:#FF7BB8; }
+  :root[data-theme="light"]{ --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#D6408C; }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--chrome-bg); color:var(--chrome-ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:56px 24px 100px;}
+
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--chrome-accent);font-weight:700;margin:0 0 14px;}
+  h1{font-size:clamp(28px,4vw,42px);font-weight:800;letter-spacing:-0.02em;margin:0 0 16px;text-wrap:balance;}
+  .lede{max-width:70ch;color:var(--chrome-sub);font-size:16px;margin:0 0 14px;}
+  .correction{
+    max-width:70ch;font-size:14px;color:var(--chrome-ink);background:var(--chrome-card);
+    border:1px solid var(--chrome-line);border-left:3px solid var(--chrome-accent);
+    border-radius:10px;padding:14px 16px;margin:0 0 44px;
+  }
+
+  .screens{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;
+  }
+  @media (max-width:980px){ .screens{grid-template-columns:1fr;max-width:380px;margin:0 auto;} }
+
+  .screen-block{display:flex;flex-direction:column;gap:16px;}
+  .screen-head{display:flex;align-items:baseline;gap:8px;}
+  .screen-num{font-size:11px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;}
+  .screen-name{font-size:17px;font-weight:800;letter-spacing:-.01em;}
+
+  /* ---------- phone shell ---------- */
+  .phone{
+    width:100%;max-width:300px;margin:0 auto;
+    aspect-ratio:9/19.3;
+    border-radius:36px;border:1px solid rgba(255,255,255,.1);
+    background:
+      radial-gradient(circle at 12% -4%, #00D9FF3d, transparent 45%),
+      radial-gradient(circle at 100% 10%, #FF5DA24a, transparent 42%),
+      radial-gradient(circle at 50% 105%, #FFD1662a, transparent 48%),
+      #0A1420;
+    padding:16px 14px;position:relative;overflow:hidden;
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.6);
+    font-family:-apple-system,'Segoe UI',sans-serif;color:#fff;
+    display:flex;flex-direction:column;
+  }
+  .notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:96px;height:20px;background:#0A1420;border-radius:0 0 14px 14px;
+  }
+  .status-space{height:22px;flex:none;}
+
+  .g-ink{color:#fff;} .g-sub{color:rgba(255,255,255,.62);} .g-faint{color:rgba(255,255,255,.4);}
+  .g-line{border-color:rgba(255,255,255,.1);}
+
+  /* pill chip */
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;padding:6px 11px;font-size:11px;font-weight:600;
+  }
+  .chip svg{width:13px;height:13px;stroke-width:2;fill:none;}
+  .dot{width:7px;height:7px;border-radius:50%;background:#00D9FF;box-shadow:0 0 8px #00D9FF;flex:none;}
+  .dot.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .icon-btn{
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);flex:none;
+  }
+  .icon-btn svg{width:16px;height:16px;stroke:rgba(255,255,255,.8);fill:none;stroke-width:1.8;}
+  .avatar{
+    width:32px;height:32px;border-radius:50%;flex:none;
+    background:linear-gradient(135deg,#FF5DA2,#00D9FF);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;
+  }
+
+  /* ===== HOME ===== */
+  .home-top{display:flex;justify-content:space-between;align-items:center;}
+  .home-entries{display:flex;gap:7px;margin-top:12px;}
+  .home-entries .chip{padding:7px 10px 7px 9px;}
+  .home-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;padding:0 6px;}
+  .globe{
+    width:132px;height:132px;border-radius:50%;margin-bottom:20px;
+    background:radial-gradient(circle at 35% 30%, #FF5DA255, transparent 60%),
+               radial-gradient(circle at 70% 70%, #00D9FF4a, transparent 60%),
+               rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .globe svg{width:52px;height:52px;stroke:#fff;fill:none;stroke-width:1.4;opacity:.92;}
+  .home-h1{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:0 0 8px;}
+  .home-sub{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.5;margin:0;}
+  .home-bottom{display:flex;flex-direction:column;align-items:center;gap:9px;padding-top:10px;}
+  .cta-main{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:9px;
+    background:linear-gradient(135deg,#FF5DA2,#C22E85);
+    border-radius:16px;padding:15px;font-weight:800;font-size:14.5px;
+    box-shadow:0 14px 30px -12px #FF5DA277;
+  }
+  .cta-main svg{width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;}
+  .group-entry{display:flex;align-items:center;gap:7px;font-size:11.5px;color:rgba(255,255,255,.55);}
+  .group-entry svg{width:15px;height:15px;stroke:rgba(255,255,255,.55);fill:none;stroke-width:1.8;}
+  .legal{font-size:9.5px;color:rgba(255,255,255,.38);text-align:center;padding-top:4px;}
+
+  /* ===== DISCOVER ===== */
+  .disc-top{display:flex;justify-content:space-between;align-items:center;}
+  .disc-top-right{display:flex;gap:6px;}
+  .badge-count{
+    position:absolute;top:-3px;right:-3px;background:#FF5DA2;border-radius:999px;
+    font-size:8px;font-weight:800;padding:1px 4px;line-height:1.3;
+  }
+  .card-stack{position:relative;flex:1;margin:14px 0 12px;}
+  .swipe-card{
+    position:absolute;inset:0;border-radius:22px;overflow:hidden;
+    border:1px solid rgba(255,255,255,.12);
+  }
+  .swipe-card.back{transform:scale(.94) translateY(10px);opacity:.55;}
+  .swipe-card .photo{
+    position:absolute;inset:0;
+    background:
+      linear-gradient(160deg, #FF5DA255, #00D9FF33 55%, #0A1420 100%);
+  }
+  .swipe-card .scrim{
+    position:absolute;left:0;right:0;bottom:0;height:46%;
+    background:linear-gradient(to top, rgba(10,20,32,.92), transparent);
+  }
+  .swipe-card .info{position:absolute;left:16px;right:16px;bottom:14px;}
+  .swipe-card .name{font-size:19px;font-weight:800;}
+  .swipe-card .meta{font-size:11.5px;color:rgba(255,255,255,.75);margin-top:3px;display:flex;align-items:center;gap:5px;}
+  .swipe-card .meta svg{width:12px;height:12px;stroke:rgba(255,255,255,.75);fill:none;stroke-width:2;}
+  .swipe-actions{display:flex;justify-content:center;gap:20px;padding-bottom:4px;}
+  .round-btn{
+    width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
+  }
+  .round-btn.like{background:linear-gradient(135deg,#FF5DA2,#C22E85);box-shadow:0 10px 24px -10px #FF5DA288;}
+  .round-btn svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;}
+
+  /* ===== CHAT ===== */
+  .chat-top{display:flex;align-items:center;gap:10px;}
+  .chat-top .who{flex:1;}
+  .chat-top .name{font-size:13.5px;font-weight:700;}
+  .chat-top .status{font-size:10px;color:#00D9FF;display:flex;align-items:center;gap:4px;}
+  .mode-toggle{display:flex;gap:6px;margin-top:12px;}
+  .mode-toggle .seg{
+    flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:7px 4px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.55);
+  }
+  .mode-toggle .seg.active{background:rgba(255,93,162,.16);border-color:#FF5DA2;color:#fff;}
+  .msg-list{flex:1;display:flex;flex-direction:column;gap:9px;padding:14px 0;overflow:hidden;}
+  .msg-row{display:flex;flex-direction:column;max-width:76%;}
+  .msg-row.in{align-self:flex-start;align-items:flex-start;}
+  .msg-row.out{align-self:flex-end;align-items:flex-end;}
+  .bubble{font-size:12px;padding:8px 12px;border-radius:15px;line-height:1.4;}
+  .msg-row.in .bubble{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-bottom-left-radius:4px;}
+  .msg-row.out .bubble{background:linear-gradient(135deg,#FF5DA2,#C22E85);border-bottom-right-radius:4px;}
+  .msg-time{font-size:8.5px;color:rgba(255,255,255,.35);margin-top:3px;padding:0 3px;}
+  .reaction-chip{
+    display:inline-flex;gap:2px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;padding:2px 6px;font-size:10px;margin-top:4px;
+  }
+  .input-bar{
+    display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1);
+  }
+  .input-pill{
+    flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;padding:9px 14px;font-size:11.5px;color:rgba(255,255,255,.4);
+  }
+  .send-btn{
+    width:34px;height:34px;border-radius:50%;flex:none;
+    background:linear-gradient(135deg,#FF5DA2,#C22E85);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .send-btn svg{width:15px;height:15px;stroke:#fff;fill:none;stroke-width:2;}
+
+  /* ---------- notes under each screen ---------- */
+  .notes{border:1px solid var(--chrome-line);border-radius:14px;background:var(--chrome-card);padding:16px 18px;}
+  .notes h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--chrome-sub);margin:0 0 10px;font-weight:700;}
+  .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;}
+  .notes li{font-size:13px;color:var(--chrome-ink);}
+  .notes code{font-size:12px;background:var(--chrome-bg);padding:1px 5px;border-radius:5px;}
+
+  footer.note{margin-top:64px;padding-top:26px;border-top:1px solid var(--chrome-line);font-size:13px;color:var(--chrome-sub);max-width:74ch;}
+  footer.note code{color:var(--chrome-ink);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .screen-block{animation:rise .45s ease both;}
+    @keyframes rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0 6M21 20c0-2.6-1.7-4.8-4-5.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2.3 4.5 6 4c2.2-.3 4 .8 6 3 2-2.2 3.8-3.3 6-3 3.7.5 5.5 4 4 7.7C19.5 16.4 12 21 12 21z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.5h4.4l.4-2.5c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="M15 8l5-3v14l-5-3M3 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-groups" viewBox="0 0 24 24"><circle cx="7" cy="9" r="2.6"/><circle cx="17" cy="9" r="2.6"/><path d="M2 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4M12 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 2M12 17h.01" stroke-linecap="round"/></symbol>
+  <symbol id="i-match" viewBox="0 0 24 24"><path d="M20 12l-3-3M20 12l-3 3M20 12H9M9 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M17 7l-7.5 7.5a3 3 0 1 0 4.2 4.2L21 11" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-6-7-2z" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <p class="eyebrow">Merhaba · Miami — Gerçek Arayüz</p>
+  <h1>Renk değil, arayüzün kendisi</h1>
+  <p class="lede">
+    Haklıydın — önceki turlarda hep aynı jenerik "CTA + iki mesaj balonu + alt gezinme çubuğu"
+    şablonunu renklendiriyordum. Bu sefer <code>lib/screens/</code> içindeki gerçek üç ekranı
+    (Ana Ekran, Keşfet, Sohbet) kod düzeyinde okuyup, gerçek bileşen sırasını ve gerçek metinleri
+    Miami renk diliyle (pembe #FF5DA2 / camgöbeği #00D9FF, koyu zemin) yeniden çizdim.
+  </p>
+  <div class="correction">
+    <b>Düzeltme:</b> Merhaba'da aslında hiç alt gezinme çubuğu (bottom nav) yok — ekranlar
+    <code>Navigator.push</code> ile üst üste açılıyor, ana ekranda "Arkadaşlar / Keşfet / Canlı"
+    girişleri birer pill-buton. Önceki mockup'larımda olmayan bir gezinme deseni uydurmuşum,
+    burada düzelttim.
+  </div>
+
+  <div class="screens">
+
+    <!-- ============ HOME ============ -->
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">01</span><span class="screen-name">Ana Ekran</span></div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="status-space"></div>
+        <div class="home-top">
+          <div class="chip"><span class="dot pulse"></span>1.204 çevrimiçi</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div class="avatar">S</div>
+            <div class="icon-btn"><svg><use href="#i-settings"/></svg></div>
+          </div>
+        </div>
+        <div class="home-entries">
+          <div class="chip"><svg><use href="#i-people"/></svg>Arkadaşlar</div>
+          <div class="chip" style="border-color:#FF5DA255;"><svg style="stroke:#FF5DA2"><use href="#i-heart"/></svg>Keşfet</div>
+          <div class="chip" style="border-color:#FF445555;"><svg style="stroke:#FF6B6B"><use href="#i-live"/></svg>Canlı</div>
+        </div>
+        <div class="home-mid">
+          <div class="globe"><svg><use href="#i-globe"/></svg></div>
+          <div class="home-h1">Yeni biriyle tanış</div>
+          <p class="home-sub">Dünyanın her yerinden insanlarla<br>rastgele görüntülü sohbet et.</p>
+        </div>
+        <div class="home-bottom">
+          <div class="cta-main"><svg><use href="#i-video"/></svg>Sohbete Başla</div>
+          <div class="group-entry"><svg><use href="#i-groups"/></svg>Grup Görüşmesi (beta) · 3-4 kişi</div>
+          <div class="legal">Devam ederek Topluluk Kurallarını kabul etmiş olursun.</div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Neden böyle</h4>
+        <ul>
+          <li>Çevrimiçi sayısı yanındaki nokta gerçekten <code>PulsingDot</code> — sunucu ulaşılamazsa griye döner, sahte sayı göstermez.</li>
+          <li>"Keşfet" ve "Canlı" girişleri yalnızca giriş yapmış kullanıcıya görünür — kod bunu zaten böyle yapıyordu, korudum.</li>
+          <li>Grup görüşmesi bilerek ikincil/soluk — "(beta)" etiketi çoklu cihaz testinden geçmediği için kalıcı.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ DISCOVER ============ -->
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">02</span><span class="screen-name">Keşfet</span></div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="status-space"></div>
+        <div class="disc-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div style="font-weight:800;font-size:14px;">Keşfet</div>
+          <div class="disc-top-right">
+            <div class="icon-btn"><svg><use href="#i-quiz"/></svg></div>
+            <div class="icon-btn"><svg><use href="#i-match"/></svg></div>
+            <div class="icon-btn" style="position:relative;border-color:#FF5DA255;">
+              <svg style="stroke:#FF5DA2"><use href="#i-heart"/></svg>
+              <span class="badge-count">6</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-stack">
+          <div class="swipe-card back"><div class="photo"></div></div>
+          <div class="swipe-card">
+            <div class="photo"></div>
+            <div class="scrim"></div>
+            <div class="info">
+              <div class="name">Elif, 24</div>
+              <div class="meta"><svg><use href="#i-pin"/></svg>3 km uzakta</div>
+            </div>
+          </div>
+        </div>
+        <div class="swipe-actions">
+          <div class="round-btn"><svg><use href="#i-x"/></svg></div>
+          <div class="round-btn like"><svg><use href="#i-heart"/></svg></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Neden böyle</h4>
+        <ul>
+          <li>Kart yığını gerçek koda sadık: arkadaki kart hafif küçültülmüş + soluk (<code>_buildCard(interactive:false)</code>), önce­ki her zaman tam boy.</li>
+          <li>İsim+yaş+mesafe overlay'i, fotoğrafın altına gradyan scrim ile — mevcut kodda da böyle bindiriliyor.</li>
+          <li>Kalp rozetindeki sayı <code>likesMeCount</code> — "seni kim beğendi" özelliğine gerçek bir bağlantı.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ============ CHAT ============ -->
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">03</span><span class="screen-name">Sohbet</span></div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="status-space"></div>
+        <div class="chat-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div class="avatar" style="width:28px;height:28px;font-size:11px;">E</div>
+          <div class="who">
+            <div class="name">Elif</div>
+            <div class="status"><span class="dot" style="width:5px;height:5px;"></span>çevrimiçi</div>
+          </div>
+        </div>
+        <div class="mode-toggle">
+          <div class="seg active">Kalıcı Sohbet</div>
+          <div class="seg">Kaybolan Mesajlar</div>
+        </div>
+        <div class="msg-list">
+          <div class="msg-row in">
+            <div class="bubble">merhaba! nasılsın 👋</div>
+            <div class="msg-time">14:02</div>
+          </div>
+          <div class="msg-row out">
+            <div class="bubble">iyiyim, sen? bugün ne yapıyorsun</div>
+            <div class="reaction-chip">👍</div>
+            <div class="msg-time">14:03 · görüldü</div>
+          </div>
+          <div class="msg-row in">
+            <div class="bubble">az sonra görüşme deneyelim mi?</div>
+            <div class="msg-time">14:05</div>
+          </div>
+        </div>
+        <div class="input-bar">
+          <div class="icon-btn" style="width:30px;height:30px;"><svg style="width:14px;height:14px;"><use href="#i-clip"/></svg></div>
+          <div class="input-pill">Mesaj yaz...</div>
+          <div class="send-btn"><svg><use href="#i-send"/></svg></div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Neden böyle</h4>
+        <ul>
+          <li>"Kalıcı Sohbet / Kaybolan Mesajlar" ayrımı gerçek bir mod: birincisi sunucuda saklanır, ikincisi hiçbir yerde iz bırakmaz.</li>
+          <li>Gelen/giden balon ayrımı + "görüldü" durumu ve tepki (reaction) chip'i mevcut <code>_ChatItem</code> modelindeki alanlarla birebir.</li>
+          <li>Giriş çubuğundaki uç ikon, metin boşken mikrofona dönüşen gerçek <code>showMicInstead</code> davranışını temsil ediyor (burada gönder olarak sabitlendi).</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="note">
+    <b>Sıradaki adım:</b> Bu üçü onaylanırsa aynı bileşen dilini (cam chip, gradyan CTA, pembe/camgöbeği
+    aurora zemin) kalan ekranlara (Profil, Gruplar, Görüşme, Ayarlar) da uygulayıp tek bir
+    <code>app_theme.dart</code> güncellemesi olarak Flutter tarafına geçiririm. Şu ana kadar hiçbir kod dosyası değişmedi.
+  </footer>
+</div>

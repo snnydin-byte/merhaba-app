@@ -1,0 +1,538 @@
+MERHABA — RAKİP UYGULAMA ÖZELLİK ANKETİ (120 ÖZELLİK)
+========================================================
+30+ uygulama incelendi: Omegle, Chatroulette, OmeTV, Azar, Chatspin, CooMeet,
+Camsurf, Shagle, Holla, Monkey, Emerald Chat, Chamet, Yalla, Bigo Live, HAGO,
+Paltalk, Waplog, Skout, MeetMe, Wakie, WhatsApp, Telegram, Discord, Zoom,
+Google Meet, Microsoft Teams, FaceTime, Signal, Messenger, WeChat, Viber,
+Snapchat, Instagram, Clubhouse, Houseparty, Skype, Slack, BeReal, Marco Polo,
+Twitch, TikTok Live, Tinder, Bumble, Hinge, OkCupid, Grindr, Happn,
+Coffee Meets Bagel, Raya, Muzz, Yubo, Tea App.
+
+Her satırın başındaki [ ] kutucuğunu kendi notların için kullanabilirsin.
+[x] MEVCUT = Merhaba'da zaten var olan özellik.
+
+
+1) EŞLEŞTİRME & ALGORİTMA
+--------------------------------------------------------
+[ ] İlgi alanı etiketleriyle eşleştirme
+    Kullanıcı en fazla birkaç ilgi alanı etiketi ekler, benzer etiketli
+    kişiyle eşleştirilir. (OmeTV, Emerald Chat)
+
+[ ] Cinsiyet filtresi
+    Sadece belirli cinsiyetteki kullanıcılarla eşleşme seçeneği (genelde
+    jeton/ücretli). (OmeTV, Azar, Holla, Shagle)
+
+[ ] Konum/bölge filtresi
+    Belirli bir ülke veya bölgeden kişilerle eşleşmeyi seçme.
+    (Shagle, Chatspin, Azar)
+
+[ ] Karma/itibar puanına göre eşleştirme
+    Düşük itibarlı (kötü davranışlı) kullanıcılarla eşleşmeyi otomatik
+    azaltma. (Emerald Chat, OmeTV)
+
+[ ] VIP öncelikli eşleştirme
+    Ücretli kullanıcılar daha "kaliteli"/aktif profillerle öncelikli
+    eşleştirilir. (Azar — Super Match)
+
+[ ] Hız odaklı eşleştirme motoru
+    Bekleme süresini 1-5 saniyeye indirmeyi hedefleyen eşleştirme
+    optimizasyonu. (Azar, CooMeet)
+
+[ ] Doğrulanmış kadın kullanıcı garantili paket
+    Ücretli pakette karşına sadece kimliği doğrulanmış kadın kullanıcılar
+    çıkıyor. (CooMeet)
+
+[ ] Zaman sınırlı hızlı görüşme modu
+    15 saniyelik sınırlı ücretsiz görüşme süresi, hızlı karar vermeye
+    zorluyor. (Monkey)
+
+[ ] Yakınlık bazlı keşif (GPS)
+    GPS konumuna göre yakındaki kullanıcıları listeleme. (Skout, MeetMe)
+
+[ ] Önceki kişiyle tekrar bağlanma
+    Jeton karşılığında az önce görüştüğün kişiyle tekrar eşleşme. (Azar)
+
+[ ] Grup rastgele sohbet
+    1-e-1 yerine aynı anda birden fazla yabancı ile rastgele grup
+    görüşmesi. (OmeTV, Chamet)
+
+[ ] Davranışa göre dinamik görünürlük skoru
+    Beğeni/geçme/etkileşim geçmişine göre sürekli güncellenen, kimin kime
+    gösterileceğini belirleyen skor. (Tinder)
+
+[ ] Boost (profili öne çıkarma)
+    Ücret karşılığı belirli süre profili/eşleşme havuzunda öncelikli
+    gösterme. (Tinder)
+
+[ ] Süper beğeni
+    Normal beğeniden daha görünür, karşı tarafa özel bildirim giden
+    güçlendirilmiş beğeni. (Tinder)
+
+[ ] Kadın ilk mesaj kuralı / açılış sorusu
+    Karşı cinsiyet eşleşmesinde ilk mesajı kadın atar ya da bırakılan
+    soruya karşı taraf yanıt verir. (Bumble)
+
+[ ] Kişilik/uyumluluk anketiyle eşleştirme
+    Kaydırma yerine detaylı profil sorularıyla derin uyumluluk hesaplama.
+    (OkCupid)
+
+[ ] Gerçek hayatta yakınından geçilenlerle eşleştirme
+    Fiziksel olarak yakınından geçtiğin kişileri konum geçmişinden bulup
+    gösterme. (Happn)
+
+[ ] Davetle kapalı/seçkin üyelik
+    Mevcut üye onayı olmadan katılamama, başvuruların çoğu reddediliyor.
+    (Raya)
+
+[ ] Din/mezhep/etnisite bazlı detaylı filtre
+    Mezhep, etnisite, dindarlık seviyesi gibi kültürel kriterlere göre
+    filtreleme. (Muzz)
+
+[ ] Aktiflik ve profil tamlığı ağırlıklandırması
+    Son 24 saatte aktif olan ve eksiksiz profili olan kullanıcılar
+    öncelikli gösterilir. (Tinder)
+
+
+2) YAŞ / KİMLİK DOĞRULAMA
+--------------------------------------------------------
+[ ] Selfie video ile AI yaş tahmini
+    Kullanıcı kısa selfie videosu çeker, AI tahmini yaşı girilen doğum
+    tarihiyle karşılaştırır. (Yubo)
+
+[ ] Devlet kimliğiyle ID doğrulama
+    Resmi kimlik fotoğrafı yükleyip onaylanan kullanıcıya doğrulama
+    rozeti verilir. (Bumble, Grindr, Coffee Meets Bagel)
+
+[ ] Canlı video selfie + yüz eşleştirme
+    Eşleşmeden önce zorunlu canlı yüz taraması, profil fotoğrafıyla
+    eşleştirilir. (Tinder — Face Check)
+
+[ ] Ulusal kimlik sistemiyle entegre doğrulama
+    Yaş/cinsiyet/medeni durum resmi devlet kimlik sistemiyle (ör.
+    SingPass) doğrulanır. (Coffee Meets Bagel — Singapur)
+
+[ ] 18 yaş altına para kazanma kısıtlaması
+    Canlı yayında hediye/para kazanma özellikleri sadece 18+ hesaplara
+    açık. (TikTok Live)
+
+[ ] Selfie + SMS + GPS üçlü kayıt doğrulaması
+    Kayıt sırasında üç doğrulama yöntemi birlikte uygulanır. (Muzz)
+
+[ ] AI cinsiyet doğrulama (yüz analizi)
+    Sadece kadınlara özel platformlarda erkek hesap açılmasını önlemek
+    için yüz analiziyle cinsiyet tespiti. (Tea App)
+
+[ ] Yaş havuzu ayrımı (13-17 / 18+)
+    Reşit olmayan kullanıcılar ayrı bir eşleşme havuzunda tutulur,
+    yetişkinlerle hiç karşılaşmaz. (Buzzaboo, Emerald Chat)
+
+
+3) GÜVENLİK / MODERASYON
+--------------------------------------------------------
+[ ] Görüşme başında otomatik yüz bulanıklaştırma
+    Görüşme ilk saniyelerde otomatik blur ile başlar, ani şok içeriğe
+    karşı tampon süresi sağlar. (genel eğilim)
+
+[ ] Gerçek zamanlı AI çıplaklık tespiti
+    Video akışı kare kare taranır, ihlal tespit edilirse görüşme insan
+    onayına gerek kalmadan anında sonlandırılır. (Camsurf, Buzzaboo)
+
+[ ] Canlı yayında gerçek zamanlı içerik moderasyonu
+    Nefret söylemi, taciz, cinsel içerik, silah, kendine zarar verme
+    konuşmaları AI ile anlık tespit edilir. (Yubo)
+
+[ ] Özel mesajlarda grooming/istismar tespiti
+    AI, birebir sohbetlerde çocuk istismarı/taciz belirtilerini metin
+    analiziyle tarar. (Yubo)
+
+[ ] Kişisel bilgi paylaşımı anlık uyarısı
+    Kullanıcı ad-soyad, adres gibi bilgi paylaşmaya çalışınca ekrana
+    uyarı çıkar. (Yubo)
+
+[ ] İstenmeyen müstehcen görsel otomatik bulanıklaştırma
+    Mesajla gelen NSFW görsel otomatik bulanıklaştırılır, açmak
+    kullanıcının tercihine bırakılır. (Bumble — Private Detector)
+
+[ ] Gönderilmeden önce saldırgan mesaj uyarısı
+    Uygunsuz/saldırgan olabilecek mesajlar gönderilmeden önce kullanıcıya
+    işaretlenip sorulur. (Bumble)
+
+[ ] NLP tabanlı otomatik sohbet filtresi
+    Makine öğrenmesiyle şüpheli mesajlar yayıncı/moderatör onayına kadar
+    bekletilir. (Twitch — AutoMod)
+
+[ ] Yasak kaçağı (ban evasion) tespiti
+    Atılan kullanıcının yeni hesapla geri dönüşünü davranışsal imzayla
+    yakalama. (Twitch)
+
+[ ] Sahte hesap/dolandırıcılık AI tespiti
+    Spam/scam hesapları otomatik tespit edip büyük oranda engelleme.
+    (Bumble — Deception Detector)
+
+[ ] Katmanlı moderasyon: AI + insan + kullanıcı raporu
+    Üç seviyeli güvenlik mimarisi — otomatik tespit, insan moderatör
+    incelemesi ve kullanıcı şikayeti birlikte çalışır. (Camsurf)
+
+[ ] Topluluk moderatörlü oda yönetimi
+    Oda sahiplerine kick/ban/susturma gibi yerel moderasyon yetkisi
+    verilir. (Paltalk)
+
+[ ] Organize/hedefli taciz kampanyalarına karşı özel araçlar
+    Koordineli taciz saldırılarını normal bireysel ihlallerden ayırıp
+    özel olarak ele alma. (Twitch)
+
+[x] MEVCUT — Reşit olmayan biri bildirim kategorisi
+    Kullanıcının "karşımdaki kişi reşit değil gibi" diye özel olarak
+    raporlayabildiği ayrı bir şikayet kategorisi.
+
+
+4) GÜVEN & KULLANICI KORUMASI
+--------------------------------------------------------
+[ ] Panik butonu + acil yardım entegrasyonu
+    Buluşma detaylarını paylaşıp tehlike anında basılı tutarak yardım
+    çağırma. (Tinder + Noonlight)
+
+[ ] Buluşma detayını güvenilir kişiyle paylaşma
+    Görüşme/buluşma bilgisini otomatik olarak seçilen bir kişiyle
+    paylaşma. (Bumble, Tinder)
+
+[ ] Ekran görüntüsü engelleme
+    Sohbet veya profilin ekran görüntüsünün alınmasını teknik olarak
+    engelleme. (Raya, Flure)
+
+[ ] Otomatik kaybolan fotoğraflar
+    Gönderilen fotoğraflar belirli süre sonra kalıcı olarak silinir.
+    (Flure)
+
+[ ] Safe Mode — istenmeyen içerik otomatik engelleme
+    Sohbette istenmeyen/müstehcen içeriği otomatik olarak engelleyen
+    özel mod. (Flure)
+
+[ ] Anonim tehlike uyarı ağı
+    Kullanıcıların birbirini potansiyel tehlikeli kişiler konusunda
+    anonim olarak uyarabildiği sistem. (Tea App)
+
+[ ] Gölge yasaklama (shadowban)
+    Kullanıcı haberi olmadan görünürlüğünün/eşleşme şansının
+    düşürülmesi. (Tinder, TikTok)
+
+[ ] Refakatçi/gözlemci ekleme
+    Güvenilir bir arkadaş/aile üyesinin sohbeti gözlemci olarak
+    izleyebilmesi. (Muzz — Wali)
+
+[ ] Selfie eşleşmeli doğrulama rozeti
+    Canlı selfie profil fotoğrafıyla eşleştirilip onaylanınca verilen
+    görünür rozet. (Happn, Bumble, Tinder)
+
+[ ] Kimlik doğrulama rozeti (devlet ID)
+    Devlet kimliği yükleyip onaylanan kullanıcılara verilen, selfie
+    rozetinden daha güçlü doğrulama. (Bumble, Grindr)
+
+
+5) MESAJLAŞMA
+--------------------------------------------------------
+[ ] Kaybolan mesajlar (özelleştirilebilir süre)
+    Mesaj gönderildikten/okunduktan belirli süre sonra otomatik silinir.
+    (WhatsApp, Telegram, Signal)
+
+[ ] Mesaj düzenleme
+    Gönderilen mesaj belirli bir süre içinde "düzenlendi" etiketiyle
+    değiştirilebilir. (WhatsApp, Telegram, Discord)
+
+[ ] Sesli mesajın otomatik metne çevirisi
+    Sesli mesaj altında bir simgeyle mesajın yazıya döküldüğü transkript
+    gösterimi. (WhatsApp)
+
+[ ] Zamanlanmış mesaj gönderme
+    Mesajı belirli tarih/saatte otomatik gönderilecek şekilde önceden
+    hazırlama. (Telegram, WhatsApp)
+
+[ ] Konu/thread bazlı gruplar
+    Büyük grup sohbetlerini ayrı başlıklara bölüp her birinin kendi
+    geçmişini tutması. (Telegram — Topics, Discord — Forum)
+
+[ ] Tek yönlü yayın kanalları
+    Sadece yöneticilerin paylaşım yaptığı, üyelerin pasif takip ettiği
+    kanal yapısı. (Telegram Channels)
+
+[ ] Sessiz/bildirimsiz gönderim
+    Bildirim sesi çıkarmadan mesaj gönderme seçeneği. (Telegram)
+
+[ ] Grupta okundu bilgisini seçici kapatma
+    Birebir sohbette açık, grup sohbetinde kapalı tutulabilen okundu
+    bilgisi ayarı. (WhatsApp)
+
+[ ] Mesajı herkesten silme
+    Gönderilen mesaj hem kendinden hem karşı taraftan, tüm cihazlardan
+    silinir. (WhatsApp, Viber, Telegram)
+
+[ ] Sabitlenmiş mesajlar
+    Önemli mesajları sohbetin en üstünde sabit tutma. (Telegram, Discord,
+    Slack)
+
+[ ] Emoji tepki (reaction)
+    Mesaja yanıt yazmadan hızlı emoji tepkisi bırakma. (WhatsApp,
+    Telegram, Discord)
+
+[ ] Asenkron video-not mesajlaşma
+    Metin yerine kısa video notlarının karşılıklı gönderilip saklandığı,
+    tekrar izlenebilen mesajlaşma. (Marco Polo)
+
+[ ] Sohbet içi mini uygulamalar
+    Sohbet ekranından üçüncü parti hizmetlere (alışveriş, oyun, ödeme)
+    doğrudan erişim. (WeChat — Mini Programs)
+
+[ ] Sohbet içi para/hediye transferi
+    Sohbet içinden anlık para gönderme veya dijital hediye kültürü.
+    (WeChat — kırmızı zarf)
+
+
+6) GÖRÜNTÜLÜ / SESLİ ARAMA
+--------------------------------------------------------
+[ ] Canlı otomatik altyazı
+    Konuşma gerçek zamanlı olarak ekranda yazıya dökülür. (Google Meet,
+    Microsoft Teams)
+
+[ ] AI destekli arka plan gürültü engelleme
+    Klavye, kapı gibi konuşma dışı sesleri otomatik filtreleme. (Google
+    Meet, Teams, Zoom)
+
+[ ] Sanal arka plan / arka plan bulanıklaştırma
+    Gerçek ortamı gizleyip sahte veya bulanık arka plan gösterme. (Zoom,
+    Teams, Google Meet)
+
+[ ] Gerçek zamanlı çeviri altyazısı
+    Konuşulan dili anlık olarak farklı bir dile çevirip altyazı
+    gösterme. (Google Meet)
+
+[ ] Ekran paylaşımı üzerine ortak çizim/not
+    Paylaşılan ekran üzerine birlikte çizim yapabilme. (Slack Huddles)
+
+[ ] Watch Party — birlikte senkronize izleme
+    Farklı kullanıcıların aynı videoyu eş zamanlı izleyip sohbet/tepki
+    paylaşması. (Teleparty, Rave)
+
+[ ] Görüşme içinde oynanabilir mini oyun
+    Görüşme sürerken birlikte oynanabilecek küçük oyun/aktivite
+    entegrasyonu. (Discord Activities)
+
+[ ] Sesli oda / kürsü modeli (stage)
+    Belirlenen konuşmacıların büyük bir dinleyici kitlesine hitap ettiği
+    format. (Discord Stage, Clubhouse)
+
+[ ] Sesli kanala anında katılma (drop-in)
+    Arkadaş listesindeki biri sesli kanaldayken görüp anında
+    katılabilme. (Discord, Houseparty)
+
+[ ] Sohbetten görüşmeye tek dokunuşla geçiş
+    Metin sohbetinden görüntülü aramaya anında geçebilme. (FaceTime /
+    iMessage)
+
+[ ] Grup görüşmede uçtan uca şifreleme
+    Bire bir ve grup görüşme trafiğinin varsayılan olarak şifreli
+    olması. (FaceTime, Signal)
+
+
+7) GÖRÜŞME İÇİ EĞLENCE & ETKİLEŞİM
+--------------------------------------------------------
+[ ] AR yüz filtreleri / maskeler
+    Kamera görüntüsüne gerçek zamanlı efekt veya maske ekleme. (Azar,
+    Chatspin, Snapchat)
+
+[ ] Güzellik filtresi (beauty filter)
+    Cilt düzeltme ve otomatik güzelleştirme efekti. (Holla)
+
+[ ] Gerçek zamanlı konuşma/metin çevirisi
+    Farklı dillerdeki kullanıcılar arasında otomatik anlık çeviri.
+    (Holla, Chamet, CooMeet)
+
+[ ] Buz kırıcı mini oyunlar
+    Görüşme sırasında oynanabilen kısa "Would You Rather?" tarzı
+    sorular/oyunlar. (Azar)
+
+[ ] Konum gizleme
+    Gerçek konumu karşı tarafa göstermeme seçeneği. (Shagle, Chatspin)
+
+[ ] Oda içinde ortak video izleme
+    Görüşme odasında birlikte YouTube videosu izleme. (Bigo Live —
+    Multi-Guest)
+
+[ ] "Çiz ve Tahmin Et" tarzı grup mini oyunları
+    Grup görüşmesi içinde oynanan basit çizim/tahmin oyunları. (Bigo
+    Live)
+
+[ ] Klasik masa oyunlarıyla birleşik sesli sohbet
+    Ludo/Carrom gibi oyunları sesli sohbetle aynı odada birleştirme.
+    (Yalla)
+
+[ ] Anlık emoji tepkileri (görüşme sırasında)
+    Görüşme ekranında beliren hızlı emoji tepkileri. (Slack, Zoom)
+
+[x] MEVCUT — Sesli-yalnız mod (kamerasız görüşme)
+    Kamerayı hiç açmadan, sadece sesle rastgele eşleşip görüşebilme
+    seçeneği. (Holla)
+
+
+8) TOPLULUK / GRUP
+--------------------------------------------------------
+[ ] Sunucu + kanal yapısı (metin/ses/forum/stage)
+    Tek platformda farklı kanal türleriyle organize edilmiş topluluk
+    yapısı. (Discord)
+
+[ ] Rol tabanlı yetkilendirme sistemi
+    Sunucu sahibi, moderatör, konuşmacı, izleyici gibi katmanlı yetki
+    sistemi. (Discord)
+
+[ ] AI destekli otomatik moderasyon + sohbet özeti
+    Zararlı içerik otomatik engellenir, kaçırılan yoğun kanallar AI ile
+    özetlenir. (Discord)
+
+[ ] Sunucu içi etkinlik planlama
+    Topluluk içinde zamanlanmış etkinlik oluşturup hatırlatma gönderme.
+    (Discord)
+
+[ ] Spoiler içerik gizleme
+    İçeriği tıklanana kadar bulanık gösterme. (Discord)
+
+[ ] Konu bazlı kalıcı sohbet odaları
+    Binlerce aktif kullanıcının konuya göre kategorize kalıcı odalarda
+    buluşması. (Paltalk)
+
+[ ] Çoklu misafir odaları
+    Aynı anda çok sayıda kişinin kamerayla aynı odaya katılabilmesi.
+    (Bigo Live — 11 kişiye kadar)
+
+
+9) GİZLİLİK / KONTROL
+--------------------------------------------------------
+[ ] Kısıtlı liste (engellemeden gizleme)
+    Karşı taraf fark etmeden, engellemeden içeriğini/durumunu ondan
+    gizleme. (Instagram — Restricted)
+
+[ ] Yakın arkadaşlar listesi
+    Seçili kişilere özel içerik paylaşabilme. (Instagram — Close
+    Friends)
+
+[ ] Anlık/filtresiz zorunlu paylaşım formatı
+    Günde bir kez, kısa bir pencerede düzenlenemeyen anlık fotoğraf
+    paylaşımı. (BeReal)
+
+[ ] Rehber paylaşmadan kullanım
+    Rehber erişimi zorunlu tutulmadan, minimum veri toplayarak çalışma.
+    (Signal)
+
+[ ] Belirli gruplara özel görünürlük kontrolü
+    Profili belirli kullanıcı gruplarından tamamen gizleyebilme.
+    (OkCupid, Grindr)
+
+
+10) SOSYAL / OYUNLAŞTIRMA
+--------------------------------------------------------
+[ ] Sanal para birimi / jeton sistemi
+    Filtre açma, hediye gönderme, mesajlaşma hakkı için harcanan
+    tüketilebilir sanal para. (Azar — gems, Monkey — bananas, Holla —
+    coins)
+
+[ ] Karma/itibar puanı
+    İyi davranışa göre yükselen, eşleşme kalitesini etkileyen puan
+    sistemi. (Emerald Chat)
+
+[ ] VIP/Crown statü sistemi
+    Hediye biriktirerek ulaşılan özel görünür statü. (Paltalk — Crown
+    Member)
+
+[ ] ELO tabanlı seviye/sıralama sistemi
+    Kazanılan görüşmelere göre yükselen puan, liderlik tablosuna yansır.
+    (Omoggle)
+
+[ ] Streak / art arda seri sistemi
+    Art arda pozitif/başarılı görüşmelerle ödül kazanma mekaniği. (genel
+    eğilim)
+
+[ ] Rozet ve başarı sistemi
+    Belirli hedeflere ulaşınca kazanılan, profilde görünen rozetler.
+    (MatchPub)
+
+[ ] Günlük giriş ödülü
+    Uygulamayı her gün açan kullanıcıya bedava jeton/puan verilmesi.
+    (Holla)
+
+[ ] Ajans/yayıncı gelir sistemi
+    Kullanıcıların "ajans"a katılıp yayıncı/host olarak gelir elde
+    edebilmesi. (Chamet, Bigo Live)
+
+[ ] PK Battle (yayıncı düellosu)
+    İki yayıncının hediye toplamada karşılıklı yarıştığı, izleyici
+    katılımını artıran format. (Bigo Live, TikTok Live)
+
+[ ] Lider tablosu (leaderboard)
+    En çok hediye alan/gönderen kullanıcıları sıralayan rekabetçi
+    görünürlük sistemi. (Bigo Live, TikTok Live)
+
+[ ] Kişiselleştirilmiş avatar entegrasyonu
+    Kullanıcının kendi karikatür avatarıyla sohbet deneyimini
+    kişiselleştirmesi. (Snapchat — Bitmoji)
+
+
+11) GELİR MODELİ / SANAL EKONOMİ
+--------------------------------------------------------
+[ ] Katmanlı abonelik seviyeleri
+    Her seviyede artan filtre hakkı, reklamsız kullanım ve indirim
+    sunan çoklu abonelik planı. (Azar — Plus/Premium/Supreme)
+
+[ ] Dakika bazlı paket satışı (rollover yok)
+    Satın alınan görüşme dakikaları biriktirilemez, kullanılmazsa yanar.
+    (CooMeet)
+
+[ ] Düşük fiyatlı giriş deneme paketi
+    Yeni kullanıcıyı ücretli plana çekmek için çok düşük fiyatlı ilk
+    deneme teklifi. (CooMeet)
+
+[ ] İkili sanal para sistemi
+    İzleyicinin satın aldığı para birimiyle yayıncının kazandığı para
+    biriminin ayrı olması, sabit kurla platform payı kesilmesi. (Bigo
+    Live — Diamond/Bean)
+
+[ ] Kademeli gelir paylaşım oranı
+    Aylık hedefe veya ajans anlaşmasına göre yayıncı payının yükselmesi.
+    (Bigo Live)
+
+[ ] Reklam izleyerek jeton/hak kazanma
+    Ücret ödemeden video reklam izleyerek sınırlı hak elde etme. (genel
+    eğilim)
+
+[ ] Doğrulanmamış profilleri filtreleme (premium)
+    Sadece kimliği doğrulanmış kullanıcıları gösterme seçeneğinin
+    ücretli sunulması. (Coffee Meets Bagel)
+
+
+12) CİNSİYETE ÖZEL GÜVENLİK
+--------------------------------------------------------
+[ ] Kadınlara özel platform + AI cinsiyet doğrulama
+    Sadece kadınların üye olabildiği, girişte yüz analiziyle cinsiyet
+    teyit edilen kapalı topluluk. (Tea App)
+
+[ ] Kadın ilk mesaj zorunluluğu
+    İstenmeyen/taciz edici ilk temasları azaltmak için tasarlanmış
+    kural. (Bumble)
+
+
+13) DİĞER / İLGİNÇ
+--------------------------------------------------------
+[ ] Anonim konu bazlı sesli sohbet ağı
+    Rastgele eşleştirme yerine seçilen konu başlığına göre pseudonim
+    sesli sohbet başlatma. (Wakie)
+
+[ ] Swipe + video chat hibrit mekanik
+    Klasik kaydırmalı dating mekaniğiyle rastgele video sohbetinin
+    birleştirilmesi. (Waplog)
+
+[ ] "Sıradaki" (skip) anlık geçiş butonu
+    Görüşmeyi anında bitirip yeni birine geçme — rastgele sohbetin
+    evrensel temel mekaniği. (tüm rastgele sohbet uygulamaları)
+
+
+========================================================
+Toplam: 120 özellik / 13 kategori
+İnteraktif (işaretlenebilir, aranabilir, dışa aktarılabilir) sürüm için
+anket linkine bak: https://claude.ai/code/artifact/cce08730-4f35-4cbd-a817-c1370152d445

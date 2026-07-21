@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Merhaba — Şikayet Paneli</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --surface-0:      #0b0b16;
+    --surface-1:      #1a1a19;
+    --surface-2:      #232230;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #8a8980;
+    --border:         #33323f;
+    --accent:         #7c4dff;
+    --accent-2:       #00bfa5;
+    --status-critical:#d03b3b;
+    --status-serious: #ec835a;
+    --status-warning: #fab219;
+    --status-neutral: #55545f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--surface-0), #07070f);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 0 0 24px;
+    line-height: 1.5;
+  }
+  .panel {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+  input[type="password"], input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 12px; }
+  .row .field { flex: 1; }
+  button {
+    appearance: none;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), #6a3de8);
+    width: 100%;
+    margin-top: 6px;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    width: auto;
+    padding: 8px 14px;
+    font-size: 12px;
+    margin-top: 0;
+  }
+  #status-msg {
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  #status-msg.error {
+    display: block;
+    background: rgba(208,59,59,0.14);
+    border: 1px solid rgba(208,59,59,0.4);
+    color: #ff9b9b;
+  }
+  #status-msg.info {
+    display: block;
+    background: rgba(124,77,255,0.12);
+    border: 1px solid rgba(124,77,255,0.35);
+    color: #cbb8ff;
+  }
+  .list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .list-header h2 { font-size: 14px; margin: 0; color: var(--text-secondary); font-weight: 600; }
+  .card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .card.critical { border-color: rgba(208,59,59,0.55); background: rgba(208,59,59,0.08); }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+  .meta { font-size: 11px; color: var(--text-muted); }
+  .note { font-size: 13px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4; }
+  .ids { font-size: 11px; color: var(--text-muted); margin-top: 6px; font-family: ui-monospace, monospace; }
+  .empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 40px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Merhaba — Şikayet Paneli</h1>
+  <p class="subtitle">
+    Kullanıcıların bildirdiği şikayetleri buradan görüntüleyebilirsin. Sunucudaki
+    <code>GET /admin/reports</code> ucunu çağırır — sır cihazından ayrılmaz, hiçbir
+    yerde kalıcı saklanmaz, yalnızca bu sayfa açıkken bellekte tutulur.
+    "Reşit olmayan biri gibi görünüyor" bildirimleri en üstte ve kırmızı
+    vurguyla gösterilir; bunlar ABD hukukuna göre NCMEC'e bildirilmesi
+    gerekebilecek türden — bu sayfa bildirimi otomatik yapmaz, yalnızca
+    gözden kaçırmaman için öne çıkarır.
+  </p>
+
+  <div class="panel">
+    <div class="field">
+      <label for="server-url">Sunucu adresi</label>
+      <input type="text" id="server-url" value="https://merhaba-signaling.onrender.com" />
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="secret">Admin sırrı (ADMIN_SECRET)</label>
+        <input type="password" id="secret" placeholder="Render'a eklediğin değer" />
+      </div>
+      <div class="field" style="max-width: 110px;">
+        <label for="limit">Limit</label>
+        <input type="number" id="limit" placeholder="tümü" min="1" />
+      </div>
+    </div>
+    <button id="load-btn">Şikayetleri Yükle</button>
+  </div>
+
+  <div id="status-msg"></div>
+
+  <div id="results" style="display:none;">
+    <div class="list-header">
+      <h2 id="count-label">0 şikayet</h2>
+      <button class="secondary" id="refresh-btn">Yenile</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+  const REASON_INFO = {
+    'kucuk-yasta':      { label: 'Reşit olmayan biri gibi görünüyor', color: 'var(--status-critical)', icon: '⚠' },
+    'uygunsuz-goruntu': { label: 'Uygunsuz görüntü/içerik',            color: 'var(--status-serious)', icon: '⚑' },
+    'taciz':            { label: 'Taciz veya kötüye kullanım',         color: 'var(--status-serious)', icon: '⚑' },
+    'spam':              { label: 'Spam / reklam',                     color: 'var(--status-warning)', icon: '●' },
+    'sahte-hesap':       { label: 'Sahte hesap',                       color: 'var(--status-warning)', icon: '●' },
+    'diger':             { label: 'Diğer',                             color: 'var(--status-neutral)', icon: '●' },
+  };
+  const CONTEXT_LABELS = {
+    'video-match': 'Görüntülü sohbet (rastgele eşleşme)',
+    'friend-chat': 'Arkadaş sohbeti',
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let lastSecret = '';
+  let lastServer = '';
+
+  function showStatus(message, type) {
+    const el = $('status-msg');
+    el.textContent = message;
+    el.className = type;
+  }
+
+  function clearStatus() {
+    const el = $('status-msg');
+    el.className = '';
+    el.textContent = '';
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' });
+    } catch (_) {
+      return iso;
+    }
+  }
+
+  function renderReports(reports) {
+    const list = $('list');
+    list.innerHTML = '';
+
+    if (reports.length === 0) {
+      list.innerHTML = '<div class="empty">Henüz hiç şikayet yok.</div>';
+      return;
+    }
+
+    for (const r of reports) {
+      const info = REASON_INFO[r.reason] || REASON_INFO['diger'];
+      const isCritical = r.reason === 'kucuk-yasta';
+      const card = document.createElement('div');
+      card.className = 'card' + (isCritical ? ' critical' : '');
+
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.style.color = info.color;
+      badge.style.background = 'color-mix(in srgb, ' + info.color + ' 18%, transparent)';
+      badge.style.border = '1px solid color-mix(in srgb, ' + info.color + ' 45%, transparent)';
+      badge.textContent = info.icon + ' ' + info.label;
+
+      const top = document.createElement('div');
+      top.className = 'card-top';
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = (CONTEXT_LABELS[r.context] || r.context) + ' · ' + formatDate(r.createdAt);
+      top.appendChild(badge);
+      top.appendChild(meta);
+      card.appendChild(top);
+
+      if (r.note) {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.textContent = '"' + r.note + '"';
+        card.appendChild(note);
+      }
+
+      const ids = document.createElement('div');
+      ids.className = 'ids';
+      const reporter = r.reporterId || (r.reporterSocketId ? 'misafir/' + r.reporterSocketId : 'bilinmiyor');
+      const reported = r.reportedId || (r.reportedSocketId ? 'misafir/' + r.reportedSocketId : 'bilinmiyor');
+      ids.textContent = 'Bildiren: ' + reporter + '  →  Bildirilen: ' + reported;
+      card.appendChild(ids);
+
+      list.appendChild(card);
+    }
+  }
+
+  async function loadReports() {
+    const server = $('server-url').value.trim().replace(/\/$/, '');
+    const secret = $('secret').value;
+    const limitVal = $('limit').value;
+
+    if (!secret) {
+      showStatus('Admin sırrını girmen gerekiyor.', 'error');
+      return;
+    }
+    if (!server) {
+      showStatus('Sunucu adresini girmen gerekiyor.', 'error');
+      return;
+    }
+
+    lastSecret = secret;
+    lastServer = server;
+
+    $('load-btn').disabled = true;
+    $('load-btn').textContent = 'Yükleniyor...';
+    clearStatus();
+
+    try {
+      const url = new URL(server + '/admin/reports');
+      if (limitVal) url.searchParams.set('limit', limitVal);
+
+      const res = await fetch(url.toString(), {
+        headers: { 'x-admin-secret': secret },
+      });
+
+      if (res.status === 503) {
+        showStatus('Sunucuda ADMIN_SECRET ayarlanmamış görünüyor. Render → Environment kısmını kontrol et.', 'error');
+        $('results').style.display = 'none';
+        return;
+      }
+      if (res.status === 401) {
+        showStatus('Sır yanlış. Render\'a eklediğin ADMIN_SECRET değerini tekrar kontrol et.', 'error');
+        $('results').style.display = 'none';
+        return;
+      }
+      if (!res.ok) {
+        showStatus('Sunucudan beklenmeyen bir yanıt geldi (HTTP ' + res.status + ').', 'error');
+        $('results').style.display = 'none';
+        return;
+      }
+
+      const data = await res.json();
+      $('results').style.display = 'block';
+      $('count-label').textContent = data.count + ' şikayet';
+      renderReports(data.reports || []);
+    } catch (err) {
+      showStatus('Sunucuya ulaşılamadı. İnternet bağlantını ve sunucu adresini kontrol et.', 'error');
+      $('results').style.display = 'none';
+    } finally {
+      $('load-btn').disabled = false;
+      $('load-btn').textContent = 'Şikayetleri Yükle';
+    }
+  }
+
+  $('load-btn').addEventListener('click', loadReports);
+  $('refresh-btn').addEventListener('click', () => {
+    if (lastSecret) { $('secret').value = lastSecret; }
+    if (lastServer) { $('server-url').value = lastServer; }
+    loadReports();
+  });
+  $('secret').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadReports(); });
+</script>
+</body>
+</html>

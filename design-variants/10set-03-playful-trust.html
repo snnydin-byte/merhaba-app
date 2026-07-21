@@ -1,0 +1,621 @@
+<title>Merhaba — Oyunlaştırılmış Enerji & Güven ve Berraklık: Tam Arayüz</title>
+<style>
+  :root{
+    --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#D6408C;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --chrome-bg:#100D14; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+      --chrome-line:#2A2436; --chrome-card:#17131F; --chrome-accent:#FF7BB8; }
+  }
+  :root[data-theme="dark"]{ --chrome-bg:#100D14; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+    --chrome-line:#2A2436; --chrome-card:#17131F; --chrome-accent:#FF7BB8; }
+  :root[data-theme="light"]{ --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#D6408C; }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--chrome-bg); color:var(--chrome-ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:56px 24px 100px;}
+
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--chrome-accent);font-weight:700;margin:0 0 14px;}
+  h1{font-size:clamp(28px,4vw,42px);font-weight:800;letter-spacing:-0.02em;margin:0 0 16px;text-wrap:balance;}
+  .lede{max-width:74ch;color:var(--chrome-sub);font-size:16px;margin:0 0 14px;}
+  .correction{
+    max-width:74ch;font-size:14px;color:var(--chrome-ink);background:var(--chrome-card);
+    border:1px solid var(--chrome-line);border-left:3px solid var(--chrome-accent);
+    border-radius:10px;padding:14px 16px;margin:0 0 40px;
+  }
+
+  .direction-block{margin-top:56px;padding-top:44px;border-top:1px solid var(--chrome-line);}
+  .direction-block:first-of-type{margin-top:0;padding-top:0;border-top:none;}
+  .direction-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap;}
+  .direction-num{font-size:12px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;letter-spacing:.06em;}
+  .direction-title{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:2px 0 4px;}
+  .direction-desc{font-size:14px;color:var(--chrome-sub);max-width:70ch;margin:0 0 28px;}
+
+  .screens{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;
+  }
+  @media (max-width:980px){ .screens{grid-template-columns:1fr;max-width:380px;margin:0 auto;} }
+
+  .screen-block{display:flex;flex-direction:column;gap:16px;}
+  .screen-head{display:flex;align-items:baseline;gap:8px;}
+  .screen-num{font-size:11px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;}
+  .screen-name{font-size:17px;font-weight:800;letter-spacing:-.01em;color:var(--chrome-ink);}
+
+  /* ================= TOKENIZED SHELL (paylaşılan bileşen dili, renkler --v-* ile geliyor) ================= */
+  .phone{
+    width:100%;max-width:300px;margin:0 auto;
+    aspect-ratio:9/19.3;
+    border-radius:var(--v-radius-outer);border:1px solid var(--v-border);
+    background:var(--v-phone-bg);
+    padding:16px 14px;position:relative;overflow:hidden;
+    box-shadow:0 26px 60px -28px var(--v-shadow);
+    font-family:-apple-system,'Segoe UI',sans-serif;color:var(--v-ink);
+    display:flex;flex-direction:column;
+  }
+  .notch{
+    position:absolute;top:0;left:50%;transform:translateX(-50%);
+    width:96px;height:20px;background:var(--v-notch-bg);border-radius:0 0 14px 14px;
+  }
+  .status-space{height:22px;flex:none;}
+  .confetti{position:absolute;border-radius:50%;opacity:.55;}
+
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--v-surface);border:1px solid var(--v-border);
+    border-radius:var(--v-radius-chip);padding:6px 11px;font-size:11px;font-weight:700;color:var(--v-ink);
+  }
+  .chip svg{width:13px;height:13px;stroke-width:2;fill:none;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--v-accent);flex:none;}
+  .dot.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .icon-btn{
+    width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--v-surface);border:1px solid var(--v-border);flex:none;
+  }
+  .icon-btn svg{width:16px;height:16px;stroke:var(--v-sub);fill:none;stroke-width:1.8;}
+  .avatar-wrap{position:relative;display:inline-flex;flex:none;}
+  .avatar{
+    width:32px;height:32px;border-radius:50%;flex:none;
+    background:var(--v-avatar-grad);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;
+  }
+  .avatar-badge{
+    position:absolute;bottom:-3px;right:-3px;min-width:15px;height:15px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;border:2px solid var(--v-phone-bg-solid);
+    background:var(--v-accent3);font-size:8px;font-weight:800;color:#fff;padding:0 2px;
+  }
+  .avatar-badge svg{width:8px;height:8px;stroke:#fff;stroke-width:3;fill:none;}
+
+  /* ===== HOME ===== */
+  .home-top{display:flex;justify-content:space-between;align-items:center;}
+  .home-entries{display:flex;gap:7px;margin-top:12px;}
+  .home-entries .chip{padding:7px 10px 7px 9px;}
+  .home-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-align:center;padding:0 6px;position:relative;}
+  .globe{
+    width:132px;height:132px;border-radius:50%;margin-bottom:20px;position:relative;
+    background:var(--v-globe-bg);
+    border:1px solid var(--v-border);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .globe svg{width:52px;height:52px;stroke:var(--v-accent);fill:none;stroke-width:1.4;opacity:.9;}
+  .home-h1{font-size:20px;font-weight:800;letter-spacing:-.01em;margin:0 0 8px;color:var(--v-ink);}
+  .home-sub{font-size:12.5px;color:var(--v-sub);line-height:1.5;margin:0;}
+  .home-bottom{display:flex;flex-direction:column;align-items:center;gap:9px;padding-top:10px;position:relative;}
+  .cta-main{
+    width:100%;display:flex;align-items:center;justify-content:center;gap:9px;position:relative;
+    background:var(--v-cta-grad);color:var(--v-cta-ink);
+    border-radius:var(--v-radius-cta);padding:15px;font-weight:800;font-size:14.5px;
+    box-shadow:0 14px 30px -12px var(--v-shadow);
+  }
+  .cta-main svg{width:18px;height:18px;stroke:var(--v-cta-ink);fill:none;stroke-width:2;}
+  .cta-badge{
+    position:absolute;top:-10px;right:10px;background:var(--v-accent3);color:#fff;
+    font-size:9px;font-weight:800;padding:3px 8px;border-radius:999px;display:flex;align-items:center;gap:3px;
+    box-shadow:0 4px 10px -3px rgba(0,0,0,.25);
+  }
+  .cta-badge svg{width:9px;height:9px;stroke:#fff;fill:none;stroke-width:2.5;}
+  .group-entry{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--v-sub);}
+  .group-entry svg{width:15px;height:15px;stroke:var(--v-sub);fill:none;stroke-width:1.8;}
+  .legal{font-size:9.5px;color:var(--v-faint);text-align:center;padding-top:4px;}
+
+  /* ===== DISCOVER ===== */
+  .disc-top{display:flex;justify-content:space-between;align-items:center;color:var(--v-ink);}
+  .disc-top-title{font-weight:800;font-size:14px;}
+  .disc-top-right{display:flex;gap:6px;}
+  .badge-count{
+    position:absolute;top:-3px;right:-3px;background:var(--v-accent);color:#fff;border-radius:999px;
+    font-size:8px;font-weight:800;padding:1px 4px;line-height:1.3;
+  }
+  .card-stack{position:relative;flex:1;margin:14px 0 12px;}
+  .swipe-card{
+    position:absolute;inset:0;border-radius:var(--v-radius-card);overflow:hidden;
+    border:1px solid var(--v-border);
+  }
+  .swipe-card.back{transform:scale(.94) translateY(10px);opacity:.5;}
+  .swipe-card .photo{ position:absolute;inset:0; background:var(--v-photo-bg); }
+  .swipe-card .scrim{
+    position:absolute;left:0;right:0;bottom:0;height:48%;
+    background:var(--v-scrim);
+  }
+  .swipe-card .info{position:absolute;left:16px;right:16px;bottom:14px;}
+  .swipe-card .name-row{display:flex;align-items:center;gap:6px;}
+  .swipe-card .name{font-size:19px;font-weight:800;color:var(--v-oncard-ink);}
+  .verified-pill{
+    display:inline-flex;align-items:center;gap:3px;background:var(--v-accent3);color:#fff;
+    font-size:9px;font-weight:800;padding:2px 7px 2px 5px;border-radius:999px;
+  }
+  .verified-pill svg{width:8px;height:8px;stroke:#fff;stroke-width:3;fill:none;}
+  .swipe-card .meta{font-size:11.5px;color:var(--v-oncard-sub);margin-top:4px;display:flex;align-items:center;gap:5px;}
+  .swipe-card .meta svg{width:12px;height:12px;stroke:var(--v-oncard-sub);fill:none;stroke-width:2;}
+  .swipe-actions{display:flex;justify-content:center;gap:20px;padding-bottom:4px;}
+  .round-btn{
+    width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--v-surface);border:1px solid var(--v-border);
+  }
+  .round-btn svg{width:22px;height:22px;stroke:var(--v-sub);fill:none;stroke-width:2;}
+  .round-btn.like{background:var(--v-cta-grad);box-shadow:0 10px 24px -10px var(--v-shadow);}
+  .round-btn.like svg{stroke:var(--v-cta-ink);}
+
+  /* ===== CHAT ===== */
+  .chat-top{display:flex;align-items:center;gap:10px;color:var(--v-ink);}
+  .chat-top .who{flex:1;}
+  .chat-top .name{font-size:13.5px;font-weight:700;}
+  .chat-top .status{font-size:10px;color:var(--v-accent);display:flex;align-items:center;gap:4px;}
+  .mode-toggle{display:flex;gap:6px;margin-top:12px;}
+  .mode-toggle .seg{
+    flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:7px 4px;border-radius:var(--v-radius-seg);
+    border:1px solid var(--v-border);color:var(--v-sub);
+  }
+  .mode-toggle .seg.active{background:var(--v-seg-active-bg);border-color:var(--v-accent);color:var(--v-accent-strong);}
+  .msg-list{flex:1;display:flex;flex-direction:column;gap:9px;padding:14px 0;overflow:hidden;}
+  .msg-row{display:flex;flex-direction:column;max-width:76%;}
+  .msg-row.in{align-self:flex-start;align-items:flex-start;}
+  .msg-row.out{align-self:flex-end;align-items:flex-end;}
+  .bubble{font-size:12px;padding:8px 12px;border-radius:var(--v-radius-bubble);line-height:1.4;}
+  .msg-row.in .bubble{background:var(--v-surface);border:1px solid var(--v-border);border-bottom-left-radius:4px;color:var(--v-ink);}
+  .msg-row.out .bubble{background:var(--v-cta-grad);border-bottom-right-radius:4px;color:var(--v-cta-ink);}
+  .msg-time{font-size:8.5px;color:var(--v-faint);margin-top:3px;padding:0 3px;}
+  .reaction-chip{
+    display:inline-flex;gap:2px;background:var(--v-surface);border:1px solid var(--v-border);
+    border-radius:999px;padding:2px 6px;font-size:10px;margin-top:4px;
+  }
+  .input-bar{
+    display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--v-border);
+  }
+  .input-pill{
+    flex:1;background:var(--v-surface);border:1px solid var(--v-border);
+    border-radius:999px;padding:9px 14px;font-size:11.5px;color:var(--v-faint);
+  }
+  .send-btn{
+    width:34px;height:34px;border-radius:50%;flex:none;
+    background:var(--v-cta-grad);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .send-btn svg{width:15px;height:15px;stroke:var(--v-cta-ink);fill:none;stroke-width:2;}
+
+  /* ---------- notes ---------- */
+  .notes{border:1px solid var(--chrome-line);border-radius:14px;background:var(--chrome-card);padding:16px 18px;}
+  .notes h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--chrome-sub);margin:0 0 10px;font-weight:700;}
+  .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;}
+  .notes li{font-size:13px;color:var(--chrome-ink);}
+  .notes code{font-size:12px;background:var(--chrome-bg);padding:1px 5px;border-radius:5px;}
+
+  footer.note{margin-top:64px;padding-top:26px;border-top:1px solid var(--chrome-line);font-size:13px;color:var(--chrome-sub);max-width:74ch;}
+  footer.note code{color:var(--chrome-ink);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .screen-block{animation:rise .45s ease both;}
+    @keyframes rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .dot.pulse{animation:none;}
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0 6M21 20c0-2.6-1.7-4.8-4-5.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2.3 4.5 6 4c2.2-.3 4 .8 6 3 2-2.2 3.8-3.3 6-3 3.7.5 5.5 4 4 7.7C19.5 16.4 12 21 12 21z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.5h4.4l.4-2.5c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="M15 8l5-3v14l-5-3M3 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-groups" viewBox="0 0 24 24"><circle cx="7" cy="9" r="2.6"/><circle cx="17" cy="9" r="2.6"/><path d="M2 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4M12 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 2M12 17h.01" stroke-linecap="round"/></symbol>
+  <symbol id="i-match" viewBox="0 0 24 24"><path d="M20 12l-3-3M20 12l-3 3M20 12H9M9 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M17 7l-7.5 7.5a3 3 0 1 0 4.2 4.2L21 11" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-6-7-2z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17l-6.1 3.5 1.5-6.8L2.2 9l6.9-.7L12 2z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2l8 3v6c0 5-3.4 8.7-8 11-4.6-2.3-8-6-8-11V5l8-3z" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <p class="eyebrow">Merhaba · İki Yeni Yön — Gerçek Arayüz</p>
+  <h1>Aynı üç ekran, iki farklı mizaç</h1>
+  <p class="lede">
+    <code>miami-tam-arayuz.html</code>'deki yaklaşım aynen korunuyor: uydurma bir bottom-nav yok,
+    gerçek <code>lib/screens/</code> bileşen sırası ve gerçek metinler kullanılıyor. Bu turda iki
+    yeni renk/tipografi/şekil dili deniyoruz — ikisi de <b>açık tema</b>, ikisi de kendi ürün
+    özellikleriyle (oyunlaştırma / güven) doğrudan konuşuyor.
+  </p>
+  <div class="correction">
+    <b>Hatırlatma:</b> Merhaba'da alt gezinme çubuğu yok — ekranlar <code>Navigator.push</code> ile
+    üst üste açılıyor, ana ekranda "Arkadaşlar / Keşfet / Canlı" birer pill-buton girişi.
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- YÖN 1 — OYUNLAŞTIRILMIŞ ENERJİ -->
+  <!-- =========================================================== -->
+  <div class="direction-block">
+    <div class="direction-head">
+      <span class="direction-num">01</span>
+      <span class="direction-title">Oyunlaştırılmış Enerji</span>
+    </div>
+    <p class="direction-desc">
+      Gül/mercan/güneş sarısı, pill-şekilli her bileşen, XP/seviye rozetleri ana akışın içine
+      sızdırılmış — <code>gamification_service.dart</code>'taki seviye/XP/liderlik tablosu
+      özellikleriyle görsel olarak aynı dili konuşuyor.
+    </p>
+    <div class="screens" style="
+        --v-ink:#881337; --v-sub:#B23A5C; --v-faint:rgba(136,19,55,.45);
+        --v-accent:#E11D48; --v-accent-strong:#9F1239; --v-accent3:#FFC845;
+        --v-surface:#FFFFFF; --v-border:#FECDD3;
+        --v-cta-grad:linear-gradient(135deg,#FB7185,#E11D48); --v-cta-ink:#FFFFFF;
+        --v-shadow:rgba(225,29,72,.35);
+        --v-avatar-grad:linear-gradient(135deg,#FB7185,#FFC845);
+        --v-phone-bg:radial-gradient(circle at 10% -6%, #FFC84533, transparent 45%), radial-gradient(circle at 105% 8%, #FB718533, transparent 42%), #FFF1F2;
+        --v-phone-bg-solid:#FFF1F2; --v-notch-bg:#FFF1F2;
+        --v-globe-bg:radial-gradient(circle at 35% 30%, #FB718533, transparent 60%), radial-gradient(circle at 70% 70%, #FFC84540, transparent 60%), #FFFFFF;
+        --v-photo-bg:linear-gradient(160deg, #FB718555, #FFC84540 55%, #FFF1F2 100%);
+        --v-scrim:linear-gradient(to top, rgba(136,19,55,.85), transparent);
+        --v-oncard-ink:#FFFFFF; --v-oncard-sub:rgba(255,255,255,.85);
+        --v-seg-active-bg:rgba(225,29,72,.12); --v-radius-seg:999px;
+        --v-radius-outer:38px; --v-radius-cta:999px; --v-radius-chip:999px; --v-radius-card:26px; --v-radius-bubble:18px;
+      ">
+
+      <!-- HOME -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">01</span><span class="screen-name">Ana Ekran</span></div>
+        <div class="phone">
+          <span class="confetti" style="width:5px;height:5px;top:14%;left:8%;background:#FFC845;"></span>
+          <span class="confetti" style="width:4px;height:4px;top:22%;right:12%;background:#FB7185;"></span>
+          <span class="confetti" style="width:6px;height:6px;top:60%;left:6%;background:#E11D48;"></span>
+          <span class="confetti" style="width:4px;height:4px;top:8%;right:30%;background:#FFC845;"></span>
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="home-top">
+            <div class="chip"><span class="dot pulse"></span>1.204 çevrimiçi</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <div class="avatar-wrap">
+                <div class="avatar">S</div>
+                <span class="avatar-badge">4</span>
+              </div>
+              <div class="icon-btn"><svg><use href="#i-settings"/></svg></div>
+            </div>
+          </div>
+          <div class="home-entries">
+            <div class="chip"><svg><use href="#i-people"/></svg>Arkadaşlar</div>
+            <div class="chip" style="border-color:#E11D4855;"><svg style="stroke:#E11D48"><use href="#i-heart"/></svg>Keşfet</div>
+            <div class="chip" style="border-color:#FB718555;"><svg style="stroke:#FB7185"><use href="#i-live"/></svg>Canlı</div>
+          </div>
+          <div class="home-mid">
+            <div class="globe"><svg><use href="#i-globe"/></svg></div>
+            <div class="home-h1">Yeni biriyle tanış</div>
+            <p class="home-sub">Dünyanın her yerinden insanlarla<br>rastgele görüntülü sohbet et.</p>
+          </div>
+          <div class="home-bottom">
+            <div class="cta-main">
+              <span class="cta-badge"><svg><use href="#i-star"/></svg>+12 XP</span>
+              <svg><use href="#i-video"/></svg>Sohbete Başla
+            </div>
+            <div class="group-entry"><svg><use href="#i-groups"/></svg>Grup Görüşmesi (beta) · 3-4 kişi</div>
+            <div class="legal">Devam ederek Topluluk Kurallarını kabul etmiş olursun.</div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>Avatarın üzerindeki "4" rozeti gerçek bir seviye göstergesi — <code>gamification_service.dart</code>'taki seviye sistemine bağlanır, ekstra bir ekran açmadan sürekli görünür kılar.</li>
+            <li>CTA'nın üstündeki "+12 XP" rozeti, görüşmeye başlamayı ödüllendirilmiş bir eylem gibi hissettirir — liderlik tablosu özelliğiyle davranışsal bağ kurar.</li>
+            <li>Konfeti noktaları bilerek çok az (4 adet) ve düşük opaklıkta — dekorasyon asıl içeriğin (CTA, metin) önüne geçmiyor.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- DISCOVER -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">02</span><span class="screen-name">Keşfet</span></div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="disc-top">
+            <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+            <div class="disc-top-title">Keşfet</div>
+            <div class="disc-top-right">
+              <div class="icon-btn"><svg><use href="#i-quiz"/></svg></div>
+              <div class="icon-btn"><svg><use href="#i-match"/></svg></div>
+              <div class="icon-btn" style="position:relative;border-color:#E11D4855;">
+                <svg style="stroke:#E11D48"><use href="#i-heart"/></svg>
+                <span class="badge-count">6</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-stack">
+            <div class="swipe-card back"><div class="photo"></div></div>
+            <div class="swipe-card">
+              <div class="photo"></div>
+              <div class="scrim"></div>
+              <div class="info">
+                <div class="name-row">
+                  <span class="name">Elif, 24</span>
+                  <span class="verified-pill"><svg><use href="#i-star"/></svg>Seviye 6</span>
+                </div>
+                <div class="meta"><svg><use href="#i-pin"/></svg>3 km uzakta</div>
+              </div>
+            </div>
+          </div>
+          <div class="swipe-actions">
+            <div class="round-btn"><svg><use href="#i-x"/></svg></div>
+            <div class="round-btn like"><svg><use href="#i-heart"/></svg></div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>Kart yığını gerçek koda sadık: arkadaki kart küçültülmüş+soluk (<code>_buildCard(interactive:false)</code>).</li>
+            <li>İsmin yanındaki "Seviye 6" rozeti, oyunlaştırma sistemini keşfet akışına da taşıyor — aktif/güvenilir kullanıcı sinyali gibi okunur.</li>
+            <li>Kalp rozetindeki sayı gerçek <code>likesMeCount</code> alanı.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CHAT -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">03</span><span class="screen-name">Sohbet</span></div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="chat-top">
+            <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+            <div class="avatar-wrap">
+              <div class="avatar" style="width:28px;height:28px;font-size:11px;">E</div>
+            </div>
+            <div class="who">
+              <div class="name">Elif</div>
+              <div class="status"><span class="dot" style="width:5px;height:5px;"></span>çevrimiçi</div>
+            </div>
+          </div>
+          <div class="mode-toggle">
+            <div class="seg active">Kalıcı Sohbet</div>
+            <div class="seg">Kaybolan Mesajlar</div>
+          </div>
+          <div class="msg-list">
+            <div class="msg-row in">
+              <div class="bubble">merhaba! nasılsın 👋</div>
+              <div class="msg-time">14:02</div>
+            </div>
+            <div class="msg-row out">
+              <div class="bubble">iyiyim, sen? bugün ne yapıyorsun</div>
+              <div class="reaction-chip">👍</div>
+              <div class="msg-time">14:03 · görüldü</div>
+            </div>
+            <div class="msg-row in">
+              <div class="bubble">az sonra görüşme deneyelim mi?</div>
+              <div class="msg-time">14:05</div>
+            </div>
+          </div>
+          <div class="input-bar">
+            <div class="icon-btn" style="width:30px;height:30px;"><svg style="width:14px;height:14px;"><use href="#i-clip"/></svg></div>
+            <div class="input-pill">Mesaj yaz...</div>
+            <div class="send-btn"><svg><use href="#i-send"/></svg></div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>"Kalıcı Sohbet / Kaybolan Mesajlar" ayrımı gerçek bir mod, koddaki <code>_ChatMode</code> enum'una birebir.</li>
+            <li>Tepki chip'i mevcut <code>reactions</code> alanına bağlı; pill radius burada da korunuyor (999px).</li>
+            <li>Sıcak/bubbly ton, ilk mesajlaşma anındaki kaygıyı azaltmayı hedefliyor — eşleşme sonrası akışın devamı.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <!-- YÖN 2 — GÜVEN & BERRAKLIK -->
+  <!-- =========================================================== -->
+  <div class="direction-block">
+    <div class="direction-head">
+      <span class="direction-num">02</span>
+      <span class="direction-title">Güven &amp; Berraklık</span>
+    </div>
+    <p class="direction-desc">
+      Lacivert/menekşe, sakin/kurumsal-sıcak ton, "doğrulandı" rozeti her kritik yerde tekrar
+      ediyor — selfie doğrulama ve güvenilir kişiler gibi güvenlik özelliklerini arayüzün
+      kendisinde görünür kılıyor.
+    </p>
+    <div class="screens" style="
+        --v-ink:#1E293B; --v-sub:#5B6B85; --v-faint:rgba(30,41,59,.4);
+        --v-accent:#1E3A8A; --v-accent-strong:#1E3A8A; --v-accent3:#16A34A;
+        --v-surface:#FFFFFF; --v-border:#E2E8F0;
+        --v-cta-grad:linear-gradient(135deg,#1E3A8A,#3B4FC4); --v-cta-ink:#FFFFFF;
+        --v-shadow:rgba(30,58,138,.32);
+        --v-avatar-grad:linear-gradient(135deg,#1E3A8A,#7C6CF0);
+        --v-phone-bg:radial-gradient(circle at 8% -6%, #7C6CF01f, transparent 45%), radial-gradient(circle at 105% 10%, #1E3A8A1a, transparent 42%), #F7F9FC;
+        --v-phone-bg-solid:#F7F9FC; --v-notch-bg:#F7F9FC;
+        --v-globe-bg:radial-gradient(circle at 35% 30%, #1E3A8A22, transparent 60%), radial-gradient(circle at 70% 70%, #7C6CF02a, transparent 60%), #FFFFFF;
+        --v-photo-bg:linear-gradient(160deg, #1E3A8A33, #7C6CF02a 55%, #F7F9FC 100%);
+        --v-scrim:linear-gradient(to top, rgba(15,23,42,.82), transparent);
+        --v-oncard-ink:#FFFFFF; --v-oncard-sub:rgba(255,255,255,.85);
+        --v-seg-active-bg:rgba(30,58,138,.1); --v-radius-seg:10px;
+        --v-radius-outer:30px; --v-radius-cta:16px; --v-radius-chip:999px; --v-radius-card:20px; --v-radius-bubble:14px;
+      ">
+
+      <!-- HOME -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">01</span><span class="screen-name">Ana Ekran</span></div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="home-top">
+            <div class="chip"><span class="dot pulse"></span>1.204 çevrimiçi</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <div class="avatar-wrap">
+                <div class="avatar">S</div>
+                <span class="avatar-badge"><svg><use href="#i-check"/></svg></span>
+              </div>
+              <div class="icon-btn"><svg><use href="#i-settings"/></svg></div>
+            </div>
+          </div>
+          <div class="home-entries">
+            <div class="chip"><svg><use href="#i-people"/></svg>Arkadaşlar</div>
+            <div class="chip" style="border-color:#1E3A8A40;"><svg style="stroke:#1E3A8A"><use href="#i-heart"/></svg>Keşfet</div>
+            <div class="chip" style="border-color:#7C6CF040;"><svg style="stroke:#7C6CF0"><use href="#i-live"/></svg>Canlı</div>
+          </div>
+          <div class="home-mid">
+            <div class="globe"><svg><use href="#i-globe"/></svg></div>
+            <div class="home-h1">Yeni biriyle tanış</div>
+            <p class="home-sub">Dünyanın her yerinden insanlarla<br>rastgele görüntülü sohbet et.</p>
+          </div>
+          <div class="home-bottom">
+            <div class="cta-main">
+              <svg><use href="#i-video"/></svg>Sohbete Başla
+            </div>
+            <div class="group-entry" style="gap:6px;">
+              <svg style="stroke:#16A34A"><use href="#i-shield"/></svg>
+              <span>Güvenli eşleşme havuzu · doğrulanmış profiller</span>
+            </div>
+            <div class="legal">Devam ederek Topluluk Kurallarını kabul etmiş olursun.</div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>Avatarın üzerindeki yeşil tik, kullanıcının kendi selfie doğrulama durumunu sürekli görünür kılıyor — güven hissini ilk ekranda kuruyor.</li>
+            <li>Grup görüşmesi girişinin yerine (bu yönde) kalkan ikonlu bir güven mesajı konuldu — "(beta)" etiketi burada ikincil kaldığı için ayrı bir küçük not olarak bırakılabilir.</li>
+            <li>Çevrimiçi sayısı chip'i aynı davranışı koruyor: sunucu ulaşılamazsa nokta griye döner.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- DISCOVER -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">02</span><span class="screen-name">Keşfet</span></div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="disc-top">
+            <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+            <div class="disc-top-title">Keşfet</div>
+            <div class="disc-top-right">
+              <div class="icon-btn"><svg><use href="#i-quiz"/></svg></div>
+              <div class="icon-btn"><svg><use href="#i-match"/></svg></div>
+              <div class="icon-btn" style="position:relative;border-color:#1E3A8A40;">
+                <svg style="stroke:#1E3A8A"><use href="#i-heart"/></svg>
+                <span class="badge-count">6</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-stack">
+            <div class="swipe-card back"><div class="photo"></div></div>
+            <div class="swipe-card">
+              <div class="photo"></div>
+              <div class="scrim"></div>
+              <div class="info">
+                <div class="name-row">
+                  <span class="name">Elif, 24</span>
+                  <span class="verified-pill"><svg><use href="#i-check"/></svg>Doğrulandı</span>
+                </div>
+                <div class="meta"><svg><use href="#i-pin"/></svg>3 km uzakta</div>
+              </div>
+            </div>
+          </div>
+          <div class="swipe-actions">
+            <div class="round-btn"><svg><use href="#i-x"/></svg></div>
+            <div class="round-btn like"><svg><use href="#i-heart"/></svg></div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>"Doğrulandı" rozeti, selfie doğrulama akışının sonucunu keşfet kartında doğrudan gösteriyor — kullanıcı kiminle eşleştiğini daha net değerlendirebiliyor.</li>
+            <li>Kart yığını yine gerçek koda sadık (arkadaki kart <code>interactive:false</code>, küçültülmüş+soluk).</li>
+            <li>Rengin dozu bilerek düşük tutuldu — "güven" mesajı tek bir yeşil rozetle taşınıyor, sayfa geneli sakin lacivert/menekşede kalıyor.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CHAT -->
+      <div class="screen-block">
+        <div class="screen-head"><span class="screen-num">03</span><span class="screen-name">Sohbet</span></div>
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="status-space"></div>
+          <div class="chat-top">
+            <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+            <div class="avatar-wrap">
+              <div class="avatar" style="width:28px;height:28px;font-size:11px;">E</div>
+              <span class="avatar-badge" style="width:12px;height:12px;min-width:12px;"><svg style="width:7px;height:7px;"><use href="#i-check"/></svg></span>
+            </div>
+            <div class="who">
+              <div class="name">Elif</div>
+              <div class="status"><span class="dot" style="width:5px;height:5px;"></span>çevrimiçi</div>
+            </div>
+          </div>
+          <div class="mode-toggle">
+            <div class="seg active">Kalıcı Sohbet</div>
+            <div class="seg">Kaybolan Mesajlar</div>
+          </div>
+          <div class="msg-list">
+            <div class="msg-row in">
+              <div class="bubble">merhaba! nasılsın 👋</div>
+              <div class="msg-time">14:02</div>
+            </div>
+            <div class="msg-row out">
+              <div class="bubble">iyiyim, sen? bugün ne yapıyorsun</div>
+              <div class="reaction-chip">👍</div>
+              <div class="msg-time">14:03 · görüldü</div>
+            </div>
+            <div class="msg-row in">
+              <div class="bubble">az sonra görüşme deneyelim mi?</div>
+              <div class="msg-time">14:05</div>
+            </div>
+          </div>
+          <div class="input-bar">
+            <div class="icon-btn" style="width:30px;height:30px;"><svg style="width:14px;height:14px;"><use href="#i-clip"/></svg></div>
+            <div class="input-pill">Mesaj yaz...</div>
+            <div class="send-btn"><svg><use href="#i-send"/></svg></div>
+          </div>
+        </div>
+        <div class="notes">
+          <h4>Neden böyle</h4>
+          <ul>
+            <li>Sohbet ekranındaki küçük yeşil tik, karşı tarafın da doğrulanmış olduğunu hatırlatıyor — güven sinyalini konuşma boyunca sürdürüyor.</li>
+            <li>"Kalıcı Sohbet / Kaybolan Mesajlar" ayrımı aynı gerçek <code>_ChatMode</code> enum'una dayanıyor; bu yönde "gizlilik kontrolü sende" mesajını daha da güçlendiriyor.</li>
+            <li>Yumuşak radius (14px) ve sakin gölgeler, "kurumsal-sıcak" hissi korumak için bilerek Miami/Oyunlaştırılmış'a göre daha az iddialı.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="note">
+    <b>Not:</b> İkisi de açık tema — metin/ikon renkleri koyu zemine göre değil, açık zemine göre
+    ayrıca kontrol edildi (gövde metni ≥4.5:1). Henüz hiçbir kod dosyası değişmedi;
+    <code>design-variants/00-current-backup-app_theme.dart</code> mevcut kimliğin yedeği olarak duruyor.
+  </footer>
+</div>

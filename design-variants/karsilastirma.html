@@ -1,0 +1,628 @@
+<title>Merhaba — 5 Kimlik Önerisi</title>
+<style>
+  :root{
+    --chrome-bg:#F4F3F6;
+    --chrome-bg-deep:#ECEAF0;
+    --chrome-ink:#211F2B;
+    --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4;
+    --chrome-card:#FFFFFF;
+    --chrome-accent:#6D5BD0;
+    --chrome-accent-ink:#FFFFFF;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --chrome-bg:#121018;
+      --chrome-bg-deep:#0B0A10;
+      --chrome-ink:#EFEDF6;
+      --chrome-sub:#A29CB8;
+      --chrome-line:#2A2736;
+      --chrome-card:#18151F;
+      --chrome-accent:#9B8CF0;
+      --chrome-accent-ink:#161226;
+    }
+  }
+  :root[data-theme="dark"]{
+    --chrome-bg:#121018; --chrome-bg-deep:#0B0A10; --chrome-ink:#EFEDF6;
+    --chrome-sub:#A29CB8; --chrome-line:#2A2736; --chrome-card:#18151F;
+    --chrome-accent:#9B8CF0; --chrome-accent-ink:#161226;
+  }
+  :root[data-theme="light"]{
+    --chrome-bg:#F4F3F6; --chrome-bg-deep:#ECEAF0; --chrome-ink:#211F2B;
+    --chrome-sub:#615D71; --chrome-line:#DCD9E4; --chrome-card:#FFFFFF;
+    --chrome-accent:#6D5BD0; --chrome-accent-ink:#FFFFFF;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--chrome-bg);
+    color:var(--chrome-ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:56px 24px 96px;}
+
+  /* ---------- catalog chrome ---------- */
+  header.intro{margin-bottom:52px;}
+  .eyebrow{
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--chrome-accent);font-weight:700;margin:0 0 14px;
+  }
+  h1{
+    font-size:clamp(30px,4.4vw,46px);
+    font-weight:800;letter-spacing:-0.02em;margin:0 0 16px;
+    text-wrap:balance;
+  }
+  .lede{
+    max-width:62ch;color:var(--chrome-sub);font-size:16.5px;margin:0 0 28px;
+  }
+  .baseline-row{
+    display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+    padding:16px 18px;border:1px solid var(--chrome-line);
+    border-radius:14px;background:var(--chrome-card);
+  }
+  .baseline-row .swatch-row{display:flex;gap:6px;}
+  .sw{width:20px;height:20px;border-radius:6px;border:1px solid rgba(0,0,0,.08);}
+  .baseline-row .label{font-size:13px;color:var(--chrome-sub);}
+  .baseline-row .label b{color:var(--chrome-ink);}
+
+  nav.index{
+    display:flex;gap:10px;flex-wrap:wrap;margin:28px 0 0;
+  }
+  nav.index a{
+    font-size:13px;text-decoration:none;color:var(--chrome-sub);
+    border:1px solid var(--chrome-line);padding:7px 13px;border-radius:999px;
+    transition:color .15s, border-color .15s, background .15s;
+  }
+  nav.index a:hover{color:var(--chrome-accent-ink);background:var(--chrome-accent);border-color:var(--chrome-accent);}
+  nav.index a:focus-visible{outline:2px solid var(--chrome-accent);outline-offset:2px;}
+
+  /* ---------- variant section ---------- */
+  section.variant{
+    scroll-margin-top:24px;
+    margin-top:64px;
+    padding-top:40px;
+    border-top:1px solid var(--chrome-line);
+  }
+  section.variant:first-of-type{margin-top:56px;}
+
+  .variant-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:16px;flex-wrap:wrap;margin-bottom:6px;
+  }
+  .variant-num{
+    font-size:13px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;
+    letter-spacing:.06em;
+  }
+  .variant-title{font-size:26px;font-weight:800;margin:2px 0 4px;letter-spacing:-0.01em;}
+  .variant-tag{font-size:14px;color:var(--chrome-sub);margin:0 0 26px;max-width:68ch;}
+
+  .variant-grid{
+    display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:36px;align-items:start;
+  }
+  @media (max-width:760px){ .variant-grid{grid-template-columns:1fr;} }
+
+  /* ---------- phone mock (shared shell, themed via CSS vars per variant) ---------- */
+  .phone{
+    width:100%;max-width:280px;margin:0 auto;
+    border-radius:var(--v-radius-outer,34px);
+    background:var(--v-bg);
+    border:1px solid var(--v-border);
+    padding:14px;
+    box-shadow:var(--v-shadow, 0 20px 50px -20px rgba(0,0,0,.4));
+    font-family:var(--v-font-body);
+    position:relative;
+    overflow:hidden;
+  }
+  .phone::before{ content:var(--v-bgfx,none); }
+  .phone-top{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:2px 4px 18px;
+  }
+  .brand{
+    font-family:var(--v-font-display);
+    font-weight:var(--v-display-weight,800);
+    font-size:17px;color:var(--v-ink);
+    letter-spacing:var(--v-display-tracking,-0.01em);
+    text-transform:var(--v-display-case,none);
+  }
+  .live-chip{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--v-ink);background:var(--v-chip-bg);
+    border:1px solid var(--v-chip-border);
+    padding:5px 9px;border-radius:var(--v-radius-chip,999px);
+  }
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--v-accent2,var(--v-accent));flex:none;}
+
+  .cta{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    text-align:center;
+    background:var(--v-cta-bg);
+    color:var(--v-cta-ink);
+    border:var(--v-cta-border,none);
+    border-radius:var(--v-radius-cta,20px);
+    padding:22px 16px;margin:6px 0 16px;
+    box-shadow:var(--v-cta-shadow,none);
+  }
+  .cta svg{width:26px;height:26px;stroke:var(--v-cta-ink);fill:none;stroke-width:1.8;}
+  .cta .cta-label{font-family:var(--v-font-display);font-weight:700;font-size:14.5px;letter-spacing:var(--v-display-tracking,-0.01em);text-transform:var(--v-display-case,none);}
+  .cta .cta-sub{font-size:11px;opacity:.82;font-family:var(--v-font-body);}
+
+  .bubbles{display:flex;flex-direction:column;gap:7px;margin-bottom:18px;}
+  .bubble{
+    font-size:12.5px;padding:8px 12px;border-radius:var(--v-radius-bubble,14px);
+    max-width:78%;line-height:1.4;font-family:var(--v-font-body);
+  }
+  .bubble.in{
+    align-self:flex-start;
+    background:var(--v-bubble-in-bg);color:var(--v-bubble-in-ink);
+    border:var(--v-bubble-in-border,none);
+  }
+  .bubble.out{
+    align-self:flex-end;
+    background:var(--v-bubble-out-bg);color:var(--v-bubble-out-ink);
+  }
+
+  .navbar{
+    display:flex;justify-content:space-between;
+    padding-top:14px;border-top:1px solid var(--v-navbar-line);
+  }
+  .navitem{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+  .navitem svg{width:18px;height:18px;stroke:var(--v-nav-ink);fill:none;stroke-width:1.7;}
+  .navitem.active svg{stroke:var(--v-accent);}
+  .navitem span{font-size:9px;color:var(--v-nav-ink);font-family:var(--v-font-body);}
+  .navitem.active span{color:var(--v-accent);font-weight:700;}
+
+  /* ---------- right column: tokens + specimen + rationale ---------- */
+  .col-right{display:flex;flex-direction:column;gap:22px;}
+  .block{
+    border:1px solid var(--chrome-line);border-radius:14px;
+    background:var(--chrome-card);padding:18px 20px;
+  }
+  .block h3{
+    font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+    color:var(--chrome-sub);margin:0 0 14px;font-weight:700;
+  }
+  .swatches{display:flex;flex-wrap:wrap;gap:14px;}
+  .swatch{display:flex;flex-direction:column;gap:6px;width:84px;}
+  .swatch .chip{height:44px;border-radius:9px;border:1px solid rgba(0,0,0,.08);}
+  .swatch .name{font-size:11px;color:var(--chrome-ink);font-weight:600;}
+  .swatch .hex{font-size:10.5px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;}
+
+  .type-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px dashed var(--chrome-line);}
+  .type-row:last-child{border-bottom:none;}
+  .type-row .role{font-size:11px;color:var(--chrome-sub);text-transform:uppercase;letter-spacing:.08em;width:70px;flex:none;}
+  .type-row .sample{font-size:19px;flex:1;}
+  .type-row .fontname{font-size:11px;color:var(--chrome-sub);flex:none;text-align:right;}
+
+  .rationale p{font-size:13.5px;color:var(--chrome-ink);margin:0 0 8px;}
+  .rationale p:last-child{margin-bottom:0;}
+  .rationale .why{color:var(--chrome-sub);}
+
+  footer.note{
+    margin-top:72px;padding-top:28px;border-top:1px solid var(--chrome-line);
+    font-size:13px;color:var(--chrome-sub);max-width:70ch;
+  }
+  footer.note b{color:var(--chrome-ink);}
+
+  @media (prefers-reduced-motion: no-preference){
+    section.variant{animation:rise .5s ease both;}
+    @keyframes rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="ic-video" viewBox="0 0 24 24"><path d="M15 8l5-3v14l-5-3M3 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h14V10" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6 6-2z" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0 6M21 20c0-2.6-1.7-4.8-4-5.6" stroke-linecap="round"/></symbol>
+  <symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="wrap">
+
+  <header class="intro">
+    <p class="eyebrow">Merhaba · Kimlik Karşılaştırması</p>
+    <h1>Aynı uygulama, beş farklı ruh hali</h1>
+    <p class="lede">
+      Beşi de "her yeri değiştirebilirsin" serbestliğiyle sıfırdan kuruldu — renk, tipografi,
+      köşe/kart dili ve genel mizaç dahil. Karşılaştırma için ana ekranın aynı üç öğesi
+      (rastgele görüştür CTA'sı, bir mesaj alışverişi, alt gezinme çubuğu) her kimlikte tekrar edildi.
+    </p>
+    <div class="baseline-row">
+      <div class="swatch-row">
+        <div class="sw" style="background:#0B0B16"></div>
+        <div class="sw" style="background:#7C4DFF"></div>
+        <div class="sw" style="background:#00BFA5"></div>
+      </div>
+      <div class="label"><b>Mevcut kimlik (referans):</b> koyu zemin + mor/turkuaz gradyan, "Azar tarzı"</div>
+    </div>
+    <nav class="index">
+      <a href="#v1">01 · Neon Gece</a>
+      <a href="#v2">02 · Oyunlaştırılmış Enerji</a>
+      <a href="#v3">03 · Zarif Gece Altını</a>
+      <a href="#v4">04 · Güven &amp; Berraklık</a>
+      <a href="#v5">05 · Cam Aurora</a>
+    </nav>
+  </header>
+
+  <!-- ============ V1 — NEON GECE ============ -->
+  <section class="variant" id="v1" style="
+      --v-bg:#0A0014; --v-ink:#F5E9FF; --v-nav-ink:#8B7BA8;
+      --v-accent:#FF2E9A; --v-accent2:#00E5FF;
+      --v-border:#2B0F3D;
+      --v-radius-outer:20px; --v-radius-cta:6px; --v-radius-chip:4px; --v-radius-bubble:4px;
+      --v-shadow:0 0 0 1px #FF2E9A33, 0 25px 60px -25px #FF2E9A55;
+      --v-cta-bg:linear-gradient(135deg,#FF2E9A,#B4009E);
+      --v-cta-ink:#0A0014;
+      --v-cta-shadow:0 0 24px -4px #FF2E9A88;
+      --v-chip-bg:#150524; --v-chip-border:#00E5FF55;
+      --v-bubble-in-bg:#150524; --v-bubble-in-ink:#E7DBFF; --v-bubble-in-border:1px solid #2B0F3D;
+      --v-bubble-out-bg:#00E5FF; --v-bubble-out-ink:#001019;
+      --v-navbar-line:#2B0F3D;
+      --v-font-display:'Courier New',ui-monospace,monospace; --v-display-weight:700; --v-display-case:uppercase; --v-display-tracking:.08em;
+      --v-font-body:'Courier New',ui-monospace,SFMono-Regular,monospace;
+    ">
+    <div class="variant-head">
+      <div>
+        <div class="variant-num">01 / 05</div>
+        <h2 class="variant-title">Neon Gece</h2>
+      </div>
+    </div>
+    <p class="variant-tag">Gece kullanım anını abartan cyberpunk-sosyal bir yön: keskin köşeler, HUD tipografisi, magenta/camgöbeği kontrastı.</p>
+
+    <div class="variant-grid">
+      <div class="phone">
+        <div class="phone-top">
+          <span class="brand">MERHABA_</span>
+          <span class="live-chip"><span class="live-dot"></span>CANLI</span>
+        </div>
+        <div class="cta">
+          <svg><use href="#ic-video"/></svg>
+          <span class="cta-label">RASTGELE_GÖRÜŞTÜR</span>
+          <span class="cta-sub">1.204 kullanıcı çevrimiçi</span>
+        </div>
+        <div class="bubbles">
+          <div class="bubble in">merhaba! nasılsın</div>
+          <div class="bubble out">iyiyim, sen?</div>
+        </div>
+        <div class="navbar">
+          <div class="navitem active"><svg><use href="#ic-home"/></svg><span>ANA</span></div>
+          <div class="navitem"><svg><use href="#ic-compass"/></svg><span>KEŞFET</span></div>
+          <div class="navitem"><svg><use href="#ic-users"/></svg><span>GRUP</span></div>
+          <div class="navitem"><svg><use href="#ic-user"/></svg><span>PROFİL</span></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="block">
+          <h3>Renk</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#0A0014"></div><div class="name">Zemin</div><div class="hex">#0A0014</div></div>
+            <div class="swatch"><div class="chip" style="background:#150524"></div><div class="name">Yüzey</div><div class="hex">#150524</div></div>
+            <div class="swatch"><div class="chip" style="background:#FF2E9A"></div><div class="name">Magenta</div><div class="hex">#FF2E9A</div></div>
+            <div class="swatch"><div class="chip" style="background:#00E5FF"></div><div class="name">Camgöbeği</div><div class="hex">#00E5FF</div></div>
+            <div class="swatch"><div class="chip" style="background:#FFC53D"></div><div class="name">Uyarı</div><div class="hex">#FFC53D</div></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Tipografi</h3>
+          <div class="type-row"><span class="role">Başlık</span><span class="sample" style="font-family:'Courier New',monospace;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">ORBITRON</span><span class="fontname">Google Fonts</span></div>
+          <div class="type-row"><span class="role">Gövde</span><span class="sample" style="font-family:'Courier New',monospace;">JetBrains Mono</span><span class="fontname">Google Fonts</span></div>
+        </div>
+        <div class="block rationale">
+          <h3>Neden uyuyor</h3>
+          <p>Rastgele görüntülü sohbetin "gece, enerji, tanışma anı" hissini en çok abartan seçenek — canlı yayın / oyun kültürüne yakın kullanıcıya hitap eder.</p>
+          <p class="why">Risk: mevcut sakin/olgun kullanıcı kitlesine göre agresif kalabilir; tüm ekranlarda okunabilirlik için magenta/camgöbeği dozunu CTA ve rozetlerle sınırlı tutmak gerekir.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V2 — OYUNLAŞTIRILMIŞ ENERJİ ============ -->
+  <section class="variant" id="v2" style="
+      --v-bg:#FFF1F2; --v-ink:#881337; --v-nav-ink:#B9788F;
+      --v-accent:#E11D48; --v-accent2:#FFC845;
+      --v-border:#FECDD3;
+      --v-radius-outer:34px; --v-radius-cta:999px; --v-radius-chip:999px; --v-radius-bubble:18px;
+      --v-shadow:0 20px 45px -22px #E11D4855;
+      --v-cta-bg:linear-gradient(135deg,#FB7185,#E11D48);
+      --v-cta-ink:#FFFFFF;
+      --v-cta-shadow:0 10px 24px -8px #E11D4877;
+      --v-chip-bg:#FFFFFF; --v-chip-border:#FECDD3;
+      --v-bubble-in-bg:#FFFFFF; --v-bubble-in-ink:#881337; --v-bubble-in-border:1px solid #FECDD3;
+      --v-bubble-out-bg:#FFC845; --v-bubble-out-ink:#5C3A00;
+      --v-navbar-line:#FECDD3;
+      --v-font-display:Nunito,'Segoe UI',sans-serif; --v-display-weight:800; --v-display-case:none; --v-display-tracking:0;
+      --v-font-body:'DM Sans','Segoe UI',sans-serif;
+    ">
+    <div class="variant-head">
+      <div>
+        <div class="variant-num">02 / 05</div>
+        <h2 class="variant-title">Oyunlaştırılmış Enerji</h2>
+      </div>
+    </div>
+    <p class="variant-tag">Açık, sıcak, bubbly bir yön — seviye/rozet/liderlik tablosu gibi oyunlaştırma özellikleriyle doğal olarak örtüşür.</p>
+
+    <div class="variant-grid">
+      <div class="phone">
+        <div class="phone-top">
+          <span class="brand">Merhaba</span>
+          <span class="live-chip"><span class="live-dot"></span>Canlı</span>
+        </div>
+        <div class="cta">
+          <svg><use href="#ic-video"/></svg>
+          <span class="cta-label">Rastgele Görüştür</span>
+          <span class="cta-sub">+12 XP kazan</span>
+        </div>
+        <div class="bubbles">
+          <div class="bubble in">merhaba! nasılsın 👋</div>
+          <div class="bubble out">iyiyim, sen?</div>
+        </div>
+        <div class="navbar">
+          <div class="navitem active"><svg><use href="#ic-home"/></svg><span>Ana</span></div>
+          <div class="navitem"><svg><use href="#ic-compass"/></svg><span>Keşfet</span></div>
+          <div class="navitem"><svg><use href="#ic-users"/></svg><span>Grup</span></div>
+          <div class="navitem"><svg><use href="#ic-user"/></svg><span>Profil</span></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="block">
+          <h3>Renk</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#FFF1F2"></div><div class="name">Zemin</div><div class="hex">#FFF1F2</div></div>
+            <div class="swatch"><div class="chip" style="background:#E11D48"></div><div class="name">Gül</div><div class="hex">#E11D48</div></div>
+            <div class="swatch"><div class="chip" style="background:#FB7185"></div><div class="name">Mercan</div><div class="hex">#FB7185</div></div>
+            <div class="swatch"><div class="chip" style="background:#FFC845"></div><div class="name">Güneş</div><div class="hex">#FFC845</div></div>
+            <div class="swatch"><div class="chip" style="background:#881337"></div><div class="name">Metin</div><div class="hex">#881337</div></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Tipografi</h3>
+          <div class="type-row"><span class="role">Başlık</span><span class="sample" style="font-family:Nunito,sans-serif;font-weight:800;">Nunito</span><span class="fontname">Google Fonts</span></div>
+          <div class="type-row"><span class="role">Gövde</span><span class="sample" style="font-family:'DM Sans',sans-serif;">DM Sans</span><span class="fontname">Google Fonts</span></div>
+        </div>
+        <div class="block rationale">
+          <h3>Neden uyuyor</h3>
+          <p>Achievements/leaderboard/rozet ekranlarıyla birebir hizalanır; sıcak ve davetkâr, ilk kez tanışma anının kaygısını azaltır.</p>
+          <p class="why">Risk: açık tema, gece video görüşmesi sırasında ekran parlaklığı/mahremiyet açısından mevcut koyu temaya göre dezavantajlı olabilir.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V3 — ZARİF GECE ALTINI ============ -->
+  <section class="variant" id="v3" style="
+      --v-bg:#14100D; --v-ink:#F3E9DA; --v-nav-ink:#8A7E70;
+      --v-accent:#C9A24B; --v-accent2:#C9A24B;
+      --v-border:#2B241C;
+      --v-radius-outer:12px; --v-radius-cta:2px; --v-radius-chip:2px; --v-radius-bubble:2px;
+      --v-shadow:0 25px 60px -30px rgba(0,0,0,.7);
+      --v-cta-bg:#1E1812;
+      --v-cta-ink:#C9A24B;
+      --v-cta-border:1px solid #C9A24B;
+      --v-cta-shadow:none;
+      --v-chip-bg:transparent; --v-chip-border:#C9A24B;
+      --v-bubble-in-bg:#1E1812; --v-bubble-in-ink:#E8D9BE; --v-bubble-in-border:1px solid #2B241C;
+      --v-bubble-out-bg:#2B241C; --v-bubble-out-ink:#C9A24B;
+      --v-navbar-line:#2B241C;
+      --v-font-display:Georgia,'Iowan Old Style',serif; --v-display-weight:600; --v-display-case:none; --v-display-tracking:.01em;
+      --v-font-body:-apple-system,Inter,sans-serif;
+    ">
+    <div class="variant-head">
+      <div>
+        <div class="variant-num">03 / 05</div>
+        <h2 class="variant-title">Zarif Gece Altını</h2>
+      </div>
+    </div>
+    <p class="variant-tag">Sessiz lüks: sıcak siyah zemin, altın hairline'lar, serif başlıklar — "seçici" ve olgun bir eşleşme hissi.</p>
+
+    <div class="variant-grid">
+      <div class="phone">
+        <div class="phone-top">
+          <span class="brand">Merhaba</span>
+          <span class="live-chip"><span class="live-dot"></span>Canlı</span>
+        </div>
+        <div class="cta">
+          <svg style="stroke:#C9A24B"><use href="#ic-video"/></svg>
+          <span class="cta-label">Rastgele Görüştür</span>
+          <span class="cta-sub">Seçkin eşleşme havuzu</span>
+        </div>
+        <div class="bubbles">
+          <div class="bubble in">merhaba, nasılsın?</div>
+          <div class="bubble out">iyiyim, sen?</div>
+        </div>
+        <div class="navbar">
+          <div class="navitem active"><svg><use href="#ic-home"/></svg><span>Ana</span></div>
+          <div class="navitem"><svg><use href="#ic-compass"/></svg><span>Keşfet</span></div>
+          <div class="navitem"><svg><use href="#ic-users"/></svg><span>Grup</span></div>
+          <div class="navitem"><svg><use href="#ic-user"/></svg><span>Profil</span></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="block">
+          <h3>Renk</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#14100D"></div><div class="name">Zemin</div><div class="hex">#14100D</div></div>
+            <div class="swatch"><div class="chip" style="background:#1E1812"></div><div class="name">Yüzey</div><div class="hex">#1E1812</div></div>
+            <div class="swatch"><div class="chip" style="background:#C9A24B"></div><div class="name">Altın</div><div class="hex">#C9A24B</div></div>
+            <div class="swatch"><div class="chip" style="background:#7A2E3D"></div><div class="name">Bordo</div><div class="hex">#7A2E3D</div></div>
+            <div class="swatch"><div class="chip" style="background:#F3E9DA"></div><div class="name">Metin</div><div class="hex">#F3E9DA</div></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Tipografi</h3>
+          <div class="type-row"><span class="role">Başlık</span><span class="sample" style="font-family:Georgia,serif;">Playfair Display</span><span class="fontname">Google Fonts</span></div>
+          <div class="type-row"><span class="role">Gövde</span><span class="sample" style="font-family:-apple-system,sans-serif;">Inter</span><span class="fontname">Google Fonts</span></div>
+        </div>
+        <div class="block rationale">
+          <h3>Neden uyuyor</h3>
+          <p>Uygulamayı "bir tanışma uygulaması daha" değil, kaliteli/güvenilir bir deneyim gibi konumlandırır; 25+ / olgun kitlede güven algısını yükseltir.</p>
+          <p class="why">Risk: canlı/enerjik hissi zayıflatır — "rastgele ve eğlenceli" vurgusuyla gerilebilir, gençlere daha soğuk gelebilir.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V4 — GÜVEN & BERRAKLIK ============ -->
+  <section class="variant" id="v4" style="
+      --v-bg:#F7F9FC; --v-ink:#1E293B; --v-nav-ink:#94A3B8;
+      --v-accent:#1E3A8A; --v-accent2:#16A34A;
+      --v-border:#E2E8F0;
+      --v-radius-outer:26px; --v-radius-cta:16px; --v-radius-chip:999px; --v-radius-bubble:14px;
+      --v-shadow:0 20px 45px -26px #1E3A8A44;
+      --v-cta-bg:#1E3A8A;
+      --v-cta-ink:#FFFFFF;
+      --v-cta-shadow:0 10px 22px -10px #1E3A8A66;
+      --v-chip-bg:#FFFFFF; --v-chip-border:#E2E8F0;
+      --v-bubble-in-bg:#FFFFFF; --v-bubble-in-ink:#1E293B; --v-bubble-in-border:1px solid #E2E8F0;
+      --v-bubble-out-bg:#7C6CF0; --v-bubble-out-ink:#FFFFFF;
+      --v-navbar-line:#E2E8F0;
+      --v-font-display:-apple-system,'Segoe UI',sans-serif; --v-display-weight:700; --v-display-case:none; --v-display-tracking:-.01em;
+      --v-font-body:-apple-system,'Segoe UI',sans-serif;
+    ">
+    <div class="variant-head">
+      <div>
+        <div class="variant-num">04 / 05</div>
+        <h2 class="variant-title">Güven &amp; Berraklık</h2>
+      </div>
+    </div>
+    <p class="variant-tag">Açık, sakin, kurumsal-sıcak bir yön — güvenlik/gizlilik/erişilebilirlik özelliklerini öne çıkarmak için tasarlandı.</p>
+
+    <div class="variant-grid">
+      <div class="phone">
+        <div class="phone-top">
+          <span class="brand">Merhaba</span>
+          <span class="live-chip"><span class="live-dot"></span>Doğrulanmış</span>
+        </div>
+        <div class="cta">
+          <svg><use href="#ic-video"/></svg>
+          <span class="cta-label">Rastgele Görüştür</span>
+          <span class="cta-sub">Güvenli eşleşme havuzu</span>
+        </div>
+        <div class="bubbles">
+          <div class="bubble in">merhaba, nasılsın?</div>
+          <div class="bubble out">iyiyim, sen?</div>
+        </div>
+        <div class="navbar">
+          <div class="navitem active"><svg><use href="#ic-home"/></svg><span>Ana</span></div>
+          <div class="navitem"><svg><use href="#ic-compass"/></svg><span>Keşfet</span></div>
+          <div class="navitem"><svg><use href="#ic-users"/></svg><span>Grup</span></div>
+          <div class="navitem"><svg><use href="#ic-user"/></svg><span>Profil</span></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="block">
+          <h3>Renk</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#F7F9FC;border-color:#E2E8F0"></div><div class="name">Zemin</div><div class="hex">#F7F9FC</div></div>
+            <div class="swatch"><div class="chip" style="background:#1E3A8A"></div><div class="name">Lacivert</div><div class="hex">#1E3A8A</div></div>
+            <div class="swatch"><div class="chip" style="background:#7C6CF0"></div><div class="name">Menekşe</div><div class="hex">#7C6CF0</div></div>
+            <div class="swatch"><div class="chip" style="background:#16A34A"></div><div class="name">Doğrulandı</div><div class="hex">#16A34A</div></div>
+            <div class="swatch"><div class="chip" style="background:#1E293B"></div><div class="name">Metin</div><div class="hex">#1E293B</div></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Tipografi</h3>
+          <div class="type-row"><span class="role">Başlık</span><span class="sample" style="font-family:-apple-system,sans-serif;font-weight:700;">Manrope</span><span class="fontname">Google Fonts</span></div>
+          <div class="type-row"><span class="role">Gövde</span><span class="sample" style="font-family:-apple-system,sans-serif;">Inter</span><span class="fontname">Google Fonts</span></div>
+        </div>
+        <div class="block rationale">
+          <h3>Neden uyuyor</h3>
+          <p>Şikayet paneli, güvenilir kişiler, selfie doğrulama gibi güven-odaklı özellikleri (Batch F) ön plana çıkarır; yeşil "doğrulandı" rozeti tüm ekranlarda tutarlı kullanılabilir.</p>
+          <p class="why">Risk: "eğlenceli/rastgele tanışma" vurgusundan çok "kurumsal/dashboard" hissine kayabilir — dozunu CTA'da sıcak tutmak gerekir.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V5 — CAM AURORA ============ -->
+  <section class="variant" id="v5" style="
+      --v-bg:#0F1020; --v-ink:#F5F3FF; --v-nav-ink:#8B87A8;
+      --v-accent:#EC4899; --v-accent2:#22D3EE;
+      --v-border:rgba(255,255,255,.1);
+      --v-radius-outer:30px; --v-radius-cta:20px; --v-radius-chip:999px; --v-radius-bubble:16px;
+      --v-shadow:0 25px 60px -28px #EC489944;
+      --v-cta-bg:rgba(255,255,255,.08);
+      --v-cta-ink:#FFFFFF;
+      --v-cta-border:1px solid rgba(255,255,255,.16);
+      --v-cta-shadow:0 0 30px -8px #EC489966;
+      --v-chip-bg:rgba(255,255,255,.08); --v-chip-border:rgba(255,255,255,.16);
+      --v-bubble-in-bg:rgba(255,255,255,.07); --v-bubble-in-ink:#EDEBFA; --v-bubble-in-border:1px solid rgba(255,255,255,.1);
+      --v-bubble-out-bg:linear-gradient(135deg,#EC4899,#7C3AED); --v-bubble-out-ink:#FFFFFF;
+      --v-navbar-line:rgba(255,255,255,.1);
+      --v-font-display:-apple-system,'Segoe UI',sans-serif; --v-display-weight:700; --v-display-case:none; --v-display-tracking:-.01em;
+      --v-font-body:-apple-system,'Segoe UI',sans-serif;
+      --v-bgfx:'';
+    ">
+    <div class="variant-head">
+      <div>
+        <div class="variant-num">05 / 05</div>
+        <h2 class="variant-title">Cam Aurora</h2>
+      </div>
+    </div>
+    <p class="variant-tag">Mevcut koyu kimliğin "evrimi": donuk cam paneller, arkada aurora gradyanı — canlı video/yayın hissini büyütür.</p>
+
+    <div class="variant-grid">
+      <div class="phone" style="background:radial-gradient(circle at 15% 0%, #7C3AED55, transparent 55%), radial-gradient(circle at 85% 15%, #EC489955, transparent 50%), radial-gradient(circle at 50% 100%, #22D3EE33, transparent 55%), #0F1020;">
+        <div class="phone-top">
+          <span class="brand">Merhaba</span>
+          <span class="live-chip"><span class="live-dot"></span>Canlı</span>
+        </div>
+        <div class="cta">
+          <svg><use href="#ic-video"/></svg>
+          <span class="cta-label">Rastgele Görüştür</span>
+          <span class="cta-sub">2.4k çevrimiçi</span>
+        </div>
+        <div class="bubbles">
+          <div class="bubble in">merhaba, nasılsın?</div>
+          <div class="bubble out">iyiyim, sen?</div>
+        </div>
+        <div class="navbar">
+          <div class="navitem active"><svg><use href="#ic-home"/></svg><span>Ana</span></div>
+          <div class="navitem"><svg><use href="#ic-compass"/></svg><span>Keşfet</span></div>
+          <div class="navitem"><svg><use href="#ic-users"/></svg><span>Grup</span></div>
+          <div class="navitem"><svg><use href="#ic-user"/></svg><span>Profil</span></div>
+        </div>
+      </div>
+
+      <div class="col-right">
+        <div class="block">
+          <h3>Renk</h3>
+          <div class="swatches">
+            <div class="swatch"><div class="chip" style="background:#0F1020"></div><div class="name">Zemin</div><div class="hex">#0F1020</div></div>
+            <div class="swatch"><div class="chip" style="background:#EC4899"></div><div class="name">Pembe</div><div class="hex">#EC4899</div></div>
+            <div class="swatch"><div class="chip" style="background:#7C3AED"></div><div class="name">Mor</div><div class="hex">#7C3AED</div></div>
+            <div class="swatch"><div class="chip" style="background:#22D3EE"></div><div class="name">Camgöbeği</div><div class="hex">#22D3EE</div></div>
+            <div class="swatch"><div class="chip" style="background:#F5F3FF"></div><div class="name">Metin</div><div class="hex">#F5F3FF</div></div>
+          </div>
+        </div>
+        <div class="block">
+          <h3>Tipografi</h3>
+          <div class="type-row"><span class="role">Başlık</span><span class="sample" style="font-family:-apple-system,sans-serif;font-weight:700;">Inter (Black)</span><span class="fontname">Google Fonts</span></div>
+          <div class="type-row"><span class="role">Gövde</span><span class="sample" style="font-family:-apple-system,sans-serif;">Inter</span><span class="fontname">Google Fonts</span></div>
+        </div>
+        <div class="block rationale">
+          <h3>Neden uyuyor</h3>
+          <p>Mevcut mor/turkuaz kimlikten en az sapan, en düşük riskli yön — geçerli kullanıcı alışkanlığını korurken daha "premium/modern" bir cilaya kavuşturur.</p>
+          <p class="why">Risk: backdrop-blur eski/düşük performanslı cihazlarda maliyetli olabilir; kontrast her cam panelde ayrı ayrı doğrulanmalı.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="note">
+    <b>Not:</b> Yazı tipi adları (Orbitron, Nunito, Playfair Display, Manrope, Inter vb.) Google Fonts üzerinden gerçek uygulamaya
+    eklenecek isimlerdir — bu sayfada ağ erişimi olmadığı için sistem yazı tipleriyle yaklaşık olarak gösterildi.
+    Hiçbir değişiklik <code>lib/theme/app_theme.dart</code> dosyasına henüz uygulanmadı; mevcut kimliğin yedeği
+    <code>design-variants/00-current-backup-app_theme.dart</code> içinde duruyor. Hangisini (veya hangi ikisinin
+    karışımını) istediğine karar verince Flutter tarafına uygulanır.
+  </footer>
+
+</div>

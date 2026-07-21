@@ -1,0 +1,482 @@
+<title>Merhaba — Sokak Sanatı & Kırmızı Alarm: Tam Arayüz</title>
+<style>
+  :root{
+    --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#C4172C;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --chrome-bg:#121014; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+      --chrome-line:#2A2436; --chrome-card:#18151F; --chrome-accent:#FF4D5E; }
+  }
+  :root[data-theme="dark"]{ --chrome-bg:#121014; --chrome-ink:#F3EEF7; --chrome-sub:#A79CB8;
+    --chrome-line:#2A2436; --chrome-card:#18151F; --chrome-accent:#FF4D5E; }
+  :root[data-theme="light"]{ --chrome-bg:#F4F3F6; --chrome-ink:#211F2B; --chrome-sub:#615D71;
+    --chrome-line:#DCD9E4; --chrome-card:#FFFFFF; --chrome-accent:#C4172C; }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--chrome-bg); color:var(--chrome-ink);
+    font-family:-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:56px 24px 100px;}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--chrome-accent);font-weight:700;margin:0 0 14px;}
+  h1{font-size:clamp(28px,4vw,42px);font-weight:800;letter-spacing:-0.02em;margin:0 0 16px;text-wrap:balance;}
+  .lede{max-width:70ch;color:var(--chrome-sub);font-size:16px;margin:0 0 44px;}
+
+  .direction-head{margin:70px 0 26px;}
+  .direction-head:first-of-type{margin-top:0;}
+  .dir-eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--chrome-sub);font-weight:700;margin:0 0 6px;}
+  .dir-title{font-size:24px;font-weight:800;letter-spacing:-.01em;margin:0 0 8px;}
+  .dir-desc{max-width:72ch;color:var(--chrome-sub);font-size:14.5px;margin:0;}
+
+  .screens{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;align-items:start;}
+  @media (max-width:980px){ .screens{grid-template-columns:1fr;max-width:380px;margin:0 auto;} }
+
+  .screen-block{display:flex;flex-direction:column;gap:16px;}
+  .screen-head{display:flex;align-items:baseline;gap:8px;}
+  .screen-num{font-size:11px;color:var(--chrome-sub);font-variant-numeric:tabular-nums;}
+  .screen-name{font-size:17px;font-weight:800;letter-spacing:-.01em;}
+
+  .notes{border:1px solid var(--chrome-line);border-radius:14px;background:var(--chrome-card);padding:16px 18px;}
+  .notes h4{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--chrome-sub);margin:0 0 10px;font-weight:700;}
+  .notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:7px;}
+  .notes li{font-size:13px;color:var(--chrome-ink);}
+  .notes code{font-size:12px;background:var(--chrome-bg);padding:1px 5px;border-radius:5px;}
+
+  footer.note{margin-top:64px;padding-top:26px;border-top:1px solid var(--chrome-line);font-size:13px;color:var(--chrome-sub);max-width:74ch;}
+  footer.note code{color:var(--chrome-ink);}
+
+  @media (prefers-reduced-motion: no-preference){
+    .screen-block{animation:rise .45s ease both;}
+    @keyframes rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+  }
+
+  /* =========================================================
+     shared phone shell mechanics (shape/position only, no color)
+     ========================================================= */
+  .phone{
+    width:100%;max-width:300px;margin:0 auto;aspect-ratio:9/19.3;
+    padding:16px 14px;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.6);
+  }
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:96px;height:20px;}
+  .status-space{height:22px;flex:none;}
+  .top-row{display:flex;justify-content:space-between;align-items:center;}
+  .entries-row{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap;}
+  .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 4px;}
+  .illus{width:128px;height:128px;border-radius:50%;margin-bottom:18px;display:flex;align-items:center;justify-content:center;}
+  .illus svg{width:50px;height:50px;fill:none;stroke-width:1.6;}
+  .h1{font-size:19px;font-weight:800;margin:0 0 8px;}
+  .subtext{font-size:12px;line-height:1.5;margin:0;}
+  .bottom-stack{display:flex;flex-direction:column;align-items:center;gap:9px;padding-top:8px;}
+  .cta{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:15px;font-weight:800;font-size:14px;}
+  .cta svg{width:18px;height:18px;fill:none;stroke-width:2;}
+  .group-entry{display:flex;align-items:center;gap:7px;font-size:11px;}
+  .group-entry svg{width:14px;height:14px;fill:none;stroke-width:1.8;}
+  .legal{font-size:9.5px;text-align:center;padding-top:4px;}
+
+  .disc-top{display:flex;justify-content:space-between;align-items:center;}
+  .disc-top-right{display:flex;gap:6px;}
+  .badge-count{position:absolute;top:-4px;right:-4px;border-radius:999px;font-size:8px;font-weight:800;padding:1px 4px;line-height:1.3;}
+  .card-stack{position:relative;flex:1;margin:14px 0 12px;}
+  .swipe-card{position:absolute;inset:0;overflow:hidden;}
+  .swipe-card.back{transform:scale(.94) translateY(10px);}
+  .swipe-card .photo{position:absolute;inset:0;}
+  .swipe-card .scrim{position:absolute;left:0;right:0;bottom:0;height:46%;}
+  .swipe-card .info{position:absolute;left:16px;right:16px;bottom:14px;}
+  .swipe-card .name{font-size:19px;font-weight:800;}
+  .swipe-card .meta{font-size:11px;margin-top:3px;display:flex;align-items:center;gap:5px;}
+  .swipe-card .meta svg{width:12px;height:12px;fill:none;stroke-width:2;}
+  .swipe-actions{display:flex;justify-content:center;gap:20px;padding-bottom:4px;}
+  .round-btn{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .round-btn svg{width:22px;height:22px;fill:none;stroke-width:2;}
+
+  .chat-top{display:flex;align-items:center;gap:10px;}
+  .chat-top .who{flex:1;}
+  .chat-top .cname{font-size:13.5px;font-weight:700;}
+  .chat-top .status{font-size:10px;display:flex;align-items:center;gap:4px;}
+  .mode-toggle{display:flex;gap:6px;margin-top:12px;}
+  .mode-toggle .seg{flex:1;text-align:center;font-size:10px;font-weight:700;padding:7px 4px;}
+  .msg-list{flex:1;display:flex;flex-direction:column;gap:9px;padding:14px 0;overflow:hidden;}
+  .msg-row{display:flex;flex-direction:column;max-width:76%;}
+  .msg-row.in{align-self:flex-start;align-items:flex-start;}
+  .msg-row.out{align-self:flex-end;align-items:flex-end;}
+  .bubble{font-size:12px;padding:8px 12px;line-height:1.4;}
+  .msg-time{font-size:8.5px;margin-top:3px;padding:0 3px;}
+  .reaction-chip{display:inline-flex;gap:2px;padding:2px 6px;font-size:10px;margin-top:4px;}
+  .input-bar{display:flex;align-items:center;gap:8px;padding-top:10px;}
+  .input-pill{flex:1;padding:9px 14px;font-size:11.5px;}
+  .send-btn{width:34px;height:34px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;}
+  .send-btn svg{width:15px;height:15px;fill:none;stroke-width:2;}
+  .icon-btn{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;}
+  .icon-btn svg{width:16px;height:16px;fill:none;stroke-width:1.8;}
+  .avatar{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:700;}
+  .chip svg{width:13px;height:13px;stroke-width:2;fill:none;}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none;}
+  .dot.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  /* =========================================================
+     STREET ART — sticker/graffiti pop
+     ========================================================= */
+  .st .phone{
+    background:#121212; color:#F2F2F0; border-radius:34px; border:3px solid #F2F2F0;
+    font-family:'Segoe UI',system-ui,sans-serif;
+  }
+  .st .notch{background:#121212;border-radius:0 0 14px 14px;}
+  .st .chip{background:#1C1C1C;border:2px solid #F2F2F0;transform:rotate(-2deg);}
+  .st .entries-row .chip:nth-child(2){transform:rotate(1.5deg);}
+  .st .entries-row .chip:nth-child(3){transform:rotate(-1.5deg);border-color:#FF2E88;}
+  .st .dot{background:#2EC4FF;box-shadow:0 0 8px #2EC4FF;}
+  .st .icon-btn{background:#1C1C1C;border:2px solid #F2F2F0;}
+  .st .icon-btn svg{stroke:#F2F2F0;}
+  .st .avatar{background:#FFD400;color:#121212;border:2px solid #F2F2F0;}
+  .st .illus{background:#1C1C1C;border:3px dashed #FFD400;position:relative;}
+  .st .illus svg{stroke:#FFD400;}
+  .st .h1{font-family:'Arial Narrow',Impact,'Segoe UI',sans-serif;text-transform:uppercase;letter-spacing:.01em;
+    position:relative;display:inline-block;padding-bottom:6px;}
+  .st .h1::after{content:'';position:absolute;left:8%;right:8%;bottom:0;height:5px;background:#FF2E88;transform:rotate(-1deg);}
+  .st .subtext{color:#C9C9C6;}
+  .st .cta{background:#FFD400;color:#121212;border:2.5px solid #F2F2F0;font-weight:900;text-transform:uppercase;letter-spacing:.02em;
+    clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,0 100%);}
+  .st .cta svg{stroke:#121212;}
+  .st .group-entry{color:#C9C9C6;}
+  .st .group-entry svg{stroke:#2EC4FF;}
+  .st .legal{color:#7A7A78;}
+
+  .st .disc-top .screen-title{font-weight:900;font-size:14px;text-transform:uppercase;letter-spacing:.03em;}
+  .st .badge-count{background:#FF2E88;color:#F2F2F0;border:2px solid #121212;}
+  .st .swipe-card{border:3px solid #F2F2F0;border-radius:18px;transform:rotate(-1deg);}
+  .st .swipe-card.back{border-color:#7A7A78;}
+  .st .swipe-card .photo{background:linear-gradient(150deg,#FFD40044,#2EC4FF33 55%,#121212 100%);}
+  .st .swipe-card .scrim{background:linear-gradient(to top, rgba(18,18,18,.92), transparent);}
+  .st .swipe-card .meta svg{stroke:#F2F2F0;}
+  .st .round-btn{background:#1C1C1C;border:2.5px solid #F2F2F0;}
+  .st .round-btn svg{stroke:#F2F2F0;}
+  .st .round-btn.like{background:#FF2E88;border-color:#F2F2F0;transform:rotate(3deg);}
+
+  .st .chat-top .cname{color:#F2F2F0;}
+  .st .chat-top .status{color:#2EC4FF;}
+  .st .mode-toggle .seg{background:#1C1C1C;border:2px solid #3A3A38;color:#8F8F8C;border-radius:8px;}
+  .st .mode-toggle .seg.active{background:#FFD400;color:#121212;border-color:#F2F2F0;transform:rotate(-1deg);}
+  .st .msg-row.in .bubble{background:#1C1C1C;border:2px solid #3A3A38;border-radius:4px 14px 14px 14px;color:#F2F2F0;}
+  .st .msg-row.out .bubble{background:#FF2E88;border:2px solid #F2F2F0;border-radius:14px 4px 14px 14px;color:#121212;font-weight:700;}
+  .st .msg-time{color:#7A7A78;}
+  .st .reaction-chip{background:#1C1C1C;border:2px solid #FFD400;color:#F2F2F0;border-radius:999px;}
+  .st .input-bar{border-top:2px dashed #3A3A38;}
+  .st .input-pill{background:#1C1C1C;border:2px solid #3A3A38;color:#7A7A78;border-radius:10px;}
+  .st .send-btn{background:#2EC4FF;border:2px solid #F2F2F0;}
+  .st .send-btn svg{stroke:#121212;}
+  .st .icon-btn.clip-btn{width:30px;height:30px;}
+
+  /* =========================================================
+     KIRMIZI ALARM — pure red/black/white poster
+     ========================================================= */
+  .ra .phone{background:#0A0A0A;color:#FFFFFF;border-radius:8px;border:1px solid #FFFFFF;font-family:Arial,'Segoe UI',sans-serif;}
+  .ra .notch{background:#0A0A0A;}
+  .ra .chip{background:#0A0A0A;border:2.5px solid #FFFFFF;border-radius:2px;}
+  .ra .dot{background:#E8272C;}
+  .ra .icon-btn{background:#0A0A0A;border:2px solid #FFFFFF;border-radius:2px;}
+  .ra .icon-btn svg{stroke:#FFFFFF;}
+  .ra .avatar{background:#E8272C;color:#FFFFFF;border-radius:2px;}
+  .ra .illus{background:#E8272C;border-radius:2px;width:120px;height:120px;}
+  .ra .illus svg{stroke:#FFFFFF;}
+  .ra .h1{font-family:Arial,'Segoe UI',sans-serif;text-transform:uppercase;font-weight:900;letter-spacing:-.01em;font-size:22px;}
+  .ra .subtext{color:#6B6B6E;}
+  .ra .cta{background:#E8272C;color:#FFFFFF;border-radius:2px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;}
+  .ra .cta svg{stroke:#FFFFFF;}
+  .ra .group-entry{color:#6B6B6E;}
+  .ra .group-entry svg{stroke:#6B6B6E;}
+  .ra .legal{color:#4A4A4C;}
+
+  .ra .disc-top .screen-title{font-weight:900;font-size:14px;text-transform:uppercase;}
+  .ra .badge-count{background:#E8272C;color:#FFFFFF;border-radius:2px;}
+  .ra .swipe-card{border:2px solid #FFFFFF;border-radius:4px;}
+  .ra .swipe-card.back{border-color:#6B6B6E;}
+  .ra .swipe-card .photo{background:#1A1A1A;}
+  .ra .swipe-card .scrim{background:linear-gradient(to top, rgba(10,10,10,.95), transparent);}
+  .ra .swipe-card .meta svg{stroke:#FFFFFF;}
+  .ra .round-btn{background:#0A0A0A;border:2.5px solid #FFFFFF;border-radius:2px;}
+  .ra .round-btn svg{stroke:#FFFFFF;}
+  .ra .round-btn.like{background:#E8272C;border-color:#E8272C;}
+
+  .ra .chat-top .cname{color:#FFFFFF;}
+  .ra .chat-top .status{color:#E8272C;}
+  .ra .mode-toggle .seg{background:#0A0A0A;border:2px solid #3A3A3A;color:#6B6B6E;border-radius:2px;}
+  .ra .mode-toggle .seg.active{background:#FFFFFF;color:#0A0A0A;border-color:#FFFFFF;}
+  .ra .msg-row.in .bubble{background:#1A1A1A;border:1px solid #3A3A3A;border-radius:2px;color:#FFFFFF;}
+  .ra .msg-row.out .bubble{background:#E8272C;border-radius:2px;color:#FFFFFF;font-weight:700;}
+  .ra .msg-time{color:#6B6B6E;}
+  .ra .reaction-chip{background:#0A0A0A;border:1.5px solid #FFFFFF;color:#FFFFFF;border-radius:2px;}
+  .ra .input-bar{border-top:1px solid #3A3A3A;}
+  .ra .input-pill{background:#0A0A0A;border:1.5px solid #3A3A3A;color:#6B6B6E;border-radius:2px;}
+  .ra .send-btn{background:#E8272C;border-radius:2px;}
+  .ra .send-btn svg{stroke:#FFFFFF;}
+</style>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 8a3 3 0 1 1 0 6M21 20c0-2.6-1.7-4.8-4-5.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-10-9.3C.5 8 2.3 4.5 6 4c2.2-.3 4 .8 6 3 2-2.2 3.8-3.3 6-3 3.7.5 5.5 4 4 7.7C19.5 16.4 12 21 12 21z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-live" viewBox="0 0 24 24"><rect x="2" y="6" width="15" height="12" rx="2"/><path d="M17 10l5-3v10l-5-3" stroke-linejoin="round"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3H9.8l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.6a7 7 0 0 0 0 2.4l-2 1.6 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.5h4.4l.4-2.5c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z" stroke-linejoin="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="M15 8l5-3v14l-5-3M3 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-groups" viewBox="0 0 24 24"><circle cx="7" cy="9" r="2.6"/><circle cx="17" cy="9" r="2.6"/><path d="M2 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4M12 20c0-3 2.2-5.4 5-5.4s5 2.4 5 5.4" stroke-linecap="round"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M9.5 9a2.5 2.5 0 1 1 3.7 2.2c-.9.5-1.2 1-1.2 2M12 17h.01" stroke-linecap="round"/></symbol>
+  <symbol id="i-match" viewBox="0 0 24 24"><path d="M20 12l-3-3M20 12l-3 3M20 12H9M9 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 2C7.6 2 4 5.6 4 10c0 6 8 12 8 12s8-6 8-12c0-4.4-3.6-8-8-8z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M17 7l-7.5 7.5a3 3 0 1 0 4.2 4.2L21 11" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-6-7-2z" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="wrap">
+  <p class="eyebrow">Merhaba · İki Yeni Yön — Gerçek Arayüz</p>
+  <h1>Sokak Sanatı ve Kırmızı Alarm</h1>
+  <p class="lede">
+    Miami turundaki gibi: renk paleti değil, üç gerçek ekranın (Ana Ekran, Keşfet, Sohbet) kendisi
+    yeniden çizildi — aynı bileşen sırası, aynı gerçek metinler, tamamen farklı iki şekil/tipografi dili.
+    Merhaba'da alt gezinme çubuğu olmadığı için (ekranlar <code>Navigator.push</code> ile açılıyor) burada da yok.
+  </p>
+
+  <!-- ============================================================ -->
+  <!-- YÖN 1 — SOKAK SANATI -->
+  <!-- ============================================================ -->
+  <div class="direction-head">
+    <p class="dir-eyebrow">Yön 04</p>
+    <h2 class="dir-title">Sokak Sanatı</h2>
+    <p class="dir-desc">Gece sokak enerjisi — sprey sarısı/pembe/camgöbeği, hafif döndürülmüş sticker chip'ler, kesik köşeli CTA, marker altı çizgisi. Rastgele tanışmayı bir oyun alanı gibi hissettirir.</p>
+  </div>
+  <div class="screens st">
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">01</span><span class="screen-name">Ana Ekran</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="top-row">
+          <div class="chip"><span class="dot pulse"></span>1.204 ÇEVRİMİÇİ</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div class="avatar">S</div>
+            <div class="icon-btn"><svg><use href="#i-settings"/></svg></div>
+          </div>
+        </div>
+        <div class="entries-row">
+          <div class="chip"><svg><use href="#i-people"/></svg>ARKADAŞLAR</div>
+          <div class="chip"><svg style="stroke:#FF2E88"><use href="#i-heart"/></svg>KEŞFET</div>
+          <div class="chip"><svg style="stroke:#2EC4FF"><use href="#i-live"/></svg>CANLI</div>
+        </div>
+        <div class="mid">
+          <div class="illus"><svg><use href="#i-globe"/></svg></div>
+          <div class="h1">YENİ BİRİYLE TANIŞ</div>
+          <p class="subtext">Dünyanın her yerinden insanlarla<br>rastgele görüntülü sohbet et.</p>
+        </div>
+        <div class="bottom-stack">
+          <div class="cta"><svg><use href="#i-video"/></svg>SOHBETE BAŞLA</div>
+          <div class="group-entry"><svg><use href="#i-groups"/></svg>Grup Görüşmesi (beta) · 3-4 kişi</div>
+          <div class="legal">Devam ederek Topluluk Kurallarını kabul etmiş olursun.</div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Chip'lerdeki hafif döndürme (-2°/+1.5°) her birini elle yapıştırılmış bir sticker gibi hissettiriyor, ama hizalama/dokunma alanı bozulmuyor.</li>
+        <li>Çevrimiçi noktası hâlâ gerçek <code>PulsingDot</code> davranışını temsil ediyor — sunucu koparsa gri/durağan olur.</li>
+        <li>CTA'nın kesik köşesi (<code>clip-path</code>) tek bir vurgulu detay — abartılmadı, geri kalan köşeler düz kaldı.</li>
+      </ul></div>
+    </div>
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">02</span><span class="screen-name">Keşfet</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="disc-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div class="screen-title">KEŞFET</div>
+          <div class="disc-top-right">
+            <div class="icon-btn"><svg><use href="#i-quiz"/></svg></div>
+            <div class="icon-btn"><svg><use href="#i-match"/></svg></div>
+            <div class="icon-btn" style="position:relative;">
+              <svg style="stroke:#FF2E88"><use href="#i-heart"/></svg>
+              <span class="badge-count">6</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-stack">
+          <div class="swipe-card back"><div class="photo"></div></div>
+          <div class="swipe-card">
+            <div class="photo"></div><div class="scrim"></div>
+            <div class="info"><div class="name">Elif, 24</div>
+              <div class="meta"><svg><use href="#i-pin"/></svg>3 km uzakta</div></div>
+          </div>
+        </div>
+        <div class="swipe-actions">
+          <div class="round-btn"><svg><use href="#i-x"/></svg></div>
+          <div class="round-btn like"><svg><use href="#i-heart"/></svg></div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Ön kart hafif döndürülmüş (-1°), arka kart düz + soluk — gerçek <code>_buildCard(interactive:false)</code> katmanlamasını korur.</li>
+        <li>Beğen butonu döndürülüp öne çıkarıldı: "geç" nötr kalırken "beğen" bilinçli olarak daha enerjik.</li>
+        <li>Kalp rozetindeki sayı gerçek <code>likesMeCount</code> alanına karşılık geliyor.</li>
+      </ul></div>
+    </div>
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">03</span><span class="screen-name">Sohbet</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="chat-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div class="avatar" style="width:28px;height:28px;font-size:11px;">E</div>
+          <div class="who"><div class="cname">Elif</div>
+            <div class="status"><span class="dot" style="width:5px;height:5px;"></span>çevrimiçi</div></div>
+        </div>
+        <div class="mode-toggle">
+          <div class="seg active">KALICI SOHBET</div>
+          <div class="seg">KAYBOLAN MESAJLAR</div>
+        </div>
+        <div class="msg-list">
+          <div class="msg-row in"><div class="bubble">merhaba! nasılsın 👋</div><div class="msg-time">14:02</div></div>
+          <div class="msg-row out"><div class="bubble">iyiyim, sen? bugün ne yapıyorsun</div>
+            <div class="reaction-chip">👍</div><div class="msg-time">14:03 · görüldü</div></div>
+          <div class="msg-row in"><div class="bubble">az sonra görüşme deneyelim mi?</div><div class="msg-time">14:05</div></div>
+        </div>
+        <div class="input-bar">
+          <div class="icon-btn clip-btn"><svg style="width:14px;height:14px;"><use href="#i-clip"/></svg></div>
+          <div class="input-pill">Mesaj yaz...</div>
+          <div class="send-btn"><svg><use href="#i-send"/></svg></div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Mod toggle büyük harf + aktifken döndürülmüş "yapıştırılmış etiket" gibi — hangi modda olduğun tek bakışta belli.</li>
+        <li>Giden balon sarı değil pembe: iki marka rengi (sarı=birincil aksiyon, pembe=kişisel/duygusal) net ayrıştı.</li>
+        <li>Giriş çubuğu kesik çizgili üst kenar — "el yapımı not defteri" hissini korur, işlevi değiştirmez.</li>
+      </ul></div>
+    </div>
+
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- YÖN 2 — KIRMIZI ALARM -->
+  <!-- ============================================================ -->
+  <div class="direction-head">
+    <p class="dir-eyebrow">Yön 05</p>
+    <h2 class="dir-title">Kırmızı Alarm</h2>
+    <p class="dir-desc">Bilinçli üç renk disiplini — siyah/kırmızı/beyaz, sıfır gradyan, sıfır glow. Köşeler neredeyse hiç yuvarlanmıyor. Poster gibi, "şimdi bağlan" aciliyeti veriyor.</p>
+  </div>
+  <div class="screens ra">
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">01</span><span class="screen-name">Ana Ekran</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="top-row">
+          <div class="chip"><span class="dot"></span>1.204 ÇEVRİMİÇİ</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div class="avatar">S</div>
+            <div class="icon-btn"><svg><use href="#i-settings"/></svg></div>
+          </div>
+        </div>
+        <div class="entries-row">
+          <div class="chip"><svg><use href="#i-people"/></svg>ARKADAŞLAR</div>
+          <div class="chip"><svg><use href="#i-heart"/></svg>KEŞFET</div>
+          <div class="chip"><svg><use href="#i-live"/></svg>CANLI</div>
+        </div>
+        <div class="mid">
+          <div class="illus"><svg><use href="#i-globe"/></svg></div>
+          <div class="h1">YENİ BİRİYLE<br>TANIŞ</div>
+          <p class="subtext">Dünyanın her yerinden insanlarla<br>rastgele görüntülü sohbet et.</p>
+        </div>
+        <div class="bottom-stack">
+          <div class="cta"><svg><use href="#i-video"/></svg>SOHBETE BAŞLA</div>
+          <div class="group-entry"><svg><use href="#i-groups"/></svg>Grup Görüşmesi (beta) · 3-4 kişi</div>
+          <div class="legal">Devam ederek Topluluk Kurallarını kabul etmiş olursun.</div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Üç renk dışına hiç çıkılmadı — "Keşfet"teki pembe kalp, "Canlı"daki kırmızı ikon gibi ikincil marka renkleri burada kasıtlı olarak feda edildi.</li>
+        <li>Çevrimiçi noktası artık kırmızı: "canlı/şu an oluyor" hissini pekiştiriyor, ama sunucu koparsa yine gri olur.</li>
+        <li>CTA dolgun kırmızı dikdörtgen, radius yok — bir "acil durum düğmesi" gibi okunması bilinçli bir tercih.</li>
+      </ul></div>
+    </div>
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">02</span><span class="screen-name">Keşfet</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="disc-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div class="screen-title">KEŞFET</div>
+          <div class="disc-top-right">
+            <div class="icon-btn"><svg><use href="#i-quiz"/></svg></div>
+            <div class="icon-btn"><svg><use href="#i-match"/></svg></div>
+            <div class="icon-btn" style="position:relative;">
+              <svg><use href="#i-heart"/></svg>
+              <span class="badge-count">6</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-stack">
+          <div class="swipe-card back"><div class="photo"></div></div>
+          <div class="swipe-card">
+            <div class="photo"></div><div class="scrim"></div>
+            <div class="info"><div class="name">Elif, 24</div>
+              <div class="meta"><svg><use href="#i-pin"/></svg>3 km uzakta</div></div>
+          </div>
+        </div>
+        <div class="swipe-actions">
+          <div class="round-btn"><svg><use href="#i-x"/></svg></div>
+          <div class="round-btn like"><svg><use href="#i-heart"/></svg></div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Fotoğraf yer tutucusu bilerek düz koyu gri — bu yönde hiçbir dekoratif gradyan yok, tüm dikkat gerçek fotoğrafa/isme kalıyor.</li>
+        <li>"Beğen" butonu dolgun kırmızı, "geç" siyah/beyaz kontur — iki eylem arasındaki fark bilinçli olarak sert.</li>
+        <li>Arka kart yalnızca ölçek+opaklıkla geri çekiliyor, renk değişmiyor — üç renk disiplini korunuyor.</li>
+      </ul></div>
+    </div>
+
+    <div class="screen-block">
+      <div class="screen-head"><span class="screen-num">03</span><span class="screen-name">Sohbet</span></div>
+      <div class="phone">
+        <div class="notch"></div><div class="status-space"></div>
+        <div class="chat-top">
+          <div class="icon-btn"><svg><use href="#i-back"/></svg></div>
+          <div class="avatar" style="width:28px;height:28px;font-size:11px;">E</div>
+          <div class="who"><div class="cname">Elif</div>
+            <div class="status"><span class="dot" style="width:5px;height:5px;"></span>çevrimiçi</div></div>
+        </div>
+        <div class="mode-toggle">
+          <div class="seg active">KALICI SOHBET</div>
+          <div class="seg">KAYBOLAN MESAJLAR</div>
+        </div>
+        <div class="msg-list">
+          <div class="msg-row in"><div class="bubble">merhaba! nasılsın 👋</div><div class="msg-time">14:02</div></div>
+          <div class="msg-row out"><div class="bubble">iyiyim, sen? bugün ne yapıyorsun</div>
+            <div class="reaction-chip">👍</div><div class="msg-time">14:03 · görüldü</div></div>
+          <div class="msg-row in"><div class="bubble">az sonra görüşme deneyelim mi?</div><div class="msg-time">14:05</div></div>
+        </div>
+        <div class="input-bar">
+          <div class="icon-btn clip-btn"><svg style="width:14px;height:14px;"><use href="#i-clip"/></svg></div>
+          <div class="input-pill">Mesaj yaz...</div>
+          <div class="send-btn"><svg><use href="#i-send"/></svg></div>
+        </div>
+      </div>
+      <div class="notes"><h4>Neden böyle</h4><ul>
+        <li>Aktif mod (Kalıcı Sohbet) beyaz dolgu + siyah metin ile "basılı düğme" gibi — pasif mod sadece kontur.</li>
+        <li>Giden balon kırmızı dolgu, gelen balon koyu gri kontur — okunabilirlik 3 renkte de WCAG 4.5:1 üstünde kaldı.</li>
+        <li>Gönder butonu kırmızı kare — mikrofon/gönder geçişini burada da gerçek <code>showMicInstead</code> davranışı temsil ediyor.</li>
+      </ul></div>
+    </div>
+
+  </div>
+
+  <footer class="note">
+    <b>Not:</b> Her iki yön de kendi tek-dünya paletine sabit — Sokak Sanatı hep koyu+sprey renkleri,
+    Kırmızı Alarm hep siyah/kırmızı/beyaz kalıyor (katalog sayfasının kendisi açık/koyu temaya uyum sağlıyor).
+    Hiçbiri henüz <code>lib/theme/app_theme.dart</code>'a uygulanmadı.
+  </footer>
+</div>
