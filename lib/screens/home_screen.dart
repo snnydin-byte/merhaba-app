@@ -330,16 +330,24 @@ class _HomeScreenState extends State<HomeScreen> {
   // altında ikincil, göze daha az çarpan bir giriş. "(beta)" etiketi
   // bilerek kalıcı: bu özellik gerçek çoklu-cihaz testinden geçmedi.
   Widget _buildGroupCallEntry(BuildContext context) {
-    return TextButton.icon(
+    return GradientButton(
+      height: 48,
+      gradient: AppGradients.softGlow(AppColors.secondary, opacity: 0.3),
       onPressed: () {
         Navigator.of(context).push(
           AppPageRoute(builder: (_) => const GroupCallPreScreen()),
         );
       },
-      icon: Icon(Icons.groups_rounded, color: AppColors.textMuted, size: 18),
-      label: Text(
-        'Grup Görüşmesi (beta) · 3-4 kişi',
-        style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.groups_rounded, color: AppColors.textPrimary, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            'Grup Görüşmesi (beta) · 3-4 kişi',
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

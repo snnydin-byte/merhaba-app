@@ -1,16 +1,16 @@
 # Graph Report - merhaba  (2026-07-21)
 
 ## Corpus Check
-- 98 files · ~103,837 words
+- 99 files · ~110,168 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1956 nodes · 2450 edges · 134 communities (86 shown, 48 thin omitted)
+- 1961 nodes · 2457 edges · 127 communities (84 shown, 43 thin omitted)
 - Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 51 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e4e5e136`
+- Built from commit: `f0894615`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -91,18 +91,13 @@
 - Sayfa Geçiş Builder
 - Tasarım Varyantı: Sokak Sanatı/Kırmızı Alarm
 - Tasarım Varyantı: Minimal Mono/Gece Pazarı
-- Hikaye Halkası Widget'ı
 - Linux Build Yapılandırması
 - Windows Build Yapılandırması
 - Kimlik Doğrulama İstisnası
 - Platformlar Arası İkon/Splash Bağlantısı
-- _MerhabaAppState
 - Anket Oluşturma Diyaloğu
-- Zamanlanmış Mesaj Diyaloğu
 - Beni Beğenenler Ekranı (State)
-- Eşleşmelerim Ekranı (State)
 - Ayarlar Ekranı (State)
-- Video Sohbet (State)
 - Android Launcher İkonu (hdpi)
 - Android Launcher İkonu (mdpi)
 - Android Launcher İkonu (xhdpi)
@@ -141,12 +136,10 @@
 - Web App Icon Maskable (192)
 - Web App Icon Maskable (512)
 - Flutter Web Giriş Noktası (web/index.html)
-- HomeScreen
-- SplashScreen
 
 ## God Nodes (most connected - your core abstractions)
-1. `AppPageRoute` - 22 edges
-2. `Win32Window` - 22 edges
+1. `Win32Window` - 22 edges
+2. `AppPageRoute` - 17 edges
 3. `Skill Routing Rules` - 17 edges
 4. `Özellik Backlog — 116+120 Anket Uygulama Planı` - 16 edges
 5. `Rakip Uygulama Özellik Anketi (120 Özellik)` - 15 edges
@@ -182,7 +175,7 @@
 - **App Icon Set (iOS/macOS/Web) - Flutter Logo Mark** — ios_runner_assets_xcassets_appicon_appiconset_icon_app_76x76_2x_icon, ios_runner_assets_xcassets_appicon_appiconset_icon_app_83_5x83_5_2x_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_1024_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_128_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_16_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_256_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_32_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_512_icon, macos_runner_assets_xcassets_appicon_appiconset_app_icon_64_icon, web_favicon_icon, web_icons_icon_192_icon, web_icons_icon_512_icon, web_icons_icon_maskable_192_icon, web_icons_icon_maskable_512_icon [EXTRACTED 1.00]
 - **iOS Launch Image Set (Blank Splash Placeholder)** — ios_runner_assets_xcassets_launchimage_imageset_launchimage_image, ios_runner_assets_xcassets_launchimage_imageset_launchimage_2x_image, ios_runner_assets_xcassets_launchimage_imageset_launchimage_3x_image [EXTRACTED 1.00]
 
-## Communities (134 total, 48 thin omitted)
+## Communities (127 total, 43 thin omitted)
 
 ### Community 0 - "Sohbet Ekranı ve Medya Ekleri"
 Cohesion: 0.02
@@ -229,8 +222,8 @@ Cohesion: 0.04
 Nodes (48): _beginPeerConnection, _callGeneration, cancelOutgoingCall, _cleanupPeerConnection, connectIfNeeded, _connecting, _createOffer, _createPeerConnection (+40 more)
 
 ### Community 11 - "Grup Görüşmesi Hazırlık Ekranları"
-Cohesion: 0.07
-Nodes (30): group_call_screen.dart, build, _buildPreview, _buildRulesChecklist, _buildSizePicker, _buildStartButton, _camOn, createState (+22 more)
+Cohesion: 0.06
+Nodes (31): group_call_screen.dart, build, _buildPreview, _buildRulesChecklist, _buildSizePicker, _buildStartButton, _camOn, createState (+23 more)
 
 ### Community 12 - "Grup Sohbet/Bilgi Ekranları"
 Cohesion: 0.05
@@ -238,7 +231,7 @@ Nodes (38): group_info_screen.dart, build, _buildInputBar, _buildList, _buildRep
 
 ### Community 13 - "Canlı Oda Servisi (LiveKit)"
 Cohesion: 0.06
-Nodes (33): EventsListener, _connectSocket, createRoom, displayName, dispose, _disposed, fromUserId, joinAsViewer (+25 more)
+Nodes (35): EventsListener, Iterable, _FirstOrNull, _connectSocket, createRoom, displayName, dispose, _disposed (+27 more)
 
 ### Community 14 - "Grup Görüşme Servisi (mesh)"
 Cohesion: 0.06
@@ -246,19 +239,19 @@ Nodes (32): Future, _cleanupAllPeers, _closePeer, connectAndFind, _createPc, dis
 
 ### Community 15 - "Gruplar/Arkadaşlar Liste Ekranları"
 Cohesion: 0.06
-Nodes (32): FriendsService, groups_screen.dart, _buildBody, _buildEmptyState, _buildErrorState, _confirmRemove, _controller, createState (+24 more)
+Nodes (36): FriendsService, groups_screen.dart, _BroadcastComposerSheet, _BroadcastComposerSheetState, _buildBody, _buildEmptyState, _buildErrorState, _confirmRemove (+28 more)
 
 ### Community 16 - "Keşfet (Dating) Servisi"
-Cohesion: 0.06
-Nodes (32): AppUser, activateBoost, _auth, compatibilityPercent, CompatibilityQuestion, createdAt, DateMatch, _decodeOrThrow (+24 more)
+Cohesion: 0.04
+Nodes (45): main, AppUser, AuthService, CallService, activateBoost, _auth, compatibilityPercent, CompatibilityQuestion (+37 more)
 
 ### Community 17 - "Çağrı Ekranı (1:1)"
-Cohesion: 0.06
-Nodes (31): CallService, build, _buildAudioArea, _buildControlBar, _buildStatusRow, _buildVideoArea, CallScreen, _CallScreenState (+23 more)
+Cohesion: 0.07
+Nodes (30): CallService, build, _buildAudioArea, _buildControlBar, _buildStatusRow, _buildVideoArea, CallScreen, _CallScreenState (+22 more)
 
 ### Community 18 - "Hikaye Görüntüleyici Ekranı"
 Cohesion: 0.07
-Nodes (29): AnimationController, build, _buildContent, _confirmDelete, createState, _current, dispose, _error (+21 more)
+Nodes (27): AnimationController, build, _buildContent, _confirmDelete, createState, _current, dispose, _error (+19 more)
 
 ### Community 19 - "Grup Görüşmesi Izgara Görünümü"
 Cohesion: 0.07
@@ -278,7 +271,7 @@ Nodes (28): Miami Keşfet ekranı yeniden tasarımı, discover_likes_me_screen.d
 
 ### Community 23 - "Giriş Ekranı"
 Cohesion: 0.07
-Nodes (27): FormState, _authService, build, _buildDivider, _buildEmailField, _buildError, _buildGoogleButton, _buildGuestButton (+19 more)
+Nodes (29): FormState, _authService, build, _buildDivider, _buildEmailField, _buildError, _buildGoogleButton, _buildGuestButton (+21 more)
 
 ### Community 24 - "Linux Plugin Registrant"
 Cohesion: 0.10
@@ -290,27 +283,27 @@ Nodes (21): call_service.dart, CallUiController, _cancelOutgoingCallTimer, _dial
 
 ### Community 26 - "Sohbet / Beni Beğenenler Ekranı"
 Cohesion: 0.17
-Nodes (12): chat_screen.dart, _askWeMet, build, createState, _discover, DiscoverMatchesScreen, _DiscoverMatchesScreenState, initState (+4 more)
+Nodes (11): chat_screen.dart, DiscoverService, _askWeMet, build, createState, _discover, initState, _load (+3 more)
 
 ### Community 27 - "Hikaye Oluşturucu"
-Cohesion: 0.09
-Nodes (22): ImageSource, build, choice, closeFriendsOnly, _controller, _createPhotoStory, createState, dispose (+14 more)
+Cohesion: 0.04
+Nodes (45): AndroidFlutterLocalNotificationsPlugin, @pragma, dart:io, firebase_options.dart, FlutterLocalNotificationsPlugin, ImageSource, build, choice (+37 more)
 
 ### Community 28 - "Push Bildirim Servisi"
-Cohesion: 0.12
-Nodes (16): dart:async, DateTime?, _backgroundedAt, build, createState, didChangeAppLifecycleState, dispose, initState (+8 more)
+Cohesion: 0.11
+Nodes (18): dart:async, DateTime?, _backgroundedAt, build, createState, didChangeAppLifecycleState, dispose, initState (+10 more)
 
 ### Community 29 - "Ana Ekran/Keşfet/Arkadaşlar Bağlantıları"
-Cohesion: 0.10
-Nodes (20): discover_screen.dart, friends_screen.dart, group_call_pre_screen.dart, int?, build, _buildCenterIllustration, createState, dispose (+12 more)
+Cohesion: 0.05
+Nodes (42): AppPageRoute, discover_screen.dart, friends_screen.dart, group_call_pre_screen.dart, int?, build, _buildCenterIllustration, _buildFriendsEntry (+34 more)
 
 ### Community 30 - "Tasarım Varyantı: Neon & Oyunlaştırılmış"
 Cohesion: 0.10
 Nodes (20): Pattern: Video-First Hero, Style: Vibrant & Block-based, Merhaba-V1-Neon Design System, Pattern: Social Proof + Feature-Rich, Style: Vibrant & Block-based, Merhaba-V2-Playful Design System, Pattern: Minimal Single Column, Style: Dark Mode (OLED) (+12 more)
 
 ### Community 31 - "Uygulama Yaşam Döngüsü (main.dart)"
-Cohesion: 0.09
-Nodes (21): AndroidFlutterLocalNotificationsPlugin, @pragma, dart:io, firebase_options.dart, FlutterLocalNotificationsPlugin, firebaseMessagingBackgroundHandler, init, _initialized (+13 more)
+Cohesion: 0.17
+Nodes (11): CustomPainter, dart:ui, build, ConnectionMark, _ConnectionMarkPainter, paint, shouldRepaint, _turquoise (+3 more)
 
 ### Community 32 - "macOS Plugin Bağımlılıkları"
 Cohesion: 0.11
@@ -318,75 +311,75 @@ Nodes (17): audioplayers_darwin, connectivity_plus, device_info_plus, file_selec
 
 ### Community 33 - "Grup Oluşturma/Yönetim Ekranları"
 Cohesion: 0.12
-Nodes (17): group_chat_screen.dart, group_create_screen.dart, build, _buildBody, createState, dispose, _error, _groups (+9 more)
+Nodes (16): group_chat_screen.dart, group_create_screen.dart, build, createState, dispose, _error, _groups, GroupsScreen (+8 more)
 
 ### Community 34 - "Eşleşme Diyaloğu / Sayfa Geçişi"
-Cohesion: 0.12
-Nodes (16): _buildTopBar, _showMatchDialog, build, _buildBotTile, _buildFriendTile, _buildGuestState, _buildNoteToSelfTile, _buildFriendsEntry (+8 more)
+Cohesion: 0.15
+Nodes (13): _buildTopBar, _showMatchDialog, build, _buildBotTile, _buildFriendTile, _buildGuestState, _buildNoteToSelfTile, _buildBody (+5 more)
 
 ### Community 35 - "Claude Code Skill Yönlendirme (CLAUDE.md)"
-Cohesion: 0.09
-Nodes (23): Imported Claude Cowork Project Instructions, Flutter Lints Analysis Options, Flutter Client Architecture (lib/), Health Stack Config, Merhaba Project Overview (CLAUDE.md), Signaling Server Architecture (signaling_server/), /autoplan skill, /context-restore skill (+15 more)
+Cohesion: 0.12
+Nodes (17): /autoplan skill, /context-restore skill, /context-save skill, /design-consultation skill, /design-review skill, /investigate skill, /land-and-deploy skill, /office-hours skill (+9 more)
 
 ### Community 36 - "Politika + Tasarım Kimlik Varyantları"
 Cohesion: 0.13
 Nodes (17): 18 Yaş Sınırı Politikası, Kalıcı Sohbet / Kaybolan Mesajlar modu, Şikayet nedeni: 'Reşit olmayan biri gibi görünüyor' (kucuk-yasta), Merhaba Kimlik Karşılaştırması (5 Varyant), Varyant 05: Cam Aurora (mevcut kimliğin evrimi), Varyant 04: Güven & Berraklık (kurumsal-sıcak kimlik), Varyant 01: Neon Gece (cyberpunk kimlik), Varyant 02: Oyunlaştırılmış Enerji (sıcak/bubbly kimlik) (+9 more)
 
 ### Community 37 - "Grup Bilgi Ekranı Aksiyonları"
-Cohesion: 0.12
-Nodes (16): Group, _addMembers, build, _confirmLeaveOrDelete, _confirmRemove, createState, dispose, group (+8 more)
+Cohesion: 0.13
+Nodes (15): Group, _addMembers, build, _confirmLeaveOrDelete, _confirmRemove, createState, dispose, group (+7 more)
 
 ### Community 38 - "Güvenilir Kişiler Ekranı"
 Cohesion: 0.12
 Nodes (16): _addContact, build, _contacts, createState, _locating, _locationSnippet, _removeContact, _save (+8 more)
 
 ### Community 39 - "Oyunlaştırma Servisi (XP/Rozet)"
-Cohesion: 0.11
-Nodes (18): Achievement, claimAchievement, claimed, _decodeOrThrow, description, displayName, fetchAchievements, fromJson (+10 more)
+Cohesion: 0.08
+Nodes (27): auth_service.dart, dart:convert, fetchConversation, fetchFriends, FriendsService, removeFriend, Achievement, claimAchievement (+19 more)
 
 ### Community 40 - "Paylaşılan UI Bileşenleri"
-Cohesion: 0.12
-Nodes (16): PulsingDot, AchievementsScreen, _AchievementsScreenState, ChatScreen, _ChatScreenState, _PollComposerDialog, _PollComposerDialogState, _PulsingDot (+8 more)
+Cohesion: 0.13
+Nodes (22): AchievementsScreen, _AchievementsScreenState, ChatScreen, _ChatScreenState, _PollComposerDialog, _PollComposerDialogState, _PulsingDot, _ScheduleComposerDialog (+14 more)
 
 ### Community 41 - "Grup Oluşturma Ekranı Detayları"
 Cohesion: 0.12
 Nodes (16): build, _buildFriendsList, createState, _creating, dispose, _friends, _friendsService, GroupCreateScreen (+8 more)
 
 ### Community 42 - "Servis Enjeksiyonu / pubspec Bağımlılıkları"
-Cohesion: 0.12
-Nodes (14): loadTextScalePreference, prefs, setDouble, setTextScalePreference, textScaleNotifier, textScalePrefKey, package:flutter/foundation.dart, package:flutter_test/flutter_test.dart (+6 more)
+Cohesion: 0.22
+Nodes (8): loadTextScalePreference, prefs, setDouble, setTextScalePreference, textScaleNotifier, textScalePrefKey, package:flutter/foundation.dart, ValueNotifier
 
 ### Community 43 - "Özellik Backlog Oturum Kaydı"
 Cohesion: 0.16
 Nodes (14): Session Snapshot (2026-07-21), 4) Güven & Kullanıcı Koruması kategorisi, 10) Sosyal/Oyunlaştırma kategorisi, Batch E — Eşleşme (Dating) katmanı / Keşfet ekranı, Batch F — Güvenlik/Gizlilik/Erişilebilirlik, Batch G — Sosyal/Oyunlaştırma + TR lokalizasyonu, Özellik Backlog — 116+120 Anket Uygulama Planı, Ekran görüntüsü bildirimi ertelendi — test edilmemiş native Kotlin kod riski (+6 more)
 
 ### Community 44 - "Liderlik Tablosu Ekranı"
-Cohesion: 0.09
-Nodes (24): GamificationService, LeaderboardEntry?, _achievements, build, _claim, _claiming, createState, initState (+16 more)
+Cohesion: 0.15
+Nodes (13): GamificationService, LeaderboardEntry?, build, createState, _entries, initState, LeaderboardScreen, _LeaderboardScreenState (+5 more)
 
 ### Community 45 - "Canlı Oda Listesi Ekranı"
-Cohesion: 0.14
-Nodes (15): main, AuthService, CallService, GroupCallService, MessagingService, PushNotificationService, WebRTCService, pubspec.yaml (merhaba_app bağımlılıkları) (+7 more)
+Cohesion: 0.18
+Nodes (10): _achievements, build, _claim, _claiming, createState, initState, _load, _loading (+2 more)
 
 ### Community 46 - "Paylaşılan Tema Bileşenleri (GlassCard vb.)"
 Cohesion: 0.15
 Nodes (13): AppBackground, GlassCard, _Glow, GradientButton, PillBadge, _AttachmentSheet, _FloatingReactionWidget, AppBackground (+5 more)
 
 ### Community 47 - "Başarımlar Ekranı Detayları"
-Cohesion: 0.15
-Nodes (13): AppPageRoute, build, _buildBody, createState, _error, initState, _load, _loading (+5 more)
+Cohesion: 0.25
+Nodes (6): package:flutter_test/flutter_test.dart, package:merhaba_app/services/auth_service.dart, package:merhaba_app/utils/online_status.dart, package:shared_preferences/shared_preferences.dart, main, main
 
 ### Community 48 - "Keşfet Anketi Ekranı"
-Cohesion: 0.14
-Nodes (14): _answers, build, _buildQuestion, createState, _discover, DiscoverQuizScreen, _DiscoverQuizScreenState, initState (+6 more)
+Cohesion: 0.15
+Nodes (12): _answers, build, _buildQuestion, createState, _discover, initState, _load, _loading (+4 more)
 
 ### Community 49 - "Özellik Anketi Kategorileri (120 madde)"
 Cohesion: 0.15
 Nodes (13): 12) Cinsiyete Özel Güvenlik kategorisi, 13) Diğer/İlginç kategorisi, Rakip Uygulama Özellik Anketi (120 Özellik), 11) Gelir Modeli/Sanal Ekonomi kategorisi, 9) Gizlilik/Kontrol kategorisi, 6) Görüntülü/Sesli Arama kategorisi, 3) Güvenlik/Moderasyon kategorisi, 5) Mesajlaşma kategorisi (+5 more)
 
 ### Community 50 - "Kurulum ve Altyapı Rehberi"
-Cohesion: 0.33
-Nodes (7): Write Token Log, Kurulum (Geliştirme Ortamı) Rehberi, Kalıcı Barındırma (Firestore Yedekleme), Play Store Yayın Hazırlığı, Push Bildirimleri (FCM) Kurulumu, STUN + TURN bağlantı güvenilirliği, Merhaba README — Gerçek Görüntülü Sohbet Uygulaması
+Cohesion: 0.18
+Nodes (12): Write Token Log, Kurulum (Geliştirme Ortamı) Rehberi, Kalıcı Barındırma (Firestore Yedekleme), Google ile Hızlı Kayıt Kurulumu, Play Store Yayın Hazırlığı, Push Bildirimleri (FCM) Kurulumu, STUN + TURN bağlantı güvenilirliği, 1) Eşleştirme & Algoritma kategorisi (+4 more)
 
 ### Community 51 - "Gece Geliştirme Takibi Maddeleri"
 Cohesion: 0.24
@@ -401,16 +394,16 @@ Cohesion: 0.24
 Nodes (9): _In_, _In_opt_, vector, wWinMain(), string, wchar_t, CreateAndAttachConsole(), GetCommandLineArguments() (+1 more)
 
 ### Community 54 - "Splash/Ana Ekran Geçişi"
-Cohesion: 0.12
-Nodes (16): CustomPainter, dart:ui, home_screen.dart, build, _ConnectionMarkPainter, createState, _decideNextScreen, initState (+8 more)
+Cohesion: 0.17
+Nodes (12): home_screen.dart, build, createState, _decideNextScreen, initState, SplashScreen, _SplashScreenState, login_screen.dart (+4 more)
 
 ### Community 55 - "Web App Manifest (PWA)"
 Cohesion: 0.18
 Nodes (10): background_color, description, display, icons, name, orientation, prefer_related_applications, short_name (+2 more)
 
 ### Community 56 - "Arkadaşlar Servisi"
-Cohesion: 0.40
-Nodes (5): Google ile Hızlı Kayıt Kurulumu, 1) Eşleştirme & Algoritma kategorisi, 7) Görüşme İçi Eğlence & Etkileşim kategorisi, Batch C — Eşleştirme motoru, Kısa vadeli yol haritası
+Cohesion: 0.33
+Nodes (6): Imported Claude Cowork Project Instructions, Flutter Lints Analysis Options, Flutter Client Architecture (lib/), Health Stack Config, Merhaba Project Overview (CLAUDE.md), Signaling Server Architecture (signaling_server/)
 
 ### Community 57 - "Firebase Yapılandırması"
 Cohesion: 0.20
@@ -421,8 +414,8 @@ Cohesion: 0.20
 Nodes (8): BuildContext? get, GlobalKey, currentAppContext, navigatorKey, NavigatorState, package:flutter/material.dart, package:merhaba_app/main.dart, main
 
 ### Community 59 - "Ekran State Sınıfları"
-Cohesion: 0.24
-Nodes (12): _PulsingDotState, _PulsingDotState, _DiscoverScreenState, _BroadcastComposerSheet, _BroadcastComposerSheetState, LiveRoomListScreen, _LiveRoomListScreenState, _StoryViewerScreenState (+4 more)
+Cohesion: 0.22
+Nodes (10): PulsingDot, _PulsingDotState, _PulsingDotState, DiscoverScreen, _DiscoverScreenState, StoryViewerScreen, _StoryViewerScreenState, _PulsingDotState (+2 more)
 
 ### Community 60 - "Sohbet Verisi (Icebreaker/Sticker)"
 Cohesion: 0.20
@@ -484,10 +477,6 @@ Nodes (3): Merhaba — Sokak Sanatı & Kırmızı Alarm: Tam Arayüz, Kırmızı
 Cohesion: 0.67
 Nodes (3): Merhaba — Minimal Mono & Gece Pazarı: Tam Arayüz, Gece Pazarı yön (direction), Minimal Mono yön (direction)
 
-### Community 76 - "Hikaye Halkası Widget'ı"
-Cohesion: 0.20
-Nodes (9): auth_service.dart, dart:convert, fetchConversation, fetchFriends, FriendsService, removeFriend, messaging_service.dart, package:http/http.dart (+1 more)
-
 ### Community 77 - "Linux Build Yapılandırması"
 Cohesion: 1.00
 Nodes (3): linux/CMakeLists.txt (Linux runner proje kökü), linux/flutter/CMakeLists.txt (Flutter kütüphane kuralları), linux/runner/CMakeLists.txt (uygulama hedefi)
@@ -496,28 +485,24 @@ Nodes (3): linux/CMakeLists.txt (Linux runner proje kökü), linux/flutter/CMake
 Cohesion: 1.00
 Nodes (3): windows/CMakeLists.txt (Windows runner proje kökü), windows/flutter/CMakeLists.txt (Flutter kütüphane + wrapper kuralları), windows/runner/CMakeLists.txt (uygulama hedefi)
 
-### Community 81 - "_MerhabaAppState"
-Cohesion: 0.67
-Nodes (3): MerhabaApp, _MerhabaAppState, WidgetsBindingObserver
-
 ### Community 84 - "Beni Beğenenler Ekranı (State)"
-Cohesion: 0.15
-Nodes (13): DiscoverService, build, createState, _discover, DiscoverLikesMeScreen, _DiscoverLikesMeScreenState, initState, _likes (+5 more)
+Cohesion: 0.17
+Nodes (11): build, createState, _discover, initState, _likes, _load, _loading, _processing (+3 more)
 
 ## Knowledge Gaps
-- **1353 isolated node(s):** `_violet`, `_turquoise`, `createState`, `initState`, `_decideNextScreen` (+1348 more)
+- **1355 isolated node(s):** `_onlineCount`, `_serverReachable`, `_refreshTimer`, `createState`, `initState` (+1350 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **48 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **43 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Merhaba Kimlik Karşılaştırması (5 Varyant)` connect `Politika + Tasarım Kimlik Varyantları` to `Tema Yedek Kopyası (design-variants)`?**
-  _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Why does `_ChatItem` connect `Politika + Tasarım Kimlik Varyantları` to `Sohbet Ekranı ve Medya Ekleri`?**
   _High betweenness centrality (0.003) - this node is a cross-community bridge._
-- **What connects `_violet`, `_turquoise`, `createState` to the rest of the system?**
-  _1353 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `Merhaba Kimlik Karşılaştırması (5 Varyant)` connect `Politika + Tasarım Kimlik Varyantları` to `Tema Yedek Kopyası (design-variants)`?**
+  _High betweenness centrality (0.003) - this node is a cross-community bridge._
+- **What connects `_onlineCount`, `_serverReachable`, `_refreshTimer` to the rest of the system?**
+  _1355 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Sohbet Ekranı ve Medya Ekleri` be split into smaller, more focused modules?**
   _Cohesion score 0.015037593984962405 - nodes in this community are weakly interconnected._
 - **Should `Mesajlaşma Servisi` be split into smaller, more focused modules?**
