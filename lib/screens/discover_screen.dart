@@ -146,11 +146,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Eşleştiniz! 🎉', style: TextStyle(color: Colors.white)),
+        title: Text('Eşleştiniz! 🎉', style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           '${user.displayName} ile karşılıklı beğendiniz.'
           '${firstMessageIsYours ? ' İlk mesajı sen atabilirsin.' : ''}',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
@@ -205,12 +205,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Ön-mesaj ekle', style: TextStyle(color: Colors.white)),
+        title: Text('Ön-mesaj ekle', style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           maxLength: 300,
           maxLines: 3,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(hintText: 'Beğeninle birlikte bir not gönder...'),
         ),
         actions: [
@@ -257,9 +257,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
           ),
-          const Expanded(
+          Expanded(
             child: Text('Keşfet', style: AppText.heading, textAlign: TextAlign.center),
           ),
           Stack(
@@ -283,7 +283,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   top: 4,
                   child: Container(
                     padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                     child: Text('$_likesMeCount',
                         style: const TextStyle(color: Colors.white, fontSize: 9)),
                   ),
@@ -296,10 +296,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   .push(AppPageRoute(builder: (_) => const DiscoverMatchesScreen()));
               if (mounted) _wireCallbacks();
             },
-            icon: const Icon(Icons.chat_bubble_rounded, color: Colors.white70),
+            icon: Icon(Icons.chat_bubble_rounded, color: AppColors.textSecondary),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.white70),
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
             color: AppColors.surfaceElevated,
             onSelected: (value) async {
               if (value == 'boost') {
@@ -321,14 +321,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: Colors.white70)),
+            Text(_error!, style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 12),
             OutlinedButton(onPressed: _load, child: const Text('Tekrar Dene')),
           ],
@@ -340,10 +340,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.explore_off_rounded, color: Colors.white24, size: 56),
+            Icon(Icons.explore_off_rounded, color: AppColors.textFaint, size: 56),
             const SizedBox(height: 12),
-            const Text('Şu an gösterilecek yeni kişi yok.',
-                style: TextStyle(color: Colors.white70)),
+            Text('Şu an gösterilecek yeni kişi yok.',
+                style: TextStyle(color: AppColors.textSecondary)),
             const SizedBox(height: 12),
             OutlinedButton(onPressed: _load, child: const Text('Yenile')),
           ],
@@ -404,7 +404,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
               Center(
                 child: Text(
                   user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
-                  style: const TextStyle(color: Colors.white24, fontSize: 96),
+                  style: TextStyle(color: AppColors.textFaint, fontSize: 96),
                 ),
               ),
             Positioned(
@@ -433,11 +433,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                         ),
                         if (user.verified) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.verified_rounded, color: AppColors.secondary, size: 18),
+                          Icon(Icons.verified_rounded, color: AppColors.secondary, size: 18),
                         ],
                         if (user.selfieVerified) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.face_retouching_natural_rounded,
+                          Icon(Icons.face_retouching_natural_rounded,
                               color: AppColors.primaryLight, size: 18),
                         ],
                       ],
@@ -451,7 +451,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                               '%${candidate.compatibilityPercent} uyum',
                             if (candidate.distanceKm != null) '${candidate.distanceKm} km uzakta',
                           ].join(' · '),
-                          style: const TextStyle(color: AppColors.primaryLight, fontSize: 12),
+                          style: TextStyle(color: AppColors.primaryLight, fontSize: 12),
                         ),
                       ),
                     if (user.bio.isNotEmpty)
@@ -518,7 +518,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           ),
           _roundButton(
             icon: _pendingNote != null ? Icons.edit_note_rounded : Icons.message_outlined,
-            color: _pendingNote != null ? AppColors.primary : Colors.white54,
+            color: _pendingNote != null ? AppColors.primary : AppColors.textMuted,
             size: 44,
             label: 'Ön-mesaj ekle',
             onTap: _showNoteDialog,

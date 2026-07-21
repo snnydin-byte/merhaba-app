@@ -32,19 +32,19 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Güvenilir kişi ekle', style: TextStyle(color: Colors.white)),
+        title: Text('Güvenilir kişi ekle', style: TextStyle(color: AppColors.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(hintText: 'İsim'),
             ),
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(hintText: 'Telefon numarası'),
             ),
           ],
@@ -148,11 +148,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Buluşma detayını paylaş', style: TextStyle(color: Colors.white)),
+        title: Text('Buluşma detayını paylaş', style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(hintText: 'Kiminle, nerede, ne zaman buluşuyorsun?'),
         ),
         actions: [
@@ -188,12 +188,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text(
+              Text(
                 'Güvenilir kişiler gerçek bir hesap değil - yalnızca isim ve telefon '
                 'numarası. Panik butonuna bastığında ya da buluşma detayını '
                 'paylaştığında, her biri için telefonunun SMS uygulaması hazır bir '
                 'mesajla açılır - göndermek sana kalmış.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
               const SizedBox(height: 16),
               ..._contacts.asMap().entries.map((entry) => Padding(
@@ -207,15 +207,15 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(entry.value.name,
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                 Text(entry.value.phone,
-                                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                               ],
                             ),
                           ),
                           IconButton(
                             onPressed: _saving ? null : () => _removeContact(entry.key),
-                            icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                            icon: Icon(Icons.delete_outline, color: AppColors.danger),
                           ),
                         ],
                       ),

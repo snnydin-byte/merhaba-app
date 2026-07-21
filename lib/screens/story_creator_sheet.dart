@@ -23,13 +23,13 @@ Future<void> showStoryCreatorSheet(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.text_fields_rounded, color: Colors.white70),
-            title: const Text('Metin durumu', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.text_fields_rounded, color: AppColors.textSecondary),
+            title: Text('Metin durumu', style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, 'text'),
           ),
           ListTile(
-            leading: const Icon(Icons.camera_alt_outlined, color: Colors.white70),
-            title: const Text('Fotoğraf durumu', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
+            title: Text('Fotoğraf durumu', style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, 'photo'),
           ),
         ],
@@ -59,13 +59,13 @@ Future<void> _createPhotoStory(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: const Icon(Icons.camera_alt_outlined, color: Colors.white70),
-            title: const Text('Kameradan çek', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
+            title: Text('Kameradan çek', style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
           ),
           ListTile(
-            leading: const Icon(Icons.photo_outlined, color: Colors.white70),
-            title: const Text('Galeriden seç', style: TextStyle(color: Colors.white)),
+            leading: Icon(Icons.photo_outlined, color: AppColors.textSecondary),
+            title: Text('Galeriden seç', style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
           ),
         ],
@@ -95,9 +95,9 @@ Future<void> _createPhotoStory(BuildContext context) async {
     context: context,
     builder: (_) => AlertDialog(
       backgroundColor: AppColors.surfaceElevated,
-      title: const Text('Kimler görsün?', style: TextStyle(color: Colors.white)),
-      content: const Text('Bu hikayeyi tüm arkadaşların mı, yalnızca yakın '
-          'arkadaşların mı görsün?', style: TextStyle(color: Colors.white70)),
+      title: Text('Kimler görsün?', style: TextStyle(color: AppColors.textPrimary)),
+      content: Text('Bu hikayeyi tüm arkadaşların mı, yalnızca yakın '
+          'arkadaşların mı görsün?', style: TextStyle(color: AppColors.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

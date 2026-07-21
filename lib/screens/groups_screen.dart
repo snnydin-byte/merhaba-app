@@ -118,7 +118,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_rounded, color: Colors.white70),
+            icon: Icon(Icons.add_rounded, color: AppColors.textSecondary),
             tooltip: 'Yeni grup',
             onPressed: _openCreate,
           ),
@@ -130,7 +130,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_error != null) {
       return Center(
@@ -207,7 +207,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       backgroundColor: AppColors.primary.withValues(alpha: 0.25),
                       backgroundImage: group.photoUrl != null ? NetworkImage(group.photoUrl!) : null,
                       child: group.photoUrl == null
-                          ? const Icon(Icons.groups_rounded, color: AppColors.primary, size: 20)
+                          ? Icon(Icons.groups_rounded, color: AppColors.primary, size: 20)
                           : null,
                     ),
                     const SizedBox(width: 12),
@@ -233,7 +233,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         child: Icon(Icons.shield_rounded,
                             color: AppColors.secondaryLight.withValues(alpha: 0.8), size: 16),
                       ),
-                    const Icon(Icons.chevron_right, color: Colors.white38),
+                    Icon(Icons.chevron_right, color: AppColors.textFaint),
                   ],
                 ),
               ),

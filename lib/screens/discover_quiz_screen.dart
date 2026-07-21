@@ -67,14 +67,14 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    const Text(
+                    Text(
                       'Cevapların diğer kullanıcılarla uyum yüzdeni hesaplamak için kullanılır - '
                       'cevapların kendisi asla başkalarına gösterilmez, yalnızca yüzde paylaşılır.',
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 16),
                     ..._questions.map(_buildQuestion),
@@ -104,7 +104,7 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(q.question,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+                style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             ...List.generate(q.options.length, (i) {
               final selected = _answers[q.id] == i;
@@ -115,7 +115,7 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
                 groupValue: _answers[q.id],
                 activeColor: AppColors.primary,
                 title: Text(q.options[i],
-                    style: TextStyle(color: selected ? Colors.white : Colors.white70, fontSize: 13)),
+                    style: TextStyle(color: selected ? AppColors.textPrimary : AppColors.textSecondary, fontSize: 13)),
                 onChanged: (v) => setState(() => _answers[q.id] = v!),
               );
             }),

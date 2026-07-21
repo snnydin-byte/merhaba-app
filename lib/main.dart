@@ -86,6 +86,7 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     loadTextScalePreference();
+    loadAppThemePreference();
   }
 
   @override
@@ -163,26 +164,38 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'Merhaba',
-      debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      // Yazı boyutu kişiselleştirmesi (Batch G) - bkz. text_scale_notifier
-      // .dart'taki kapsam notu. AppColors'a dokunmuyor, yalnızca MediaQuery
-      // üzerinden metin ölçeğini değiştiriyor.
-      builder: (context, child) {
-        return ValueListenableBuilder<double>(
-          valueListenable: textScaleNotifier,
-          builder: (context, scale, _) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
-              child: child!,
+    // Tema seçimi (Koyu/Oyunlaştırılmış Enerji/Güven & Berraklık) artık
+    // runtime'da değiştirilebiliyor (bkz. app_theme.dart'taki
+    // appThemeNotifier) - MaterialApp'i burada sarmalayıp appThemeNotifier
+    // her değiştiğinde `theme: buildAppTheme()`'i YENİDEN çağırıyoruz, aksi
+    // halde MaterialApp yalnızca ilk açılışta hesaplanmış eski paleti
+    // gösterirdi. navigatorKey aynı kaldığı için Navigator'ın mevcut yığını
+    // (ör. Ayarlar ekranındayken tema değiştirmek) korunuyor.
+    return ValueListenableBuilder<AppThemeVariant>(
+      valueListenable: appThemeNotifier,
+      builder: (context, _, __) {
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Merhaba',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          // Yazı boyutu kişiselleştirmesi (Batch G) - bkz. text_scale_notifier
+          // .dart'taki kapsam notu. AppColors'a dokunmuyor, yalnızca MediaQuery
+          // üzerinden metin ölçeğini değiştiriyor.
+          builder: (context, child) {
+            return ValueListenableBuilder<double>(
+              valueListenable: textScaleNotifier,
+              builder: (context, scale, _) {
+                return MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: child!,
+                );
+              },
             );
           },
+          home: const SplashScreen(),
         );
       },
-      home: const SplashScreen(),
     );
   }
 }

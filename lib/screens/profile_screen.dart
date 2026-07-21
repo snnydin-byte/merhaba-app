@@ -120,28 +120,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined,
-                  color: Colors.white70),
-              title: const Text('Galeriden Seç',
-                  style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.photo_library_outlined,
+                  color: AppColors.textSecondary),
+              title: Text('Galeriden Seç',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () => Navigator.of(sheetContext).pop('pick'),
             ),
             ListTile(
-              leading: const Icon(Icons.emoji_emotions_outlined, color: Colors.white70),
-              title: const Text('Emoji Avatarı Kullan', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.emoji_emotions_outlined, color: AppColors.textSecondary),
+              title: Text('Emoji Avatarı Kullan', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () => Navigator.of(sheetContext).pop('avatar'),
             ),
             if (user.avatarConfig != null)
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-                title: const Text('Emoji Avatarını Kaldır', style: TextStyle(color: AppColors.danger)),
+                leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                title: Text('Emoji Avatarını Kaldır', style: TextStyle(color: AppColors.danger)),
                 onTap: () => Navigator.of(sheetContext).pop('remove-avatar'),
               ),
             if (user.photoUrl != null)
               ListTile(
-                leading: const Icon(Icons.delete_outline,
+                leading: Icon(Icons.delete_outline,
                     color: AppColors.danger),
-                title: const Text('Fotoğrafı Kaldır',
+                title: Text('Fotoğrafı Kaldır',
                     style: TextStyle(color: AppColors.danger)),
                 onTap: () => Navigator.of(sheetContext).pop('remove'),
               ),
@@ -183,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Emoji Avatarı', style: TextStyle(color: Colors.white)),
+          title: Text('Emoji Avatarı', style: TextStyle(color: AppColors.textPrimary)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -495,7 +495,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.person_outline, color: Colors.white38, size: 56),
+            Icon(Icons.person_outline, color: AppColors.textFaint, size: 56),
             const SizedBox(height: AppSpacing.md),
             Text(
               'Misafir olarak geziniyorsun',
@@ -548,8 +548,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               (user.displayName.isNotEmpty
                                   ? user.displayName[0].toUpperCase()
                                   : '?'),
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
                               fontSize: 32,
                               fontWeight: FontWeight.bold),
                         ),
@@ -562,7 +562,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   bottom: -2,
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),
@@ -587,7 +587,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(user.displayName, style: AppText.subheading),
               if (user.verified) ...[
                 const SizedBox(width: 6),
-                const Icon(Icons.verified_rounded,
+                Icon(Icons.verified_rounded,
                     color: AppColors.secondary, size: 18),
               ],
             ],
@@ -622,7 +622,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Text(label, style: AppText.caption),
             const SizedBox(height: AppSpacing.xs),
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 15)),
+            Text(value, style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
           ],
         ),
       ),
@@ -639,7 +639,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return GlassCard(
         child: Row(
           children: [
-            const Icon(Icons.workspace_premium_rounded, color: AppColors.warning),
+            Icon(Icons.workspace_premium_rounded, color: AppColors.warning),
             const SizedBox(width: 10),
             Text('Premium üyesin', style: AppText.subheading.copyWith(fontSize: 14)),
           ],
@@ -652,10 +652,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Premium', style: TextStyle(color: Colors.white)),
-          content: const Text(
+          title: Text('Premium', style: TextStyle(color: AppColors.textPrimary)),
+          content: Text(
             'Premium üyelik yakında geliyor: sınırsız hızlı tur, gelişmiş filtreler ve daha fazlası.',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam')),
@@ -671,7 +671,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text('Premium - Yakında',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
             ),
-            const Icon(Icons.chevron_right, color: Colors.white38),
+            Icon(Icons.chevron_right, color: AppColors.textFaint),
           ],
         ),
       ),
@@ -684,10 +684,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// tarayıcısında açılır (bkz. _playIntroVideo notu).
   Widget _introVideoCard(AppUser user) {
     if (_uploadingVideo) {
-      return const GlassCard(
+      return GlassCard(
         child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
           ),
         ),
@@ -706,7 +706,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Text('Video tanıtım ekle (en fazla 30sn)',
                     style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
               ),
-              const Icon(Icons.add, color: Colors.white38),
+              Icon(Icons.add, color: AppColors.textFaint),
             ],
           ),
         ),
@@ -725,7 +725,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: AppColors.primary.withValues(alpha: 0.25),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.play_arrow_rounded, color: AppColors.primary),
+              child: Icon(Icons.play_arrow_rounded, color: AppColors.primary),
             ),
           ),
           const SizedBox(width: 12),
@@ -733,7 +733,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text('Video tanıtımın', style: AppText.subheading.copyWith(fontSize: 14)),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
+            icon: Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
             onPressed: _removeIntroVideo,
           ),
         ],
@@ -746,10 +746,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// approved/rejected. rejected'ta tekrar yüklemeye izin veriliyor.
   Widget _selfieVerificationCard(AppUser user) {
     if (_uploadingSelfie) {
-      return const GlassCard(
+      return GlassCard(
         child: Center(
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(vertical: 8),
             child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
           ),
         ),
@@ -758,26 +758,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     switch (user.selfieVerificationStatus) {
       case 'pending':
         return GlassCard(
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.hourglass_top_rounded, color: Colors.amber),
-              SizedBox(width: 10),
+              const Icon(Icons.hourglass_top_rounded, color: Colors.amber),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text('Selfie doğrulaman inceleniyor',
-                    style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
               ),
             ],
           ),
         );
       case 'approved':
         return GlassCard(
-          child: const Row(
+          child: Row(
             children: [
               Icon(Icons.face_retouching_natural_rounded, color: AppColors.secondary),
               SizedBox(width: 10),
               Expanded(
                 child: Text('Selfie doğrulaman onaylandı ✓',
-                    style: TextStyle(color: Colors.white, fontSize: 14)),
+                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               ),
             ],
           ),
@@ -800,7 +800,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(color: AppColors.textMuted, fontSize: 14),
                   ),
                 ),
-                const Icon(Icons.camera_alt_outlined, color: Colors.white38),
+                Icon(Icons.camera_alt_outlined, color: AppColors.textFaint),
               ],
             ),
           ),
@@ -874,7 +874,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       const Icon(Icons.emoji_events_outlined, color: Colors.amber),
                       const SizedBox(width: 8),
-                      Text('Sv. ${user.level}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                      Text('Sv. ${user.level}', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -888,10 +888,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     .push(AppPageRoute(builder: (_) => const LeaderboardScreen())),
                 child: GlassCard(
                   child: Row(
-                    children: const [
+                    children: [
                       Icon(Icons.leaderboard_outlined, color: AppColors.primaryLight),
-                      SizedBox(width: 8),
-                      Text('Liderlik', style: TextStyle(color: Colors.white, fontSize: 13)),
+                      const SizedBox(width: 8),
+                      Text('Liderlik', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -913,7 +913,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: _logout,
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.danger,
-              side: const BorderSide(color: AppColors.danger),
+              side: BorderSide(color: AppColors.danger),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
@@ -931,8 +931,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+      labelStyle: TextStyle(color: AppColors.textMuted),
+      hintStyle: TextStyle(color: AppColors.textFaint),
     );
   }
 
@@ -942,7 +942,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         TextField(
           controller: _nameController,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: _fieldDecoration('İsim'),
         ),
         const SizedBox(height: 14),
@@ -950,7 +950,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: _bioController,
           maxLines: 3,
           maxLength: 300,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
           decoration:
               _fieldDecoration('Hakkımda', hint: 'Kendinden kısaca bahset...'),
         ),
@@ -969,7 +969,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         TextField(
           controller: _ageController,
           keyboardType: TextInputType.number,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: _fieldDecoration('Yaş'),
         ),
         const SizedBox(height: 14),
@@ -992,20 +992,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : '${_birthDate!.day.toString().padLeft(2, '0')}.'
                       '${_birthDate!.month.toString().padLeft(2, '0')}.'
                       '${_birthDate!.year}',
-              style: const TextStyle(color: Colors.white, fontSize: 15),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
             ),
           ),
         ),
         const SizedBox(height: 14),
         TextField(
           controller: _countryController,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: _fieldDecoration('Ülke', hint: 'ör. Türkiye'),
         ),
         const SizedBox(height: 14),
         TextField(
           controller: _languageController,
-          style: const TextStyle(color: Colors.white, fontSize: 15),
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
           decoration: _fieldDecoration('Dil', hint: 'ör. Türkçe'),
         ),
         const SizedBox(height: 14),
@@ -1018,10 +1018,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             for (final tag in _interests)
               Chip(
                 label: Text(tag,
-                    style: const TextStyle(color: Colors.white, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textPrimary, fontSize: 12)),
                 backgroundColor: AppColors.primary.withValues(alpha: 0.3),
                 deleteIcon:
-                    const Icon(Icons.close, size: 14, color: Colors.white70),
+                    Icon(Icons.close, size: 14, color: AppColors.textSecondary),
                 onDeleted: () => setState(() => _interests.remove(tag)),
               ),
           ],
@@ -1032,7 +1032,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: TextField(
                 controller: _interestController,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 decoration: _fieldDecoration('Yeni ilgi alanı ekle'),
                 onSubmitted: (_) => _addInterest(),
               ),
@@ -1040,7 +1040,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(width: 8),
             IconButton(
               onPressed: _addInterest,
-              icon: const Icon(Icons.add_circle, color: AppColors.primary),
+              icon: Icon(Icons.add_circle, color: AppColors.primary),
             ),
           ],
         ),
@@ -1056,8 +1056,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label: Text(entry.value, style: const TextStyle(fontSize: 12)),
               selected: selected,
               selectedColor: AppColors.primary.withValues(alpha: 0.4),
-              backgroundColor: Colors.white.withValues(alpha: 0.06),
-              labelStyle: TextStyle(color: selected ? Colors.white : Colors.white70),
+              backgroundColor: AppColors.textPrimary.withValues(alpha: 0.05),
+              labelStyle: TextStyle(color: selected ? AppColors.textPrimary : AppColors.textSecondary),
               onSelected: (value) {
                 setState(() {
                   if (value) {
@@ -1073,7 +1073,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!,
-              style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+              style: TextStyle(color: AppColors.danger, fontSize: 12)),
         ],
         const SizedBox(height: AppSpacing.md),
         Row(
@@ -1083,7 +1083,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed:
                     _saving ? null : () => setState(() => _editing = false),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white70,
+                  foregroundColor: AppColors.textSecondary,
                   side: BorderSide(color: AppColors.divider),
                 ),
                 child: const Text('Vazgeç'),
@@ -1115,10 +1115,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return ChoiceChip(
       label: Text(label,
           style: TextStyle(
-              color: selected ? Colors.white : Colors.white70, fontSize: 12)),
+              color: selected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
       selected: selected,
       selectedColor: AppColors.primary,
-      backgroundColor: Colors.white.withValues(alpha: 0.06),
+      backgroundColor: AppColors.textPrimary.withValues(alpha: 0.05),
       onSelected: (_) => setState(() => _gender = value),
     );
   }

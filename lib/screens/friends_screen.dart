@@ -188,7 +188,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Kaldır', style: TextStyle(color: AppColors.danger)),
+            child: Text('Kaldır', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -288,7 +288,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.groups_rounded, color: Colors.white70),
+            icon: Icon(Icons.groups_rounded, color: AppColors.textSecondary),
             tooltip: 'Gruplar',
             onPressed: () => Navigator.of(context).push(
               AppPageRoute(builder: (_) => const GroupsScreen()),
@@ -296,7 +296,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
           if (_friends.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.campaign_outlined, color: Colors.white70),
+              icon: Icon(Icons.campaign_outlined, color: AppColors.textSecondary),
               tooltip: 'Toplu mesaj gönder',
               onPressed: _openBroadcastComposer,
             ),
@@ -309,7 +309,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget _buildBody() {
     if (_isGuest) return _buildGuestState();
     if (_loading) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
@@ -449,12 +449,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: hasUnviewed
-                    ? const LinearGradient(
+                    ? LinearGradient(
                         colors: [AppColors.primary, AppColors.secondary])
                     : null,
                 border: !hasUnviewed
                     ? Border.all(
-                        color: hasAny ? Colors.white24 : Colors.transparent,
+                        color: hasAny ? AppColors.divider : Colors.transparent,
                         width: 2)
                     : null,
               ),
@@ -473,7 +473,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       bottom: -2,
                       child: Container(
                         padding: const EdgeInsets.all(2),
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
@@ -487,7 +487,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             Text(label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           ],
         ),
       ),
@@ -515,7 +515,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.secondary.withValues(alpha: 0.25),
-                child: const Icon(Icons.sticky_note_2_outlined,
+                child: Icon(Icons.sticky_note_2_outlined,
                     color: AppColors.secondary, size: 20),
               ),
               const SizedBox(width: 12),
@@ -532,7 +532,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.white38),
+              Icon(Icons.chevron_right, color: AppColors.textFaint),
             ],
           ),
         ),
@@ -565,7 +565,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                child: const Icon(Icons.smart_toy_outlined,
+                child: Icon(Icons.smart_toy_outlined,
                     color: AppColors.primary, size: 20),
               ),
               const SizedBox(width: 12),
@@ -582,7 +582,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.white38),
+              Icon(Icons.chevron_right, color: AppColors.textFaint),
             ],
           ),
         ),
@@ -702,8 +702,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           friend.displayName.isNotEmpty
                               ? friend.displayName[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold),
                         ),
                 ),
@@ -772,7 +772,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               onTap: () => _startCall(friend, 'video'),
             ),
             PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Colors.white38, size: 20),
+              icon: Icon(Icons.more_vert, color: AppColors.textFaint, size: 20),
               color: AppColors.surfaceElevated,
               tooltip: 'Diğer seçenekler',
               onSelected: (value) {
@@ -812,7 +812,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   value: 'report',
                   child: Row(
                     children: [
-                      const Icon(Icons.flag_outlined,
+                      Icon(Icons.flag_outlined,
                           color: AppColors.warning, size: 18),
                       const SizedBox(width: 10),
                       Text('Bildir',
@@ -824,7 +824,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   value: 'remove',
                   child: Row(
                     children: [
-                      const Icon(Icons.person_remove_outlined,
+                      Icon(Icons.person_remove_outlined,
                           color: AppColors.danger, size: 18),
                       const SizedBox(width: 10),
                       Text('Arkadaşlıktan çıkar',
@@ -900,7 +900,7 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
         decoration: BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: AppColors.divider),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -908,19 +908,19 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
           children: [
             Row(
               children: [
-                const Icon(Icons.campaign_outlined, color: AppColors.primaryLight),
+                Icon(Icons.campaign_outlined, color: AppColors.primaryLight),
                 const SizedBox(width: 8),
-                const Text('Toplu mesaj',
-                    style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
+                Text('Toplu mesaj',
+                    style: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 Text('${_selected.length} seçili',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               'Aynı mesaj seçtiğin herkese ayrı ayrı gönderilir - alıcılar birbirini görmez.',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
             const SizedBox(height: 12),
             Flexible(
@@ -941,7 +941,7 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
                         _selected.remove(friend.id);
                       }
                     }),
-                    title: Text(friend.displayName, style: const TextStyle(color: Colors.white)),
+                    title: Text(friend.displayName, style: TextStyle(color: AppColors.textPrimary)),
                   );
                 },
               ),
@@ -951,12 +951,12 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
               controller: _controller,
               maxLines: 3,
               minLines: 1,
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Mesajını yaz...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                hintStyle: TextStyle(color: AppColors.textFaint),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
+                fillColor: AppColors.textPrimary.withValues(alpha: 0.06),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,

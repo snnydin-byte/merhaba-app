@@ -108,7 +108,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               children: [
                 TextField(
                   controller: _nameController,
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.textPrimary),
                   maxLength: 80,
                   decoration: const InputDecoration(hintText: 'Grup adı'),
                 ),
@@ -137,7 +137,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
   Widget _buildFriendsList() {
     if (_loadingFriends) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_friends.isEmpty) {
       return Center(
@@ -162,7 +162,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             });
           },
           activeColor: AppColors.primary,
-          title: Text(friend.displayName, style: const TextStyle(color: Colors.white)),
+          title: Text(friend.displayName, style: TextStyle(color: AppColors.textPrimary)),
           secondary: CircleAvatar(
             backgroundColor: AppColors.primary.withValues(alpha: 0.25),
             backgroundImage: friend.photoUrl != null ? NetworkImage(friend.photoUrl!) : null,

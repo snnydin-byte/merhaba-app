@@ -173,7 +173,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(
+              ? Center(
                   child: CircularProgressIndicator(color: AppColors.primary))
               : Padding(
                   padding: const EdgeInsets.all(20),
@@ -302,7 +302,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.groups_rounded,
+          Icon(Icons.groups_rounded,
               color: AppColors.primaryLight, size: 20),
           const SizedBox(width: 10),
           const Expanded(

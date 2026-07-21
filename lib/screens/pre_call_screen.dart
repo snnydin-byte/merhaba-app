@@ -225,7 +225,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(
+              ? Center(
                   child: CircularProgressIndicator(color: AppColors.primary))
               : Padding(
                   padding: const EdgeInsets.all(20),
@@ -382,7 +382,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.mic_rounded,
+          Icon(Icons.mic_rounded,
               color: AppColors.primaryLight, size: 20),
           const SizedBox(width: 10),
           const Expanded(

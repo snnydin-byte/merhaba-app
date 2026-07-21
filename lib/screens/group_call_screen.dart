@@ -347,7 +347,7 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
                         style: const TextStyle(color: Colors.white, fontSize: 12)),
                     if (verified) ...[
                       const SizedBox(width: 4),
-                      const Icon(Icons.verified_rounded, color: AppColors.primaryLight, size: 13),
+                      Icon(Icons.verified_rounded, color: AppColors.primaryLight, size: 13),
                     ],
                   ],
                 ),

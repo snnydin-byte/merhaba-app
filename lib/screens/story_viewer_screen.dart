@@ -116,9 +116,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Hikayeyi sil', style: TextStyle(color: Colors.white)),
-        content: const Text('Bu hikaye herkes için kaldırılacak.',
-            style: TextStyle(color: Colors.white70)),
+        title: Text('Hikayeyi sil', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('Bu hikaye herkes için kaldırılacak.',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -126,7 +126,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Sil', style: TextStyle(color: AppColors.danger)),
+            child: Text('Sil', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -301,7 +301,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         ),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
-          return const Center(
+          return Center(
               child: CircularProgressIndicator(color: AppColors.primaryLight));
         },
       );
@@ -367,21 +367,21 @@ class _ViewersSheetState extends State<_ViewersSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Görüntüleyenler',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text('Görüntüleyenler',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.white54))
+              Text(_error!, style: TextStyle(color: AppColors.textMuted))
             else if (_viewers == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: CircularProgressIndicator(color: AppColors.primaryLight)),
               )
             else if (_viewers!.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Text('Henüz kimse görüntülemedi.',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.5))),
+                    style: TextStyle(color: AppColors.textMuted)),
               )
             else
               ..._viewers!.map((v) => ListTile(
@@ -393,7 +393,7 @@ class _ViewersSheetState extends State<_ViewersSheet> {
                           ? Text(v.displayName.isNotEmpty ? v.displayName[0].toUpperCase() : '?')
                           : null,
                     ),
-                    title: Text(v.displayName, style: const TextStyle(color: Colors.white)),
+                    title: Text(v.displayName, style: TextStyle(color: AppColors.textPrimary)),
                   )),
           ],
         ),

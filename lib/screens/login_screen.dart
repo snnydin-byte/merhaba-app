@@ -224,13 +224,13 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded,
+          Icon(Icons.error_outline_rounded,
               color: AppColors.danger, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _errorText!,
-              style: const TextStyle(color: AppColors.danger, fontSize: 13),
+              style: TextStyle(color: AppColors.danger, fontSize: 13),
             ),
           ),
         ],
@@ -242,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: _nameController,
       textCapitalization: TextCapitalization.words,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: AppColors.textPrimary),
       decoration: _fieldDecoration('İsim', Icons.person_outline),
       validator: (v) => (v == null || v.trim().isEmpty) ? 'İsmini gir' : null,
     );
@@ -252,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: AppColors.textPrimary),
       decoration: _fieldDecoration('E-posta', Icons.mail_outline),
       validator: (v) {
         if (v == null || v.trim().isEmpty) return 'E-posta adresini gir';
@@ -266,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: _passwordController,
       obscureText: true,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: AppColors.textPrimary),
       decoration: _fieldDecoration('Şifre', Icons.lock_outline),
       validator: (v) {
         if (v == null || v.isEmpty) return 'Şifreni gir';
@@ -282,9 +282,9 @@ class _LoginScreenState extends State<LoginScreen> {
     // yalnızca bu alana özgü olanları (etiket, ikon) belirtiyoruz.
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-      prefixIcon: Icon(icon, color: Colors.white38, size: 20),
-      errorStyle: const TextStyle(color: AppColors.danger, fontSize: 11),
+      labelStyle: TextStyle(color: AppColors.textMuted),
+      prefixIcon: Icon(icon, color: AppColors.textFaint, size: 20),
+      errorStyle: TextStyle(color: AppColors.danger, fontSize: 11),
     );
   }
 
@@ -319,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _isRegisterMode
               ? 'Zaten hesabın var mı? Giriş yap'
               : 'Hesabın yok mu? Hesap oluştur',
-          style: const TextStyle(color: AppColors.primaryLight, fontSize: 13),
+          style: TextStyle(color: AppColors.primaryLight, fontSize: 13),
         ),
       ),
     );
@@ -344,17 +344,17 @@ class _LoginScreenState extends State<LoginScreen> {
       child: OutlinedButton(
         onPressed: _loading ? null : _submitWithGoogle,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          foregroundColor: AppColors.textPrimary,
+          side: BorderSide(color: AppColors.textPrimary.withValues(alpha: 0.2)),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.lg)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.g_mobiledata_rounded, size: 26, color: Colors.white),
-            SizedBox(width: 4),
-            Text('Google ile devam et'),
+            Icon(Icons.g_mobiledata_rounded, size: 26, color: AppColors.textPrimary),
+            const SizedBox(width: 4),
+            const Text('Google ile devam et'),
           ],
         ),
       ),
@@ -367,8 +367,8 @@ class _LoginScreenState extends State<LoginScreen> {
       child: OutlinedButton(
         onPressed: _loading ? null : _continueAsGuest,
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white70,
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          foregroundColor: AppColors.textSecondary,
+          side: BorderSide(color: AppColors.textPrimary.withValues(alpha: 0.2)),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.lg)),
         ),

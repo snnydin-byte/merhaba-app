@@ -51,9 +51,9 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
           context: context,
           builder: (_) => AlertDialog(
             backgroundColor: AppColors.surfaceElevated,
-            title: const Text('Eşleştiniz! 🎉', style: TextStyle(color: Colors.white)),
+            title: Text('Eşleştiniz! 🎉', style: TextStyle(color: AppColors.textPrimary)),
             content: Text('${matchedUser.displayName} ile artık sohbet edebilirsin.',
-                style: const TextStyle(color: Colors.white70)),
+                style: TextStyle(color: AppColors.textSecondary)),
             actions: [
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
               TextButton(
@@ -85,11 +85,11 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : _likes.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text('Henüz seni beğenen olmadı.',
-                          style: TextStyle(color: Colors.white70)))
+                          style: TextStyle(color: AppColors.textSecondary)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _likes.length,
@@ -121,8 +121,8 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
                                     Row(
                                       children: [
                                         Text(entry.user.displayName,
-                                            style: const TextStyle(
-                                                color: Colors.white, fontWeight: FontWeight.w600)),
+                                            style: TextStyle(
+                                                color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                         if (entry.isSuperlike) ...[
                                           const SizedBox(width: 4),
                                           const Icon(Icons.star_rounded, color: Colors.blueAccent, size: 16),
@@ -133,7 +133,7 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
                                       Padding(
                                         padding: const EdgeInsets.only(top: 2),
                                         child: Text('"${entry.note}"',
-                                            style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                                       ),
                                   ],
                                 ),
@@ -146,11 +146,11 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
                               else ...[
                                 IconButton(
                                   onPressed: () => _respond(entry, 'pass'),
-                                  icon: const Icon(Icons.close_rounded, color: Colors.white38),
+                                  icon: Icon(Icons.close_rounded, color: AppColors.textFaint),
                                 ),
                                 IconButton(
                                   onPressed: () => _respond(entry, 'like'),
-                                  icon: const Icon(Icons.favorite_rounded, color: AppColors.secondary),
+                                  icon: Icon(Icons.favorite_rounded, color: AppColors.secondary),
                                 ),
                               ],
                             ],

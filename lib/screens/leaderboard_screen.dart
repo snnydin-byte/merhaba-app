@@ -43,7 +43,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : Column(
                   children: [
                     if (_myRank != null && !_entries.any((e) => e.id == myId))
@@ -53,13 +53,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           child: Row(
                             children: [
                               Text('#${_myRank!.rank}',
-                                  style: const TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold)),
+                                  style: TextStyle(color: AppColors.primaryLight, fontWeight: FontWeight.bold)),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text('Sen · Seviye ${_myRank!.level}',
-                                    style: const TextStyle(color: Colors.white)),
+                                    style: TextStyle(color: AppColors.textPrimary)),
                               ),
-                              Text('${_myRank!.xp} XP', style: const TextStyle(color: Colors.white54)),
+                              Text('${_myRank!.xp} XP', style: TextStyle(color: AppColors.textMuted)),
                             ],
                           ),
                         ),
@@ -89,7 +89,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                     width: 28,
                                     child: Text('${entry.rank}',
                                         style: TextStyle(
-                                            color: entry.rank <= 3 ? Colors.amber : Colors.white54,
+                                            color: entry.rank <= 3 ? Colors.amber : AppColors.textMuted,
                                             fontWeight: FontWeight.bold)),
                                   ),
                                   CircleAvatar(
@@ -106,10 +106,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(entry.displayName,
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                   ),
                                   Text('Sv. ${entry.level}',
-                                      style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                      style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                                 ],
                               ),
                             ),

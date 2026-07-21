@@ -55,12 +55,12 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Grup adını değiştir', style: TextStyle(color: Colors.white)),
+        title: Text('Grup adını değiştir', style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           autofocus: true,
           maxLength: 80,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.textPrimary),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
@@ -101,7 +101,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Üye ekle', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                Text('Üye ekle', style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Flexible(
                   child: ListView(
@@ -117,7 +117,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                 }
                               }),
                               activeColor: AppColors.primary,
-                              title: Text(f.displayName, style: const TextStyle(color: Colors.white)),
+                              title: Text(f.displayName, style: TextStyle(color: AppColors.textPrimary)),
                             ))
                         .toList(),
                   ),
@@ -143,13 +143,13 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Üyeyi çıkar', style: TextStyle(color: Colors.white)),
-        content: Text('$displayName gruptan çıkarılacak.', style: const TextStyle(color: Colors.white70)),
+        title: Text('Üyeyi çıkar', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('$displayName gruptan çıkarılacak.', style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Çıkar', style: TextStyle(color: AppColors.danger)),
+            child: Text('Çıkar', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -166,18 +166,18 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
         title: Text(isOwner ? 'Grubu sil' : 'Gruptan ayrıl',
-            style: const TextStyle(color: Colors.white)),
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           isOwner
               ? 'Bu grup TÜM üyeler için kalıcı olarak silinecek.'
               : 'Bu gruptan ayrılacaksın.',
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(isOwner ? 'Sil' : 'Ayrıl', style: const TextStyle(color: AppColors.danger)),
+            child: Text(isOwner ? 'Sil' : 'Ayrıl', style: TextStyle(color: AppColors.danger)),
           ),
         ],
       ),
@@ -211,7 +211,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                       CircleAvatar(
                         radius: 36,
                         backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                        child: const Icon(Icons.groups_rounded, color: AppColors.primary, size: 32),
+                        child: Icon(Icons.groups_rounded, color: AppColors.primary, size: 32),
                       ),
                       const SizedBox(height: 12),
                       GestureDetector(
@@ -222,7 +222,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             Text(_group.name, style: AppText.subheading.copyWith(fontSize: 18)),
                             if (_isAdmin) ...[
                               const SizedBox(width: 6),
-                              const Icon(Icons.edit_outlined, color: Colors.white38, size: 16),
+                              Icon(Icons.edit_outlined, color: AppColors.textFaint, size: 16),
                             ],
                           ],
                         ),
@@ -242,9 +242,9 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           MessagingService().setGroupAnnouncementOnly(groupId: _group.id, value: v),
                       activeColor: AppColors.primary,
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Duyuru kanalı', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      subtitle: const Text('Yalnızca yöneticiler mesaj gönderebilir',
-                          style: TextStyle(color: Colors.white54, fontSize: 11)),
+                      title: Text('Duyuru kanalı', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                      subtitle: Text('Yalnızca yöneticiler mesaj gönderebilir',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                     ),
                   ),
                 const SizedBox(height: 16),
@@ -255,8 +255,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     if (_isAdmin)
                       TextButton.icon(
                         onPressed: _addMembers,
-                        icon: const Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryLight, size: 18),
-                        label: const Text('Ekle', style: TextStyle(color: AppColors.primaryLight)),
+                        icon: Icon(Icons.person_add_alt_1_rounded, color: AppColors.primaryLight, size: 18),
+                        label: Text('Ekle', style: TextStyle(color: AppColors.primaryLight)),
                       ),
                   ],
                 ),
@@ -289,17 +289,17 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                   child: Text(
                                     memberId == _myId ? '$name (sen)' : name,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                    style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
                                   ),
                                 ),
                                 if (isOwnerRow)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 6),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 6),
                                     child: Text('Sahip', style: TextStyle(color: AppColors.warning, fontSize: 10)),
                                   )
                                 else if (isAdminRow)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 6),
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 6),
                                     child: Text('Yönetici', style: TextStyle(color: AppColors.secondaryLight, fontSize: 10)),
                                   ),
                               ],
@@ -307,7 +307,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                           ),
                           if (_isOwner && memberId != _myId)
                             PopupMenuButton<String>(
-                              icon: const Icon(Icons.more_vert, color: Colors.white38, size: 18),
+                              icon: Icon(Icons.more_vert, color: AppColors.textFaint, size: 18),
                               color: AppColors.surfaceElevated,
                               onSelected: (value) {
                                 if (value == 'toggle-admin') {
@@ -322,10 +322,10 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                                   value: 'toggle-admin',
                                   child: Text(
                                     isAdminRow ? 'Yöneticilikten al' : 'Yönetici yap',
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(color: AppColors.textPrimary),
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'remove',
                                   child: Text('Gruptan çıkar', style: TextStyle(color: AppColors.danger)),
                                 ),
@@ -333,7 +333,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                             )
                           else if (_isAdmin && !isOwnerRow && memberId != _myId)
                             IconButton(
-                              icon: const Icon(Icons.person_remove_outlined, color: AppColors.danger, size: 18),
+                              icon: Icon(Icons.person_remove_outlined, color: AppColors.danger, size: 18),
                               onPressed: () => _confirmRemove(memberId, name),
                             ),
                         ],
@@ -347,7 +347,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   icon: Icon(_isOwner ? Icons.delete_outline_rounded : Icons.logout_rounded,
                       color: AppColors.danger),
                   label: Text(_isOwner ? 'Grubu sil' : 'Gruptan ayrıl',
-                      style: const TextStyle(color: AppColors.danger)),
+                      style: TextStyle(color: AppColors.danger)),
                 ),
               ],
             ),

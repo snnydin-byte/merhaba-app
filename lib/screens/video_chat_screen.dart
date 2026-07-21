@@ -424,7 +424,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                 _webrtc.respondToFriendRequest(true);
                 setState(() => _friendStatus = _FriendStatus.added);
               },
-              child: const Text('Kabul Et',
+              child: Text('Kabul Et',
                   style: TextStyle(color: AppColors.secondary)),
             ),
           ],
@@ -617,7 +617,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
             const SizedBox(height: 10),
             ...picks.map(
               (p) => ListTile(
-                leading: const Icon(Icons.chat_bubble_outline,
+                leading: Icon(Icons.chat_bubble_outline,
                     color: AppColors.primaryLight, size: 18),
                 title: Text(p,
                     style:
@@ -814,7 +814,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                   ),
                                   if (_partnerVerified) ...[
                                     const SizedBox(width: 4),
-                                    const Icon(Icons.verified_rounded,
+                                    Icon(Icons.verified_rounded,
                                         color: AppColors.secondary, size: 14),
                                   ],
                                   if (_partnerVoiceOnly) ...[
@@ -842,11 +842,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.timer_outlined, color: AppColors.warning, size: 13),
+                                Icon(Icons.timer_outlined, color: AppColors.warning, size: 13),
                                 const SizedBox(width: 3),
                                 Text(
                                   '${(_speedRoundRemaining! ~/ 60).toString().padLeft(2, '0')}:${(_speedRoundRemaining! % 60).toString().padLeft(2, '0')}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w700),
                                 ),
                               ],
@@ -929,7 +929,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                                   Icons.videocam_off_rounded,
                                                   color: Colors.white38,
                                                   size: 32)
-                                              : const SizedBox(
+                                              : SizedBox(
                                                   width: 32,
                                                   height: 32,
                                                   child:
@@ -1108,7 +1108,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                       child: Container(
                         width: 58,
                         height: 58,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: AppGradients.liveAccent,
                         ),
@@ -1211,7 +1211,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
           decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               shape: BoxShape.circle),
-          child: const SizedBox(
+          child: SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(
@@ -1225,7 +1225,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
           decoration: BoxDecoration(
               color: AppColors.secondary.withValues(alpha: 0.2),
               shape: BoxShape.circle),
-          child: const Icon(Icons.how_to_reg_rounded,
+          child: Icon(Icons.how_to_reg_rounded,
               color: AppColors.secondary, size: 18),
         );
     }
@@ -1327,7 +1327,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                 const SizedBox(width: 6),
                 GestureDetector(
                   onTap: _sendMessage,
-                  child: const CircleAvatar(
+                  child: CircleAvatar(
                     radius: 16,
                     backgroundColor: AppColors.primary,
                     child:

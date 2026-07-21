@@ -273,11 +273,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Silinecek hesap yok',
-              style: TextStyle(color: Colors.white)),
-          content: const Text(
+          title: Text('Silinecek hesap yok',
+              style: TextStyle(color: AppColors.textPrimary)),
+          content: Text(
             'Şu an misafir olarak geziniyorsun, silinecek bir hesabın yok.',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(
@@ -294,11 +294,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Hesabı sil', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        title: Text('Hesabı sil', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
           'Bu işlem geri alınamaz. Hesabın ve profil bilgilerin sunucudan '
           'kalıcı olarak silinecek. Devam etmek istediğine emin misin?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -357,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: AppBackground(
         child: _loadingPrefs
-            ? const Center(
+            ? Center(
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
             : ListView(
@@ -409,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: AppColors.textPrimary.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(14)),
                     child: Column(
                       children: [
@@ -419,7 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           max: 90,
                           divisions: 77,
                           activeColor: AppColors.primary,
-                          inactiveColor: Colors.white.withValues(alpha: 0.15),
+                          inactiveColor: AppColors.textPrimary.withValues(alpha: 0.15),
                           labels: RangeLabels(
                             _ageRange.start.round().toString(),
                             _ageRange.end.round().toString(),
@@ -435,7 +435,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: TextField(
                     controller: _countryFilterController,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.textPrimary),
                     onChanged: _setCountryFilter,
                     decoration: InputDecoration(
                       labelText: 'Ülke filtresi (boş = herkes)',
@@ -457,7 +457,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     margin: const EdgeInsets.only(bottom: 10),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: AppColors.textPrimary.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(14)),
                     child: Slider(
                       value: _maxDistanceKm,
@@ -465,7 +465,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       max: 500,
                       divisions: 99,
                       activeColor: AppColors.primary,
-                      inactiveColor: Colors.white.withValues(alpha: 0.15),
+                      inactiveColor: AppColors.textPrimary.withValues(alpha: 0.15),
                       label: '${_maxDistanceKm.round()} km',
                       onChanged: (v) => setState(() => _maxDistanceKm = v),
                       onChangeEnd: _setMaxDistanceKm,
@@ -529,13 +529,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: GlassCard(
                     child: Row(
                       children: [
-                        const Icon(Icons.emergency_share_rounded, color: AppColors.danger),
+                        Icon(Icons.emergency_share_rounded, color: AppColors.danger),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Text('Güvenilir kişiler ve panik butonu',
-                              style: TextStyle(color: Colors.white, fontSize: 14)),
+                              style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
                         ),
-                        const Icon(Icons.chevron_right, color: Colors.white38),
+                        Icon(Icons.chevron_right, color: AppColors.textFaint),
                       ],
                     ),
                   ),
@@ -547,8 +547,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Icon(Icons.text_fields_rounded, color: AppColors.textMuted),
                       const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text('Yazı boyutu', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      Expanded(
+                        child: Text('Yazı boyutu', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
                       ),
                       ValueListenableBuilder<double>(
                         valueListenable: textScaleNotifier,
@@ -556,14 +556,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           value: scale,
                           dropdownColor: AppColors.surfaceElevated,
                           underline: const SizedBox.shrink(),
-                          items: const [
-                            DropdownMenuItem(value: 0.85, child: Text('Küçük', style: TextStyle(color: Colors.white))),
-                            DropdownMenuItem(value: 1.0, child: Text('Normal', style: TextStyle(color: Colors.white))),
-                            DropdownMenuItem(value: 1.2, child: Text('Büyük', style: TextStyle(color: Colors.white))),
-                            DropdownMenuItem(value: 1.4, child: Text('Çok Büyük', style: TextStyle(color: Colors.white))),
+                          items: [
+                            DropdownMenuItem(value: 0.85, child: Text('Küçük', style: TextStyle(color: AppColors.textPrimary))),
+                            DropdownMenuItem(value: 1.0, child: Text('Normal', style: TextStyle(color: AppColors.textPrimary))),
+                            DropdownMenuItem(value: 1.2, child: Text('Büyük', style: TextStyle(color: AppColors.textPrimary))),
+                            DropdownMenuItem(value: 1.4, child: Text('Çok Büyük', style: TextStyle(color: AppColors.textPrimary))),
                           ],
                           onChanged: (value) {
                             if (value != null) setTextScalePreference(value);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Tema seçimi - artık runtime'da değiştirilebiliyor (bkz.
+                // app_theme.dart'taki appThemeNotifier notu). Üç seçenek:
+                // mevcut koyu kimlik + iki yeni açık tema önerisi.
+                GlassCard(
+                  child: Row(
+                    children: [
+                      Icon(Icons.palette_outlined, color: AppColors.textMuted),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Tema', style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                      ),
+                      ValueListenableBuilder<AppThemeVariant>(
+                        valueListenable: appThemeNotifier,
+                        builder: (context, variant, _) => DropdownButton<AppThemeVariant>(
+                          value: variant,
+                          dropdownColor: AppColors.surfaceElevated,
+                          underline: const SizedBox.shrink(),
+                          items: [
+                            DropdownMenuItem(
+                              value: AppThemeVariant.dark,
+                              child: Text('Koyu (mevcut)', style: TextStyle(color: AppColors.textPrimary)),
+                            ),
+                            DropdownMenuItem(
+                              value: AppThemeVariant.playful,
+                              child: Text('Oyunlaştırılmış Enerji', style: TextStyle(color: AppColors.textPrimary)),
+                            ),
+                            DropdownMenuItem(
+                              value: AppThemeVariant.trust,
+                              child: Text('Güven & Berraklık', style: TextStyle(color: AppColors.textPrimary)),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) setAppThemePreference(value);
                           },
                         ),
                       ),
@@ -602,13 +642,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onPressed:
                         _deletingAccount ? null : _handleDeleteAccountTap,
                     child: _deletingAccount
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: AppColors.danger),
                           )
-                        : const Text('Hesabı Sil',
+                        : Text('Hesabı Sil',
                             style: TextStyle(color: AppColors.danger)),
                   ),
                 ),
@@ -623,7 +663,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Text(
           title,
           style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.textMuted,
               fontSize: 13,
               fontWeight: FontWeight.w600),
         ),
@@ -633,13 +673,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         margin: const EdgeInsets.only(left: 8),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
           'Yakında',
           style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: AppColors.textMuted,
               fontSize: 10,
               fontWeight: FontWeight.w600),
         ),
@@ -657,7 +697,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.textPrimary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Opacity(
         opacity: disabled ? 0.5 : 1,
@@ -668,13 +708,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 15)),
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
               if (comingSoon) _comingSoonBadge(),
             ],
           ),
           subtitle: Text(subtitle,
               style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45), fontSize: 12)),
+                  color: AppColors.textMuted, fontSize: 12)),
           value: value,
           onChanged: onChanged,
         ),
@@ -694,7 +734,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.textPrimary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(14)),
       child: Opacity(
         opacity: disabled ? 0.5 : 1,
@@ -705,7 +745,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(title,
-                    style: const TextStyle(color: Colors.white, fontSize: 15)),
+                    style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
                 if (comingSoon) _comingSoonBadge(),
               ],
             ),
@@ -713,7 +753,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               value: value,
               dropdownColor: AppColors.surfaceElevated,
               underline: const SizedBox(),
-              style: const TextStyle(color: AppColors.primaryLight),
+              style: TextStyle(color: AppColors.primaryLight),
               items: optionLabels.entries
                   .map((e) =>
                       DropdownMenuItem(value: e.key, child: Text(e.value)))
@@ -735,18 +775,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.textPrimary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(14)),
       child: ListTile(
-        leading: Icon(icon, color: Colors.white70),
+        leading: Icon(icon, color: AppColors.textSecondary),
         title: Text(title,
-            style: const TextStyle(color: Colors.white, fontSize: 15)),
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
         subtitle: subtitle != null
             ? Text(subtitle,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4), fontSize: 12))
+                    color: AppColors.textFaint, fontSize: 12))
             : null,
-        trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+        trailing: Icon(Icons.chevron_right, color: AppColors.textFaint),
         onTap: onTap ?? () {},
       ),
     );

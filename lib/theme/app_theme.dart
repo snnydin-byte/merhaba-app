@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Merhaba'nın uygulama genelinde paylaşılan görsel dili (renkler,
 /// gradyanlar, yazı stilleri, tekrar kullanılabilir bileşenler).
@@ -8,59 +9,215 @@ import 'package:flutter/material.dart';
 /// yerde tekrarlanıyordu) - bu hem tutarsızlığa (bir yerde 18, başka yerde
 /// 20 köşe yarıçapı gibi) hem de bir renk/stil değiştirmek istendiğinde
 /// onlarca dosyayı tek tek düzeltme zorunluluğuna yol açıyordu. Artık her
-/// ekran bu dosyadaki sabitleri/bileşenleri kullanıyor - "Azar tarzı" koyu
-/// tema + canlı mor/turkuaz gradyan kimliği TEK YERDEN yönetiliyor.
+/// ekran bu dosyadaki sabitleri/bileşenleri kullanıyor.
+///
+/// TEMA SEÇİMİ (runtime'da değiştirilebilir): önceden `AppColors` tamamen
+/// `static const` idi - text_scale_notifier.dart'taki eski nota göre bu,
+/// tam bir tema değişimini runtime'da İMKANSIZ kılıyordu (`const`
+/// constructor'lar içinde kullanıldığı için). Bunu çözmek için `AppColors`/
+/// `AppText`/`AppGradients` artık `static const` DEĞİL, aktif paleti
+/// (`_currentPalette`) okuyan `static get`'ler - dışarıdan bakan API
+/// (ör. `AppColors.primary`) AYNI kaldı, hiçbir ekranın import'unu ya da
+/// çağrı şeklini değiştirmeye gerek kalmadı. Değişen tek şey: artık bu
+/// değerler her okunduğunda GÜNCEL paleti yansıtıyor.
+enum AppThemeVariant { dark, playful, trust }
+
+class _Palette {
+  final Color background;
+  final Color backgroundDeep;
+  final Color surface;
+  final Color surfaceElevated;
+  final Color surfaceBorder;
+  final Color primary;
+  final Color primaryLight;
+  final Color secondary;
+  final Color secondaryLight;
+  final Color danger;
+  final Color warning;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color textMuted;
+  final Color textFaint;
+  final Color divider;
+  final Brightness brightness;
+
+  const _Palette({
+    required this.background,
+    required this.backgroundDeep,
+    required this.surface,
+    required this.surfaceElevated,
+    required this.surfaceBorder,
+    required this.primary,
+    required this.primaryLight,
+    required this.secondary,
+    required this.secondaryLight,
+    required this.danger,
+    required this.warning,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.textMuted,
+    required this.textFaint,
+    required this.divider,
+    required this.brightness,
+  });
+}
+
+/// "Koyu" - mevcut/varsayılan kimlik ("Azar tarzı" koyu zemin + mor/turkuaz
+/// gradyan). Değerler ÖNCEKİ static const'larla birebir aynı - bu paletin
+/// varsayılan olması hiçbir görsel değişikliğe yol açmıyor.
+final _darkPalette = _Palette(
+  background: const Color(0xFF0B0B16),
+  backgroundDeep: const Color(0xFF07070F),
+  surface: const Color(0xFF15121F),
+  surfaceElevated: const Color(0xFF1B1830),
+  surfaceBorder: const Color(0x1FFFFFFF),
+  primary: const Color(0xFF7C4DFF),
+  primaryLight: const Color(0xFF9575FF),
+  secondary: const Color(0xFF00BFA5),
+  secondaryLight: const Color(0xFF3DE0C4),
+  danger: const Color(0xFFFF5470),
+  warning: const Color(0xFFFFB74D),
+  textPrimary: Colors.white,
+  textSecondary: Colors.white.withValues(alpha: 0.7),
+  textMuted: Colors.white.withValues(alpha: 0.45),
+  textFaint: Colors.white.withValues(alpha: 0.3),
+  divider: Colors.white.withValues(alpha: 0.08),
+  brightness: Brightness.dark,
+);
+
+/// "Oyunlaştırılmış Enerji" - açık, gül/mercan/güneş sarısı, rozet/XP/
+/// liderlik tablosu (gamification_service.dart) özellikleriyle örtüşen sıcak
+/// ve davetkâr bir yön.
+final _playfulPalette = _Palette(
+  background: const Color(0xFFFFF1F2),
+  backgroundDeep: const Color(0xFFFFE4E7),
+  surface: const Color(0xFFFFFFFF),
+  surfaceElevated: const Color(0xFFFFFFFF),
+  surfaceBorder: const Color(0xFFFECDD3),
+  primary: const Color(0xFFE11D48),
+  primaryLight: const Color(0xFFFB7185),
+  secondary: const Color(0xFFFFC845),
+  secondaryLight: const Color(0xFFFFDD8A),
+  danger: const Color(0xFFDC2626),
+  warning: const Color(0xFFF59E0B),
+  textPrimary: const Color(0xFF881337),
+  textSecondary: const Color(0xFF881337).withValues(alpha: 0.72),
+  textMuted: const Color(0xFF881337).withValues(alpha: 0.5),
+  textFaint: const Color(0xFF881337).withValues(alpha: 0.32),
+  divider: const Color(0xFF881337).withValues(alpha: 0.1),
+  brightness: Brightness.light,
+);
+
+/// "Güven & Berraklık" - açık, lacivert/menekşe, güvenlik/gizlilik/
+/// doğrulama özelliklerini öne çıkaran sakin ve kurumsal-sıcak bir yön.
+final _trustPalette = _Palette(
+  background: const Color(0xFFF7F9FC),
+  backgroundDeep: const Color(0xFFEDF1F8),
+  surface: const Color(0xFFFFFFFF),
+  surfaceElevated: const Color(0xFFFFFFFF),
+  surfaceBorder: const Color(0xFFE2E8F0),
+  primary: const Color(0xFF1E3A8A),
+  primaryLight: const Color(0xFF3B5FCB),
+  secondary: const Color(0xFF7C6CF0),
+  secondaryLight: const Color(0xFF9B8FF5),
+  danger: const Color(0xFFDC2626),
+  warning: const Color(0xFFF59E0B),
+  textPrimary: const Color(0xFF1E293B),
+  textSecondary: const Color(0xFF1E293B).withValues(alpha: 0.7),
+  textMuted: const Color(0xFF1E293B).withValues(alpha: 0.48),
+  textFaint: const Color(0xFF1E293B).withValues(alpha: 0.3),
+  divider: const Color(0xFF1E293B).withValues(alpha: 0.1),
+  brightness: Brightness.light,
+);
+
+_Palette _paletteFor(AppThemeVariant variant) {
+  switch (variant) {
+    case AppThemeVariant.dark:
+      return _darkPalette;
+    case AppThemeVariant.playful:
+      return _playfulPalette;
+    case AppThemeVariant.trust:
+      return _trustPalette;
+  }
+}
+
+/// Aktif tema - basit bir ValueNotifier (text_scale_notifier.dart'taki AYNI
+/// desen: Provider/Riverpod gibi bir paket eklemeye gerek yok). main.dart
+/// bunu dinleyip `MaterialApp`'i yeniden kurar, settings_screen.dart
+/// değiştirir.
+final ValueNotifier<AppThemeVariant> appThemeNotifier =
+    ValueNotifier<AppThemeVariant>(AppThemeVariant.dark);
+
+const String _appThemePrefKey = 'app_theme_variant';
+
+Future<void> loadAppThemePreference() async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getString(_appThemePrefKey);
+  appThemeNotifier.value = AppThemeVariant.values.firstWhere(
+    (v) => v.name == saved,
+    orElse: () => AppThemeVariant.dark,
+  );
+}
+
+Future<void> setAppThemePreference(AppThemeVariant variant) async {
+  appThemeNotifier.value = variant;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(_appThemePrefKey, variant.name);
+}
+
 class AppColors {
   AppColors._();
 
-  // Zemin katmanları - düz tek renk yerine hafif bir derinlik hissi için
-  // birden fazla ton (bkz. AppGradients.background).
-  static const background = Color(0xFF0B0B16);
-  static const backgroundDeep = Color(0xFF07070F);
-  static const surface = Color(0xFF15121F);
-  static const surfaceElevated = Color(0xFF1B1830);
-  static const surfaceBorder = Color(0x1FFFFFFF); // white @ 12%
+  static _Palette get _p => _paletteFor(appThemeNotifier.value);
 
-  static const primary = Color(0xFF7C4DFF); // mor
-  static const primaryLight = Color(0xFF9575FF);
-  static const secondary = Color(0xFF00BFA5); // turkuaz
-  static const secondaryLight = Color(0xFF3DE0C4);
-  static const danger = Color(0xFFFF5470);
-  static const warning = Color(0xFFFFB74D);
+  static Color get background => _p.background;
+  static Color get backgroundDeep => _p.backgroundDeep;
+  static Color get surface => _p.surface;
+  static Color get surfaceElevated => _p.surfaceElevated;
+  static Color get surfaceBorder => _p.surfaceBorder;
 
-  static const textPrimary = Colors.white;
-  static Color textSecondary = Colors.white.withValues(alpha: 0.7);
-  static Color textMuted = Colors.white.withValues(alpha: 0.45);
-  static Color textFaint = Colors.white.withValues(alpha: 0.3);
-  static Color divider = Colors.white.withValues(alpha: 0.08);
+  static Color get primary => _p.primary;
+  static Color get primaryLight => _p.primaryLight;
+  static Color get secondary => _p.secondary;
+  static Color get secondaryLight => _p.secondaryLight;
+  static Color get danger => _p.danger;
+  static Color get warning => _p.warning;
+
+  static Color get textPrimary => _p.textPrimary;
+  static Color get textSecondary => _p.textSecondary;
+  static Color get textMuted => _p.textMuted;
+  static Color get textFaint => _p.textFaint;
+  static Color get divider => _p.divider;
+
+  static Brightness get brightness => _p.brightness;
 }
 
 class AppGradients {
   AppGradients._();
 
   /// Ana marka gradyanı - CTA butonları, aktif durumlar, seçili sekmeler.
-  static const primary = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [AppColors.primary, Color(0xFF6A3DE8)],
-  );
+  static LinearGradient get primary => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [AppColors.primary, AppColors.primaryLight],
+      );
 
-  /// "Canlı/bağlandı" durumları için mor->turkuaz - eşleşme bulunduğunda,
-  /// aktif görüşme rozetlerinde kullanılır.
-  static const liveAccent = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [AppColors.primary, AppColors.secondary],
-  );
+  /// "Canlı/bağlandı" durumları için birincil->ikincil - eşleşme
+  /// bulunduğunda, aktif görüşme rozetlerinde kullanılır.
+  static LinearGradient get liveAccent => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [AppColors.primary, AppColors.secondary],
+      );
 
   /// Tüm ekranların arka planında kullanılan çok hafif, neredeyse
   /// fark edilmeyen derinlik gradyanı - düz tek renkten daha "premium"
   /// hissettirir ama dikkat dağıtmaz.
-  static const background = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [AppColors.background, AppColors.backgroundDeep],
-  );
+  static LinearGradient get background => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [AppColors.background, AppColors.backgroundDeep],
+      );
 
   static LinearGradient softGlow(Color color, {double opacity = 0.25}) {
     return LinearGradient(
@@ -97,43 +254,46 @@ class AppText {
 
   static const _fontFamily = 'Roboto';
 
-  static const display = TextStyle(
-    fontFamily: _fontFamily,
-    color: AppColors.textPrimary,
-    fontSize: 28,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.5,
-    height: 1.2,
-  );
+  static TextStyle get display => TextStyle(
+        fontFamily: _fontFamily,
+        color: AppColors.textPrimary,
+        fontSize: 28,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.5,
+        height: 1.2,
+      );
 
-  static const heading = TextStyle(
-    fontFamily: _fontFamily,
-    color: AppColors.textPrimary,
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.3,
-  );
+  static TextStyle get heading => TextStyle(
+        fontFamily: _fontFamily,
+        color: AppColors.textPrimary,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.3,
+      );
 
-  static const subheading = TextStyle(
-    fontFamily: _fontFamily,
-    color: AppColors.textPrimary,
-    fontSize: 16,
-    fontWeight: FontWeight.w600,
-  );
+  static TextStyle get subheading => TextStyle(
+        fontFamily: _fontFamily,
+        color: AppColors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+      );
 
-  static TextStyle body = TextStyle(
-    fontFamily: _fontFamily,
-    color: AppColors.textSecondary,
-    fontSize: 14,
-    height: 1.45,
-  );
+  static TextStyle get body => TextStyle(
+        fontFamily: _fontFamily,
+        color: AppColors.textSecondary,
+        fontSize: 14,
+        height: 1.45,
+      );
 
-  static TextStyle caption = TextStyle(
-    fontFamily: _fontFamily,
-    color: AppColors.textMuted,
-    fontSize: 12,
-  );
+  static TextStyle get caption => TextStyle(
+        fontFamily: _fontFamily,
+        color: AppColors.textMuted,
+        fontSize: 12,
+      );
 
+  // Marka gradyanlı CTA'ların üzerindeki metin - o zemin her palette'te de
+  // yeterince koyu/doygun olduğu için bilerek SABİT beyaz (temaya bağlı
+  // değil), bu yüzden const kalabiliyor.
   static const button = TextStyle(
     fontFamily: _fontFamily,
     color: Colors.white,
@@ -153,7 +313,7 @@ class AppBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppGradients.background),
+      decoration: BoxDecoration(gradient: AppGradients.background),
       child: Stack(
         children: [
           Positioned(
@@ -164,8 +324,7 @@ class AppBackground extends StatelessWidget {
           Positioned(
             bottom: -100,
             left: -80,
-            child:
-                _Glow(color: AppColors.secondary.withValues(alpha: 0.10)),
+            child: _Glow(color: AppColors.secondary.withValues(alpha: 0.10)),
           ),
           child,
         ],
@@ -202,14 +361,14 @@ class GradientButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget child;
   final double height;
-  final Gradient gradient;
+  final Gradient? gradient;
 
   const GradientButton({
     super.key,
     required this.onPressed,
     required this.child,
     this.height = 58,
-    this.gradient = AppGradients.primary,
+    this.gradient,
   });
 
   @override
@@ -220,7 +379,7 @@ class GradientButton extends StatelessWidget {
       height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: gradient,
+          gradient: gradient ?? AppGradients.primary,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           boxShadow: enabled
               ? [
@@ -433,7 +592,8 @@ class _AppPageTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    final curved =
+        CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
@@ -447,25 +607,27 @@ class _AppPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-final appPageTransitionsTheme = PageTransitionsTheme(
+const appPageTransitionsTheme = PageTransitionsTheme(
   builders: {
-    TargetPlatform.android: const _AppPageTransitionsBuilder(),
-    TargetPlatform.iOS: const _AppPageTransitionsBuilder(),
-    TargetPlatform.macOS: const _AppPageTransitionsBuilder(),
-    TargetPlatform.windows: const _AppPageTransitionsBuilder(),
-    TargetPlatform.linux: const _AppPageTransitionsBuilder(),
+    TargetPlatform.android: _AppPageTransitionsBuilder(),
+    TargetPlatform.iOS: _AppPageTransitionsBuilder(),
+    TargetPlatform.macOS: _AppPageTransitionsBuilder(),
+    TargetPlatform.windows: _AppPageTransitionsBuilder(),
+    TargetPlatform.linux: _AppPageTransitionsBuilder(),
   },
 );
 
-/// Uygulamanın tam ThemeData'sı - main.dart'ta MaterialApp'e verilir.
+/// Uygulamanın tam ThemeData'sı - main.dart'ta MaterialApp'e verilir. Aktif
+/// tema (appThemeNotifier) değiştiğinde main.dart bu fonksiyonu YENİDEN
+/// çağırıp MaterialApp'i tazeler (bkz. main.dart'taki ValueListenableBuilder).
 ThemeData buildAppTheme() {
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: AppColors.brightness,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.primary,
-      brightness: Brightness.dark,
+      brightness: AppColors.brightness,
       primary: AppColors.primary,
       secondary: AppColors.secondary,
       error: AppColors.danger,
@@ -473,7 +635,7 @@ ThemeData buildAppTheme() {
     ),
     fontFamily: 'Roboto',
     pageTransitionsTheme: appPageTransitionsTheme,
-    textTheme: const TextTheme(
+    textTheme: TextTheme(
       displayLarge: AppText.display,
       headlineSmall: AppText.heading,
       titleMedium: AppText.subheading,
@@ -495,9 +657,13 @@ ThemeData buildAppTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.06),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      // Önceden sabit `Colors.white.withValues(alpha: 0.06)` idi - açık
+      // temalarda beyaz-üstü-beyaz dolgu neredeyse görünmez olurdu, bu
+      // yüzden metin rengine göre (koyu temada beyaz, açık temalarda koyu)
+      // ÇOK düşük alfa ile "hafif tonlanmış" bir dolgu üretiyoruz - her iki
+      // yönde de görünür ama dikkat çekmeyen bir giriş kutusu.
+      fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         borderSide: BorderSide.none,
@@ -508,9 +674,9 @@ ThemeData buildAppTheme() {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        borderSide: BorderSide(color: AppColors.primary, width: 1.5),
       ),
-      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35)),
+      hintStyle: TextStyle(color: AppColors.textFaint),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceElevated,

@@ -55,7 +55,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
@@ -69,12 +69,12 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                 radius: 22,
                                 backgroundColor: AppColors.primary.withValues(alpha: 0.25),
                                 child: Text('${user.level}',
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text('Seviye ${user.level} · ${user.xp} XP',
-                                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+                                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
                               ),
                             ],
                           ),
@@ -92,7 +92,7 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                       : (a.unlocked ? Icons.lock_open_rounded : Icons.lock_outline_rounded),
                                   color: a.claimed
                                       ? Colors.amber
-                                      : (a.unlocked ? AppColors.secondary : Colors.white38),
+                                      : (a.unlocked ? AppColors.secondary : AppColors.textFaint),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -100,14 +100,14 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(a.title,
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                       Text(a.description,
-                                          style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                                     ],
                                   ),
                                 ),
                                 if (a.claimed)
-                                  const Icon(Icons.check_circle_rounded, color: AppColors.secondary)
+                                  Icon(Icons.check_circle_rounded, color: AppColors.secondary)
                                 else if (a.unlocked)
                                   _claiming.contains(a.id)
                                       ? const SizedBox(

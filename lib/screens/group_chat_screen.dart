@@ -208,8 +208,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.reply_rounded, color: Colors.white70),
-              title: const Text('Yanıtla', style: TextStyle(color: Colors.white)),
+              leading: Icon(Icons.reply_rounded, color: AppColors.textSecondary),
+              title: Text('Yanıtla', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 setState(() => _replyingTo = item);
@@ -217,8 +217,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
             if (canDelete)
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.danger),
-                title: const Text('Sil', style: TextStyle(color: AppColors.danger)),
+                leading: Icon(Icons.delete_outline_rounded, color: AppColors.danger),
+                title: Text('Sil', style: TextStyle(color: AppColors.danger)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   if (item.serverId != null) {
@@ -292,14 +292,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.campaign_outlined, color: AppColors.warning, size: 16),
+                      Icon(Icons.campaign_outlined, color: AppColors.warning, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _canSend
                               ? 'Duyuru kanalı - yalnızca yöneticiler mesaj gönderebilir.'
                               : 'Bu bir duyuru kanalı, yalnızca yöneticiler mesaj gönderebilir.',
-                          style: const TextStyle(color: AppColors.warning, fontSize: 11),
+                          style: TextStyle(color: AppColors.warning, fontSize: 11),
                         ),
                       ),
                     ],
@@ -317,7 +317,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   Widget _buildList() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_items.isEmpty) {
       return Center(
@@ -341,7 +341,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: isMe ? AppColors.primary : Colors.white.withValues(alpha: 0.08),
+                color: isMe ? AppColors.primary : AppColors.textPrimary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -374,13 +374,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   Text(
                     item.deleted ? 'Bu mesaj silindi' : item.text,
                     style: TextStyle(
-                        color: item.deleted ? Colors.white38 : Colors.white,
+                        color: item.deleted
+                            ? (isMe ? Colors.white38 : AppColors.textFaint)
+                            : (isMe ? Colors.white : AppColors.textPrimary),
                         fontStyle: item.deleted ? FontStyle.italic : FontStyle.normal,
                         fontSize: 14),
                   ),
                   if (item.state == _SendState.failed)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
                       child: Icon(Icons.error_outline, color: AppColors.danger, size: 14),
                     ),
                 ],
@@ -397,9 +399,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: AppColors.textPrimary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: const Border(left: BorderSide(color: AppColors.primary, width: 3)),
+        border: Border(left: BorderSide(color: AppColors.primary, width: 3)),
       ),
       child: Row(
         children: [
@@ -408,12 +410,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               _replyingTo!.text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
           ),
           GestureDetector(
             onTap: () => setState(() => _replyingTo = null),
-            child: const Icon(Icons.close, color: Colors.white54, size: 16),
+            child: Icon(Icons.close, color: AppColors.textMuted, size: 16),
           ),
         ],
       ),
@@ -428,12 +430,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           Expanded(
             child: TextField(
               controller: _controller,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Mesaj yaz...',
-                hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                hintStyle: TextStyle(color: AppColors.textFaint),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.06),
+                fillColor: AppColors.textPrimary.withValues(alpha: 0.06),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
@@ -446,10 +448,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: _send,
-            child: const CircleAvatar(
+            child: CircleAvatar(
               radius: 20,
               backgroundColor: AppColors.primary,
-              child: Icon(Icons.send_rounded, color: Colors.white, size: 18),
+              child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
             ),
           ),
         ],

@@ -43,9 +43,9 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Buluştunuz mu?', style: TextStyle(color: Colors.white)),
+        title: Text('Buluştunuz mu?', style: TextStyle(color: AppColors.textPrimary)),
         content: Text('${match.user.displayName} ile gerçek hayatta buluştun mu?',
-            style: const TextStyle(color: Colors.white70)),
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Hayır')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Evet')),
@@ -68,10 +68,10 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : _matches.isEmpty
-                  ? const Center(
-                      child: Text('Henüz bir eşleşmen yok.', style: TextStyle(color: Colors.white70)))
+                  ? Center(
+                      child: Text('Henüz bir eşleşmen yok.', style: TextStyle(color: AppColors.textSecondary)))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _matches.length,
@@ -98,18 +98,18 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(match.user.displayName,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                                      style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
                                 ),
                                 if (match.weMet == null)
                                   IconButton(
                                     tooltip: 'Buluştunuz mu?',
                                     onPressed: () => _askWeMet(match),
-                                    icon: const Icon(Icons.event_available_outlined, color: Colors.white54),
+                                    icon: Icon(Icons.event_available_outlined, color: AppColors.textMuted),
                                   ),
                                 IconButton(
                                   onPressed: () => Navigator.of(context)
                                       .push(AppPageRoute(builder: (_) => ChatScreen(friend: match.user))),
-                                  icon: const Icon(Icons.chat_bubble_rounded, color: AppColors.primaryLight),
+                                  icon: Icon(Icons.chat_bubble_rounded, color: AppColors.primaryLight),
                                 ),
                               ],
                             ),

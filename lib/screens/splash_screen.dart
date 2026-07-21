@@ -84,12 +84,13 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1A1035), AppColors.backgroundDeep],
-          ),
+        decoration: BoxDecoration(
+          // Önceden bir köşesi sabit koyu mor (0xFF1A1035), diğeri
+          // AppColors.backgroundDeep idi - tema artık runtime'da değişince bu
+          // ikisi uyuşmaz olurdu (açık temalarda tek köşe hâlâ koyu kalırdı).
+          // Uygulamanın kendi arka plan gradyanını (AppGradients.background)
+          // kullanmak splash'ı her temada tutarlı kılıyor.
+          gradient: AppGradients.background,
         ),
         child: Center(
           child: Column(
@@ -125,11 +126,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text('Merhaba', style: AppText.display),
+              Text('Merhaba', style: AppText.display),
               const SizedBox(height: 8),
               Text('Dünyayla tanış', style: AppText.body),
               const SizedBox(height: 40),
-              const SizedBox(
+              SizedBox(
                 width: 28,
                 height: 28,
                 child: CircularProgressIndicator(

@@ -12,6 +12,7 @@ import '../utils/online_status.dart';
 import 'discover_screen.dart';
 import 'friends_screen.dart';
 import 'group_call_pre_screen.dart';
+import 'live_room_list_screen.dart';
 import 'pre_call_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
@@ -133,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           children: [
             _serverReachable
-                ? const PulsingDot(color: AppColors.secondary, size: 8)
+                ? PulsingDot(color: AppColors.secondary, size: 8)
                 : Container(
                     width: 10,
                     height: 10,
@@ -167,14 +168,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             user.displayName.isNotEmpty
                                 ? user.displayName[0].toUpperCase()
                                 : '?',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
                           )
-                        : const Icon(Icons.person_outline,
-                            color: Colors.white70, size: 18)),
+                        : Icon(Icons.person_outline,
+                            color: AppColors.textSecondary, size: 18)),
               ),
             ),
             const SizedBox(width: 4),
@@ -184,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   AppPageRoute(builder: (_) => const SettingsScreen()),
                 );
               },
-              icon: const Icon(Icons.settings_outlined, color: Colors.white70),
+              icon: Icon(Icons.settings_outlined, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -222,6 +223,15 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => Navigator.of(context)
                   .push(AppPageRoute(builder: (_) => const DiscoverScreen())),
             ),
+            const SizedBox(width: 8),
+            _pillEntry(
+              context,
+              icon: Icons.live_tv_rounded,
+              label: 'Canlı',
+              iconColor: AppColors.danger,
+              onTap: () => Navigator.of(context)
+                  .push(AppPageRoute(builder: (_) => const LiveRoomListScreen())),
+            ),
           ],
         ],
       ),
@@ -233,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    Color iconColor = AppColors.primaryLight,
+    Color? iconColor,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -247,15 +257,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: iconColor, size: 16),
+            Icon(icon, color: iconColor ?? AppColors.primaryLight, size: 16),
             const SizedBox(width: 6),
             Text(
               label,
               style: AppText.subheading.copyWith(fontSize: 13),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded,
-                color: Colors.white38, size: 16),
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.textFaint, size: 16),
           ],
         ),
       ),
@@ -277,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(Icons.public_rounded,
             color: AppColors.primaryLight, size: 80),
       ),
@@ -326,10 +336,10 @@ class _HomeScreenState extends State<HomeScreen> {
           AppPageRoute(builder: (_) => const GroupCallPreScreen()),
         );
       },
-      icon: const Icon(Icons.groups_rounded, color: Colors.white54, size: 18),
-      label: const Text(
+      icon: Icon(Icons.groups_rounded, color: AppColors.textMuted, size: 18),
+      label: Text(
         'Grup Görüşmesi (beta) · 3-4 kişi',
-        style: TextStyle(color: Colors.white54, fontSize: 13),
+        style: TextStyle(color: AppColors.textMuted, fontSize: 13),
       ),
     );
   }

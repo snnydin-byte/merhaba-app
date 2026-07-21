@@ -287,7 +287,7 @@ class _CallScreenState extends State<CallScreen> {
                           _permissionError
                               ? const Icon(Icons.videocam_off_rounded,
                                   color: Colors.white38, size: 32)
-                              : const SizedBox(
+                              : SizedBox(
                                   width: 32,
                                   height: 32,
                                   child: CircularProgressIndicator(
@@ -430,7 +430,7 @@ class _CallScreenState extends State<CallScreen> {
             child: Container(
               width: 58,
               height: 58,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   shape: BoxShape.circle, color: AppColors.danger),
               child: const Icon(Icons.call_end_rounded,
                   color: Colors.white, size: 26),
