@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
@@ -107,22 +109,10 @@ class _SplashScreenState extends State<SplashScreen> {
                   scale: value.clamp(0, 1.15),
                   child: Opacity(opacity: value.clamp(0, 1), child: child),
                 ),
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppGradients.liveAccent,
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.primary.withValues(alpha: 0.5),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.videocam_rounded,
-                      color: Colors.white, size: 44),
+                child: const SizedBox(
+                  width: 168,
+                  height: 113.5, // 168 * 200/296 - aynı en-boy oranı (bkz. _ConnectionMarkPainter)
+                  child: CustomPaint(painter: _ConnectionMarkPainter()),
                 ),
               ),
               const SizedBox(height: 24),
@@ -142,4 +132,75 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
+}
+
+/// Uygulamanın marka işareti - "Bağlantı Zinciri" logosu (bkz. android/ios/
+/// macos/web ikon dosyaları, aynı geometri). Marka rengi BİLEREK sabit
+/// (tema-bağımsız) - AppColors.primary/secondary kullanılan tema ile
+/// değişebilir ama logonun kendisi her temada aynı kimliği taşımalı, tıpkı
+/// uygulama ikonunun tema seçiminden etkilenmemesi gibi. Koordinatlar,
+/// ikon üretiminde kullanılan 296x200 SVG viewBox'ıyla birebir aynı.
+class _ConnectionMarkPainter extends CustomPainter {
+  const _ConnectionMarkPainter();
+
+  static const _violet = Color(0xFF9575FF);
+  static const _turquoise = Color(0xFF3DE0C4);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.width / 296;
+    canvas.scale(scale);
+
+    final gradientShader = ui.Gradient.linear(
+      const Offset(0, 100),
+      const Offset(296, 100),
+      const [_violet, _turquoise, _violet],
+      const [0, 0.5, 1],
+    );
+
+    final archPaint = Paint()
+      ..shader = gradientShader
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+    final arches = Path()
+      ..moveTo(52, 140)
+      ..quadraticBezierTo(100, 40, 148, 140)
+      ..quadraticBezierTo(196, 40, 244, 140);
+    canvas.drawPath(arches, archPaint);
+
+    canvas.drawCircle(const Offset(52, 140), 14, Paint()..color = _violet);
+    canvas.drawCircle(const Offset(148, 140), 14, Paint()..color = _turquoise);
+    canvas.drawCircle(const Offset(244, 140), 14, Paint()..color = _violet);
+
+    final ringPaint = Paint()
+      ..shader = gradientShader
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..isAntiAlias = true;
+    canvas.drawCircle(const Offset(100, 104), 15, ringPaint);
+    canvas.drawCircle(const Offset(196, 104), 15, ringPaint);
+
+    final trianglePaint = Paint()..color = Colors.white;
+    canvas.drawPath(
+      Path()
+        ..moveTo(92, 94)
+        ..lineTo(112, 104)
+        ..lineTo(92, 114)
+        ..close(),
+      trianglePaint,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(188, 94)
+        ..lineTo(208, 104)
+        ..lineTo(188, 114)
+        ..close(),
+      trianglePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConnectionMarkPainter oldDelegate) => false;
 }
