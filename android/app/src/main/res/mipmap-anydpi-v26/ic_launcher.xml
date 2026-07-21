@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon (API 26+) - önceden bu dosya hiç yoktu, bazı launcher'lar
+     düz kare ic_launcher.png'yi kendi yuvarlak/squircle maskesiyle kırpıp
+     köşelerde sistemin varsayılan beyazını gösteriyordu. Artık arka plan
+     (marka rengimiz) ve ön yüz (yalnızca işaret, şeffaf zeminde) ayrı
+     katmanlar - maskeleme her şekilde bizim rengimizle oluyor. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>

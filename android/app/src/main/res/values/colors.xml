@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Marka arka plan rengi - lib/theme/app_theme.dart'taki AppColors.backgroundDeep
+         (koyu tema) ile aynı. Android 12+ zorunlu sistem açılış ekranında ve
+         adaptive icon arka planında kullanılıyor ki Flutter'ın kendi açılış
+         ekranına geçiş beyaz çakma yapmadan sorunsuz olsun. -->
+    <color name="brand_dark_background">#0B0B16</color>
+    <!-- Adaptive icon (mipmap-anydpi-v26/ic_launcher.xml) arka plan katmanı -
+         launcher'lar kareyi yuvarlak/squircle maskelediğinde köşelerde
+         sistemin varsayılan beyazı yerine bu rengin görünmesini sağlar. -->
+    <color name="ic_launcher_background">#0B0B16</color>
+</resources>

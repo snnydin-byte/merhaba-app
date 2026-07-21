@@ -80,6 +80,7 @@
   "78": "Windows Build Yapılandırması",
   "79": "Kimlik Doğrulama İstisnası",
   "80": "Platformlar Arası İkon/Splash Bağlantısı",
+  "81": "_MerhabaAppState",
   "82": "Anket Oluşturma Diyaloğu",
   "83": "Zamanlanmış Mesaj Diyaloğu",
   "84": "Beni Beğenenler Ekranı (State)",
@@ -129,5 +130,7 @@
   "128": "Web App Icon (512)",
   "129": "Web App Icon Maskable (192)",
   "130": "Web App Icon Maskable (512)",
-  "131": "Flutter Web Giriş Noktası (web/index.html)"
+  "131": "Flutter Web Giriş Noktası (web/index.html)",
+  "132": "HomeScreen",
+  "133": "SplashScreen"
 }

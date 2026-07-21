@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
+import '../widgets/connection_mark.dart';
 import 'discover_screen.dart';
 import 'friends_screen.dart';
 import 'group_call_pre_screen.dart';
@@ -287,9 +288,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      child: Center(
-        child: Icon(Icons.public_rounded,
-            color: AppColors.primaryLight, size: 80),
+      child: const Center(
+        child: ConnectionMark(width: 110),
       ),
     );
   }

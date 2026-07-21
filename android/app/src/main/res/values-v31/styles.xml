@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ (API 31) zorunlu sistem açılış ekranı - önceden hiç
+         özelleştirilmemişti, varsayılan beyaz arka plan + küçük ikon
+         gösterip Flutter'ın kendi koyu "Merhaba" açılış ekranına geçmeden
+         önce rahatsız edici bir beyaz çakma oluşturuyordu. Marka rengiyle
+         eşleştirip geçişi kusursuz hale getiriyoruz. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/brand_dark_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>
