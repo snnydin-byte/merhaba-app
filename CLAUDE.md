@@ -1,3 +1,11 @@
+## Health Stack
+
+- typecheck: flutter analyze
+- lint: flutter analyze
+- test: flutter test
+- gbrain: gbrain doctor --json
+- note: signaling_server/ (Node.js) has no automated test/lint config — not scored, ad-hoc E2E scripts only
+
 ## Skill routing
 
 When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
