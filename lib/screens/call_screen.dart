@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -45,7 +47,17 @@ class _CallScreenState extends State<CallScreen> {
   bool _permissionError = false;
   bool _permissionPermanentlyDenied = false;
   bool _switchingCamera = false;
+  bool _connectionTimedOut = false;
   String _status = 'Bağlanılıyor...';
+  Timer? _connectTimeoutTimer;
+
+  // ÖNCEDEN bu ekran, karşı taraf kabul ettikten sonra WebRTC bağlantısı
+  // (offer/answer/ICE) herhangi bir sebeple tamamlanmazsa (ör. TURN/STUN
+  // güvenilirlik sorunu, bkz. KURULUM.md) "Bağlanılıyor..." durumunda
+  // SONSUZA KADAR takılı kalıyordu - kullanıcının tek çıkışı manuel geri
+  // gitmekti. Artık belirli bir süre sonunda net bir hata gösterip
+  // aramayı kapatma seçeneği sunuyoruz.
+  static const _connectTimeout = Duration(seconds: 25);
 
   @override
   void initState() {
@@ -59,12 +71,21 @@ class _CallScreenState extends State<CallScreen> {
       await _remoteRenderer.initialize();
     }
 
+    _connectTimeoutTimer = Timer(_connectTimeout, () {
+      if (!mounted || _connected) return;
+      setState(() {
+        _connectionTimedOut = true;
+        _status = 'Bağlantı kurulamadı.';
+      });
+    });
+
     widget.callService.onStatusChange = (status) {
       if (!mounted) return;
       setState(() {
         _status = status;
         _connected = status == 'Bağlandı';
       });
+      if (_connected) _connectTimeoutTimer?.cancel();
     };
 
     widget.callService.onLocalStream = (stream) {
@@ -181,6 +202,7 @@ class _CallScreenState extends State<CallScreen> {
 
   @override
   void dispose() {
+    _connectTimeoutTimer?.cancel();
     if (widget.isVideo) {
       _localRenderer.dispose();
       _remoteRenderer.dispose();
@@ -259,6 +281,17 @@ class _CallScreenState extends State<CallScreen> {
                   : 'Tekrar Dene'),
             ),
           ],
+          if (_connectionTimedOut) ...[
+            const SizedBox(height: 20),
+            OutlinedButton(
+              onPressed: _endCall,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white38),
+              ),
+              child: const Text('Kapat'),
+            ),
+          ],
         ],
       ),
     );
@@ -285,7 +318,7 @@ class _CallScreenState extends State<CallScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _permissionError
+                          _permissionError || _connectionTimedOut
                               ? const Icon(Icons.videocam_off_rounded,
                                   color: Colors.white38, size: 32)
                               : SizedBox(
@@ -316,6 +349,17 @@ class _CallScreenState extends State<CallScreen> {
                               child: Text(_permissionPermanentlyDenied
                                   ? 'Ayarlara Git'
                                   : 'Tekrar Dene'),
+                            ),
+                          ],
+                          if (_connectionTimedOut) ...[
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: _endCall,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Colors.white38),
+                              ),
+                              child: const Text('Kapat'),
                             ),
                           ],
                         ],
