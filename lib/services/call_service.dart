@@ -175,6 +175,7 @@ class CallService {
       io.OptionBuilder()
           .setTransports(['websocket'])
           .disableAutoConnect()
+          .enableForceNew()
           .setAuth({'token': authToken})
           .build(),
     );

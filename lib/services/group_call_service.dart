@@ -40,8 +40,10 @@ class GroupCallService {
     _socket?.dispose();
     _targetSize = size;
 
-    final optionBuilder =
-        io.OptionBuilder().setTransports(['websocket']).disableAutoConnect();
+    final optionBuilder = io.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .enableForceNew();
     if (authToken != null) optionBuilder.setAuth({'token': authToken});
     _socket = io.io(signalingServerUrl, optionBuilder.build());
 

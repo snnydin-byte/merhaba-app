@@ -105,8 +105,10 @@ class LiveRoomService {
   void _connectSocket(String authToken) {
     _socket?.disconnect();
     _socket?.dispose();
-    final optionBuilder =
-        io.OptionBuilder().setTransports(['websocket']).disableAutoConnect();
+    final optionBuilder = io.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .enableForceNew();
     optionBuilder.setAuth({'token': authToken});
     _socket = io.io(signalingServerUrl, optionBuilder.build());
 

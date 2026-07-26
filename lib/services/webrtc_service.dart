@@ -334,8 +334,10 @@ class WebRTCService {
     // eşleşme genelde bundan daha uzun sürdüğü için _createPeerConnection()
     // çağrıldığında bu iş çoktan bitmiş olur.
     _iceServersFuture = _refreshIceServers();
-    final optionBuilder =
-        io.OptionBuilder().setTransports(['websocket']).disableAutoConnect();
+    final optionBuilder = io.OptionBuilder()
+        .setTransports(['websocket'])
+        .disableAutoConnect()
+        .enableForceNew();
     if (authToken != null) {
       optionBuilder.setAuth({'token': authToken});
     }
