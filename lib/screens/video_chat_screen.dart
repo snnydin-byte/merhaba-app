@@ -384,6 +384,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _webrtc.connectAndFindMatch(
           authToken: AuthService().token, matchPreferences: matchPrefs);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = 'Kamera/mikrofon açılamadı.';
         _permissionError = true;
@@ -549,6 +550,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _webrtc.connectAndFindMatch(
           authToken: AuthService().token, matchPreferences: matchPrefs);
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = 'Kamera/mikrofon açılamadı.';
         _permissionError = true;

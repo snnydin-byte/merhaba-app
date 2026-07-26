@@ -155,6 +155,7 @@ class _CallScreenState extends State<CallScreen> {
       await widget.callService
           .initLocalMedia(video: widget.isVideo, onLocal: (_) {});
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = widget.isVideo
             ? 'Kamera/mikrofon açılamadı.'

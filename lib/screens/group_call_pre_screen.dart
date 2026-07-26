@@ -111,7 +111,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
     setState(() => _loading = true);
     final granted = await _ensurePermissions();
     if (!granted) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       return;
     }
     try {

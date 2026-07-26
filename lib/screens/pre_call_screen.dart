@@ -161,7 +161,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
     setState(() => _loading = true);
     final granted = await _ensurePermissions();
     if (!granted) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
       return;
     }
     try {
