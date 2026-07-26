@@ -551,6 +551,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
               shape: BoxShape.circle,
               color: AppColors.surfaceElevated,
               border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+              boxShadow: neonGlow(color, opacity: 0.35, blurRadius: 18, spreadRadius: 1),
             ),
             child: Icon(icon, color: color, size: size * 0.45),
           ),

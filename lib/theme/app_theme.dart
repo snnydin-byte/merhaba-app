@@ -34,6 +34,7 @@ class _Palette {
   final Color secondaryLight;
   final Color danger;
   final Color warning;
+  final Color accentGreen;
   final Color textPrimary;
   final Color textSecondary;
   final Color textMuted;
@@ -53,6 +54,7 @@ class _Palette {
     required this.secondaryLight,
     required this.danger,
     required this.warning,
+    required this.accentGreen,
     required this.textPrimary,
     required this.textSecondary,
     required this.textMuted,
@@ -62,21 +64,25 @@ class _Palette {
   });
 }
 
-/// "Koyu" - mevcut/varsayılan kimlik ("Azar tarzı" koyu zemin + mor/turkuaz
-/// gradyan). Değerler ÖNCEKİ static const'larla birebir aynı - bu paletin
-/// varsayılan olması hiçbir görsel değişikliğe yol açmıyor.
+/// "Koyu" - varsayılan kimlik. 27 Tem 2026'da Canva AI'de üretilen "Neon
+/// Dark-Mode" mockup setine göre güncellendi (neredeyse siyah zemin + neon
+/// mor/camgöbeği vurgular + glow efektleri) - bkz. AGENTS_LOG.md aynı
+/// tarihli kayıt. Önceki mor/turkuaz paleti buydu: primary #7C4DFF,
+/// secondary #00BFA5 - yeni palet aynı ruh halini (mor+turkuaz ikilisi)
+/// korurken çok daha doygun/neon bir versiyonuna geçiyor.
 final _darkPalette = _Palette(
-  background: const Color(0xFF0B0B16),
-  backgroundDeep: const Color(0xFF07070F),
-  surface: const Color(0xFF15121F),
-  surfaceElevated: const Color(0xFF1B1830),
-  surfaceBorder: const Color(0x1FFFFFFF),
-  primary: const Color(0xFF7C4DFF),
-  primaryLight: const Color(0xFF9575FF),
-  secondary: const Color(0xFF00BFA5),
-  secondaryLight: const Color(0xFF3DE0C4),
-  danger: const Color(0xFFFF5470),
+  background: const Color(0xFF0D0E11),
+  backgroundDeep: const Color(0xFF07080A),
+  surface: const Color(0xFF15171C),
+  surfaceElevated: const Color(0xFF1C1F26),
+  surfaceBorder: const Color(0x33FFFFFF),
+  primary: const Color(0xFF9D4EDD),
+  primaryLight: const Color(0xFFC77DFF),
+  secondary: const Color(0xFF00E5FF),
+  secondaryLight: const Color(0xFF6FF3FF),
+  danger: const Color(0xFFFF006E),
   warning: const Color(0xFFFFB74D),
+  accentGreen: const Color(0xFF00FF88),
   textPrimary: Colors.white,
   textSecondary: Colors.white.withValues(alpha: 0.7),
   textMuted: Colors.white.withValues(alpha: 0.45),
@@ -100,6 +106,7 @@ final _playfulPalette = _Palette(
   secondaryLight: const Color(0xFFFFDD8A),
   danger: const Color(0xFFDC2626),
   warning: const Color(0xFFF59E0B),
+  accentGreen: const Color(0xFF22C55E),
   textPrimary: const Color(0xFF881337),
   textSecondary: const Color(0xFF881337).withValues(alpha: 0.72),
   textMuted: const Color(0xFF881337).withValues(alpha: 0.5),
@@ -122,6 +129,7 @@ final _trustPalette = _Palette(
   secondaryLight: const Color(0xFF9B8FF5),
   danger: const Color(0xFFDC2626),
   warning: const Color(0xFFF59E0B),
+  accentGreen: const Color(0xFF16A34A),
   textPrimary: const Color(0xFF1E293B),
   textSecondary: const Color(0xFF1E293B).withValues(alpha: 0.7),
   textMuted: const Color(0xFF1E293B).withValues(alpha: 0.48),
@@ -182,6 +190,7 @@ class AppColors {
   static Color get secondaryLight => _p.secondaryLight;
   static Color get danger => _p.danger;
   static Color get warning => _p.warning;
+  static Color get accentGreen => _p.accentGreen;
 
   static Color get textPrimary => _p.textPrimary;
   static Color get textSecondary => _p.textSecondary;
@@ -229,6 +238,25 @@ class AppGradients {
       ],
     );
   }
+}
+
+/// Neon "glow" gölgesi - Canva mockup setindeki tekrar eden efekt (koyu
+/// zemin üzerinde CTA butonları, aktif avatarlar, öne çıkan kartlar için).
+/// `blurRadius`/`spreadRadius` varsayılanları mockup'larda gözlemlenen
+/// aralığın (30-40 / 5-10) ortasına yakın.
+List<BoxShadow> neonGlow(
+  Color color, {
+  double opacity = 0.55,
+  double blurRadius = 32,
+  double spreadRadius = 6,
+}) {
+  return [
+    BoxShadow(
+      color: color.withValues(alpha: opacity),
+      blurRadius: blurRadius,
+      spreadRadius: spreadRadius,
+    ),
+  ];
 }
 
 class AppRadius {
@@ -381,15 +409,7 @@ class GradientButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: gradient ?? AppGradients.primary,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: enabled
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.35),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : null,
+          boxShadow: enabled ? neonGlow(AppColors.primary, opacity: 0.45) : null,
         ),
         child: Opacity(
           opacity: enabled ? 1 : 0.45,

@@ -185,13 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: AppGradients.liveAccent,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.35),
-                blurRadius: 24,
-                spreadRadius: 2,
-              ),
-            ],
+            boxShadow: neonGlow(AppColors.primary),
           ),
           child:
               const Icon(Icons.videocam_rounded, color: Colors.white, size: 32),

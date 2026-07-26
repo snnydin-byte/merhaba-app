@@ -287,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
             AppColors.secondary.withValues(alpha: 0.15),
           ],
         ),
+        boxShadow: neonGlow(AppColors.primary, opacity: 0.3, blurRadius: 40, spreadRadius: 8),
       ),
       child: const Center(
         child: ConnectionMark(width: 110),

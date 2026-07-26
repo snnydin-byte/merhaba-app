@@ -72,8 +72,12 @@ class _ConnectionMarkPainter extends CustomPainter {
 
   final double t;
 
-  static const _violet = Color(0xFF9575FF);
-  static const _turquoise = Color(0xFF3DE0C4);
+  // 27 Tem 2026: yeni neon marka paletiyle (bkz. app_theme.dart _darkPalette)
+  // eşleşecek şekilde güncellendi - marka rengi kasıtlı olarak hâlâ sabit
+  // (tema-bağımsız, yukarıdaki sınıf yorumuna bakın), yalnızca SABİT değer
+  // değişti.
+  static const _violet = Color(0xFF9D4EDD);
+  static const _turquoise = Color(0xFF00E5FF);
 
   // Giriş animasyonu zaman çizelgesi (0..1 toplam süre üzerinden):
   // kavisler önce çizilir, dış düğümler kavis ucuna ulaşınca belirir,
