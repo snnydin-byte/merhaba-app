@@ -931,14 +931,49 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                                   Icons.videocam_off_rounded,
                                                   color: Colors.white38,
                                                   size: 32)
-                                              : SizedBox(
-                                                  width: 32,
-                                                  height: 32,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                          strokeWidth: 2.5,
+                                              // Canva "radar" mockup'ındaki
+                                              // konsantrik neon halka efekti -
+                                              // yalnızca dekoratif, mevcut
+                                              // arama mantığına dokunmuyor.
+                                              : Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    Container(
+                                                      width: 88,
+                                                      height: 88,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
                                                           color: AppColors
-                                                              .primary),
+                                                              .secondary
+                                                              .withValues(
+                                                                  alpha: 0.25),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    Container(
+                                                      width: 60,
+                                                      height: 60,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
+                                                          color: AppColors
+                                                              .primary
+                                                              .withValues(
+                                                                  alpha: 0.35),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    SizedBox(
+                                                      width: 32,
+                                                      height: 32,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2.5,
+                                                              color: AppColors
+                                                                  .primary),
+                                                    ),
+                                                  ],
                                                 ),
                                           const SizedBox(height: 16),
                                           Padding(

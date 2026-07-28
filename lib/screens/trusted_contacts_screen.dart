@@ -107,6 +107,19 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     }
   }
 
+  Future<void> _callContact(TrustedContact contact) async {
+    final uri = Uri(scheme: 'tel', path: contact.phone);
+    try {
+      await launchUrl(uri);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${contact.name} aranamadı.')),
+        );
+      }
+    }
+  }
+
   Future<void> _sendToContact(TrustedContact contact, String body) async {
     final uri = Uri(
       scheme: 'sms',
@@ -214,6 +227,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                             ),
                           ),
                           IconButton(
+                            onPressed: () => _callContact(entry.value),
+                            icon: Icon(Icons.call_rounded, color: AppColors.secondary),
+                          ),
+                          IconButton(
                             onPressed: _saving ? null : () => _removeContact(entry.key),
                             icon: Icon(Icons.delete_outline, color: AppColors.danger),
                           ),
@@ -227,24 +244,47 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                 label: const Text('Güvenilir kişi ekle'),
               ),
               const SizedBox(height: 24),
+              // Canva mockup'ındaki büyük dairesel SOS butonu - davranış AYNI
+              // (tek dokunuşla güvenilir kişilere SMS), yalnızca görsel dil
+              // değişti. "Canlı konum takibi"/"siren" gibi mockup'ın vaat
+              // ettiği ama sunucu tarafında karşılığı OLMAYAN özellikler
+              // eklenmedi (bkz. sınıf üstü not - Noonlight/gerçek acil çağrı
+              // entegrasyonu bilerek yok).
+              Center(
+                child: GestureDetector(
+                  onTap: _locating ? null : _triggerPanic,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.danger.withValues(alpha: 0.15),
+                      border: Border.all(color: AppColors.danger, width: 2),
+                      boxShadow: neonGlow(AppColors.danger, opacity: 0.5, blurRadius: 36, spreadRadius: 4),
+                    ),
+                    child: Center(
+                      child: _locating
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.emergency_share_rounded, color: AppColors.danger, size: 32),
+                                const SizedBox(height: 6),
+                                Text('YARDIM\nİSTE',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: AppColors.danger, fontWeight: FontWeight.w800, fontSize: 15)),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               OutlinedButton.icon(
                 onPressed: _locating ? null : _shareMeetingDetails,
                 icon: const Icon(Icons.event_available_outlined),
                 label: const Text('Buluşma detayını paylaş'),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton.icon(
-                  onPressed: _locating ? null : _triggerPanic,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
-                  icon: _locating
-                      ? const SizedBox(
-                          width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.emergency_share_rounded, color: Colors.white),
-                  label: const Text('Yardım İste', style: TextStyle(color: Colors.white)),
-                ),
               ),
             ],
           ),

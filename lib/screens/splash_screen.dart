@@ -85,14 +85,10 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          // Önceden bir köşesi sabit koyu mor (0xFF1A1035), diğeri
-          // AppColors.backgroundDeep idi - tema artık runtime'da değişince bu
-          // ikisi uyuşmaz olurdu (açık temalarda tek köşe hâlâ koyu kalırdı).
-          // Uygulamanın kendi arka plan gradyanını (AppGradients.background)
-          // kullanmak splash'ı her temada tutarlı kılıyor.
-          gradient: AppGradients.background,
-        ),
+        // Canva neon dark-mode mockup'ında splash düz, neredeyse tam siyah
+        // (gradyan görünmüyor) - backgroundDeep tek renk burada gradyandan
+        // daha sadık.
+        color: AppColors.backgroundDeep,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -110,16 +106,17 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 child: const ConnectionMark(width: 168),
               ),
-              const SizedBox(height: 24),
-              Text('Merhaba', style: AppText.display),
-              const SizedBox(height: 8),
-              Text('Dünyayla tanış', style: AppText.body),
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
+              Text(
+                'MERHABA',
+                style: AppText.display.copyWith(letterSpacing: 6),
+              ),
+              const SizedBox(height: 48),
               SizedBox(
-                width: 28,
-                height: 28,
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: AppColors.primary),
+                    strokeWidth: 2.5, color: AppColors.secondary),
               ),
             ],
           ),

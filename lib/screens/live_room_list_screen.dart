@@ -94,16 +94,27 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('Canlı Yayınlar')),
+      appBar: AppBar(
+        title: Text('Canlı Yayınlar', style: AppText.subheading),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      // Bu ekran daha önce uygulamanın geri kalanından farklı (düz Material
+      // Card/varsayılan AppBar) görünüyordu - Canva mockup'ının video-bento
+      // kart dilini alırken aynı zamanda uygulamanın kendi tema
+      // token'larına (GlassCard/GradientButton) da uydurduk.
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _startHosting,
-        icon: const Icon(Icons.videocam),
-        label: const Text('Yayın Aç'),
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.videocam_rounded, color: Colors.white),
+        label: Text('Yayın Aç', style: AppText.button.copyWith(fontSize: 14)),
       ),
       body: AppBackground(
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: _load,
+            color: AppColors.primary,
+            backgroundColor: AppColors.surfaceElevated,
             child: _buildBody(),
           ),
         ),
@@ -112,7 +123,9 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
     if (_error != null) {
       return Center(
         child: Text(_error!, style: TextStyle(color: AppColors.textSecondary)),
@@ -124,28 +137,74 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 100),
+      padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 90),
       itemCount: _rooms.length,
       itemBuilder: (context, index) {
         final room = _rooms[index];
         final title = (room['title'] as String?)?.trim();
         final viewerCount = room['viewerCount'] as int? ?? 0;
-        return Card(
-          color: AppColors.surface,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.live_tv)),
-            title: Text(
-              title == null || title.isEmpty ? 'Canlı Yayın' : title,
-              style: TextStyle(color: AppColors.textPrimary),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GlassCard(
+            padding: EdgeInsets.zero,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => LiveRoomScreen.viewer(roomId: room['id'] as String)),
+                );
+                if (mounted) _load();
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Stack(
+                      alignment: Alignment.bottomRight,
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                          child: Icon(Icons.live_tv_rounded, color: AppColors.primary),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: const Text('CANLI',
+                              style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title == null || title.isEmpty ? 'Canlı Yayın' : title,
+                            style: AppText.subheading.copyWith(fontSize: 15),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.visibility_rounded, color: AppColors.textMuted, size: 14),
+                              const SizedBox(width: 4),
+                              Text('$viewerCount izleyici',
+                                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+                  ],
+                ),
+              ),
             ),
-            subtitle: Text('$viewerCount izleyici', style: TextStyle(color: AppColors.textSecondary)),
-            onTap: () async {
-              await Navigator.of(context).push(
-                AppPageRoute(builder: (_) => LiveRoomScreen.viewer(roomId: room['id'] as String)),
-              );
-              if (mounted) _load();
-            },
           ),
         );
       },

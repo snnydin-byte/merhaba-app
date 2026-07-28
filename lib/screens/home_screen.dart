@@ -9,7 +9,6 @@ import '../services/auth_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
-import '../widgets/connection_mark.dart';
 import 'discover_screen.dart';
 import 'friends_screen.dart';
 import 'group_call_pre_screen.dart';
@@ -82,46 +81,158 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
+  // Kompozisyon: önceki "her şey dikeyde ortalanmış tek sütun" yerine, tek
+  // büyük dikdörtgen bir "hero" kart (görüşme CTA'sı bunun İÇİNDE, tam
+  // kaplıyor) + kartın altında yatay bir hızlı-erişim rafı (Arkadaşlar/
+  // Keşfet/Canlı, daire ikon+etiket - hikaye/story rafı gibi ama gerçek
+  // navigasyon hedefleri için). Grup görüşmesi girişi artık ayrı bir buton
+  // değil, hero kartın sağ-üst köşesinde küçük bir rozet/chip.
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
             child: Column(
               children: [
                 _buildTopBar(context),
-                const SizedBox(height: 12),
-                _buildFriendsEntry(context),
-                const Spacer(),
-                _buildCenterIllustration(),
-                const SizedBox(height: 28),
-                Text(
-                  'Yeni biriyle tanış',
-                  style: AppText.heading.copyWith(fontSize: 24),
-                ),
+                const SizedBox(height: 18),
+                Expanded(child: _buildHeroCard(context)),
+                const SizedBox(height: 16),
+                _buildQuickAccessRail(context),
                 const SizedBox(height: 10),
-                Text(
-                  'Dünyanın her yerinden insanlarla\nrastgele görüntülü sohbet et.',
-                  textAlign: TextAlign.center,
-                  style: AppText.body,
-                ),
-                const Spacer(),
-                _buildStartButton(context),
-                const SizedBox(height: 10),
-                _buildGroupCallEntry(context),
-                const SizedBox(height: 12),
-                Text(
-                  'Devam ederek Topluluk Kurallarını kabul etmiş olursun.',
-                  textAlign: TextAlign.center,
-                  style: AppText.caption,
-                ),
-                const SizedBox(height: 8),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeroCard(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.surfaceElevated,
+                AppColors.backgroundDeep,
+              ],
+            ),
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppGradients.liveAccent,
+                    boxShadow: neonGlow(AppColors.primary,
+                        opacity: 0.35, blurRadius: 28, spreadRadius: 2),
+                  ),
+                  child: const Icon(Icons.videocam_rounded,
+                      color: Colors.white, size: 30),
+                ),
+                const Spacer(),
+                Text('Yeni biriyle\ntanış',
+                    style: AppText.display.copyWith(fontSize: 32, height: 1.1)),
+                const SizedBox(height: 10),
+                Text(
+                  'Dünyanın her yerinden insanlarla rastgele görüntülü sohbet et.',
+                  style: AppText.body,
+                ),
+                const SizedBox(height: 22),
+                _buildStartButton(context),
+                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    'Devam ederek Topluluk Kurallarını kabul etmiş olursun.',
+                    textAlign: TextAlign.center,
+                    style: AppText.caption,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        // Grup görüşmesi - önceki ayrı ikincil buton yerine, hero kartın
+        // sağ-üst köşesinde küçük bir rozet/chip.
+        Positioned(
+          top: 20,
+          right: 20,
+          child: _buildGroupCallEntry(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickAccessRail(BuildContext context) {
+    final items = <(IconData, String, Color, VoidCallback)>[
+      (
+        Icons.people_alt_rounded,
+        'Arkadaşlar',
+        AppColors.primaryLight,
+        () => Navigator.of(context)
+            .push(AppPageRoute(builder: (_) => const FriendsScreen())),
+      ),
+      if (AuthService().isLoggedIn) ...[
+        (
+          Icons.favorite_rounded,
+          'Keşfet',
+          Colors.pinkAccent,
+          () => Navigator.of(context)
+              .push(AppPageRoute(builder: (_) => const DiscoverScreen())),
+        ),
+        (
+          Icons.live_tv_rounded,
+          'Canlı',
+          AppColors.danger,
+          () => Navigator.of(context)
+              .push(AppPageRoute(builder: (_) => const LiveRoomListScreen())),
+        ),
+      ],
+    ];
+    return SizedBox(
+      height: 76,
+      child: Row(
+        children: items
+            .map((item) => Expanded(
+                  child: GestureDetector(
+                    onTap: item.$4,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surface,
+                            border: Border.all(
+                                color: item.$3.withValues(alpha: 0.5)),
+                          ),
+                          child: Icon(item.$1, color: item.$3, size: 22),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(item.$2,
+                            style: TextStyle(
+                                color: AppColors.textSecondary, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                ))
+            .toList(),
       ),
     );
   }
@@ -194,107 +305,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Çevrimiçi sayısının hemen altında yer alan "Arkadaşlar" girişi.
-  /// Misafir kullanıcılar da dokunabilir - arkadaşlar ekranı kendi
-  /// içinde giriş yapmasını isteyen bir durum gösterir (bkz.
-  /// friends_screen.dart).
-  Widget _buildFriendsEntry(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _pillEntry(
-            context,
-            icon: Icons.people_alt_rounded,
-            label: 'Arkadaşlar',
-            onTap: () => Navigator.of(context)
-                .push(AppPageRoute(builder: (_) => const FriendsScreen())),
-          ),
-          // Keşfet (Batch E, Dating katmanı) - misafir kullanıcılara
-          // gösterilmiyor, DiscoverService REST çağrıları giriş yapılmış
-          // bir JWT token gerektiriyor.
-          if (AuthService().isLoggedIn) ...[
-            const SizedBox(width: 8),
-            _pillEntry(
-              context,
-              icon: Icons.favorite_rounded,
-              label: 'Keşfet',
-              iconColor: Colors.pinkAccent,
-              onTap: () => Navigator.of(context)
-                  .push(AppPageRoute(builder: (_) => const DiscoverScreen())),
-            ),
-            const SizedBox(width: 8),
-            _pillEntry(
-              context,
-              icon: Icons.live_tv_rounded,
-              label: 'Canlı',
-              iconColor: AppColors.danger,
-              onTap: () => Navigator.of(context)
-                  .push(AppPageRoute(builder: (_) => const LiveRoomListScreen())),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _pillEntry(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? iconColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: AppColors.surfaceBorder),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: iconColor ?? AppColors.primaryLight, size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppText.subheading.copyWith(fontSize: 13),
-            ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right_rounded,
-                color: AppColors.textFaint, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCenterIllustration() {
-    return Container(
-      width: 180,
-      height: 180,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.primary.withValues(alpha: 0.25),
-            AppColors.secondary.withValues(alpha: 0.15),
-          ],
-        ),
-        boxShadow: neonGlow(AppColors.primary, opacity: 0.3, blurRadius: 40, spreadRadius: 8),
-      ),
-      child: const Center(
-        child: ConnectionMark(width: 110),
-      ),
-    );
-  }
-
   Widget _buildStartButton(BuildContext context) {
     return GradientButton(
       onPressed: () async {
@@ -330,25 +340,33 @@ class _HomeScreenState extends State<HomeScreen> {
   // Küçük grup rastgele görüşmesi (mesh, 3-4 kişi, Batch C) - ana CTA'nın
   // altında ikincil, göze daha az çarpan bir giriş. "(beta)" etiketi
   // bilerek kalıcı: bu özellik gerçek çoklu-cihaz testinden geçmedi.
+  // Hero kartın köşesinde küçük bir chip - önceki tam genişlikte ikincil
+  // buton yerine.
   Widget _buildGroupCallEntry(BuildContext context) {
-    return GradientButton(
-      height: 48,
-      gradient: AppGradients.softGlow(AppColors.secondary, opacity: 0.3),
-      onPressed: () {
+    return GestureDetector(
+      onTap: () {
         Navigator.of(context).push(
           AppPageRoute(builder: (_) => const GroupCallPreScreen()),
         );
       },
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.groups_rounded, color: AppColors.textPrimary, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            'Grup Görüşmesi (beta) · 3-4 kişi',
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-        ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.groups_rounded, color: AppColors.secondary, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              '3-4 kişi (beta)',
+              style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
       ),
     );
   }

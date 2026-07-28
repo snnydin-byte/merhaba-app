@@ -175,67 +175,72 @@ class _GroupsScreenState extends State<GroupsScreen> {
       );
     }
 
+    // Kompozisyon: Arkadaşlar ekranındaki yatay satır listesinden BİLİNÇLİ
+    // olarak farklı - 2 sütunlu "kanal kartı" grid'i (Discord sunucu listesi
+    // esintili), büyük ikon üstte, isim/üye sayısı altta, sağ-üstte admin
+    // rozeti.
     return RefreshIndicator(
       onRefresh: _load,
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceElevated,
-      child: ListView.builder(
+      child: GridView.builder(
         padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.95,
+        ),
         itemCount: _groups.length,
         itemBuilder: (context, index) {
           final group = _groups[index];
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            child: GlassCard(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () async {
-                  await Navigator.of(context).push(
-                    AppPageRoute(builder: (_) => GroupChatScreen(group: group)),
-                  );
-                  // Sohbet ekranı açıkken bu ekranın MessagingService
-                  // callback'lerinin üzerine yazmıştı (paylaşılan tek alan,
-                  // bkz. messaging_service.dart) - geri dönünce yeniden
-                  // takıyoruz.
-                  if (mounted) _wireCallbacks();
-                },
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                      backgroundImage: group.photoUrl != null ? NetworkImage(group.photoUrl!) : null,
-                      child: group.photoUrl == null
-                          ? Icon(Icons.groups_rounded, color: AppColors.primary, size: 20)
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(group.name,
-                              style: AppText.subheading.copyWith(fontSize: 15)),
-                          const SizedBox(height: 2),
-                          Text(
-                            group.announcementOnly
-                                ? '📢 Duyuru kanalı · ${group.members.length} üye'
-                                : '${group.members.length} üye',
-                            style: TextStyle(color: AppColors.textMuted, fontSize: 11),
-                          ),
-                        ],
+          return GestureDetector(
+            onTap: () async {
+              await Navigator.of(context).push(
+                AppPageRoute(builder: (_) => GroupChatScreen(group: group)),
+              );
+              if (mounted) _wireCallbacks();
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                        backgroundImage:
+                            group.photoUrl != null ? NetworkImage(group.photoUrl!) : null,
+                        child: group.photoUrl == null
+                            ? Icon(Icons.groups_rounded, color: AppColors.primary, size: 22)
+                            : null,
                       ),
-                    ),
-                    if (group.isAdmin(_myId))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Icon(Icons.shield_rounded,
+                      const Spacer(),
+                      if (group.isAdmin(_myId))
+                        Icon(Icons.shield_rounded,
                             color: AppColors.secondaryLight.withValues(alpha: 0.8), size: 16),
-                      ),
-                    Icon(Icons.chevron_right, color: AppColors.textFaint),
-                  ],
-                ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(group.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.subheading.copyWith(fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text(
+                    group.announcementOnly
+                        ? '📢 Duyuru · ${group.members.length} üye'
+                        : '${group.members.length} üye',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                  ),
+                ],
               ),
             ),
           );

@@ -90,71 +90,122 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
                   ? Center(
                       child: Text('Henüz seni beğenen olmadı.',
                           style: TextStyle(color: AppColors.textSecondary)))
-                  : ListView.builder(
+                  // Canva mockup'ı burada bulanıklaştırma+kilit+"Unlock Now"
+                  // ödeme tuzağı (paywall) gösteriyordu - Sinan'ın 18 Tem
+                  // kararıyla yasaklanan jeton/ödeme ekonomisi paternine
+                  // girdiği için UYGULANMADI. Yalnızca kart-grid görsel dili
+                  // (fotoğraf öncelikli, pembe accent) alındı, liste tamamen
+                  // ücretsiz ve açık kalıyor.
+                  : GridView.builder(
                       padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.78,
+                      ),
                       itemCount: _likes.length,
                       itemBuilder: (_, i) {
                         final entry = _likes[i];
                         final processing = _processing.contains(entry.swipeId);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: GlassCard(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 26,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                                backgroundImage:
-                                    entry.user.photoUrl != null ? NetworkImage(entry.user.photoUrl!) : null,
-                                child: entry.user.photoUrl == null
-                                    ? Text(entry.user.displayName.isNotEmpty
-                                        ? entry.user.displayName[0].toUpperCase()
-                                        : '?')
-                                    : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              border: Border.all(color: AppColors.surfaceBorder),
+                              image: entry.user.photoUrl != null
+                                  ? DecorationImage(
+                                      image: NetworkImage(entry.user.photoUrl!),
+                                      fit: BoxFit.cover)
+                                  : null,
+                            ),
+                            child: Stack(
+                              children: [
+                                if (entry.user.photoUrl == null)
+                                  Center(
+                                    child: Text(
+                                      entry.user.displayName.isNotEmpty
+                                          ? entry.user.displayName[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                          color: AppColors.textFaint, fontSize: 56),
+                                    ),
+                                  ),
+                                if (entry.isSuperlike)
+                                  const Positioned(
+                                    left: 8,
+                                    top: 8,
+                                    child: Icon(Icons.star_rounded,
+                                        color: Colors.blueAccent, size: 20),
+                                  ),
+                                Positioned(
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.fromLTRB(10, 28, 10, 8),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.black.withValues(alpha: 0.85)
+                                        ],
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(entry.user.displayName,
-                                            style: TextStyle(
-                                                color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                                        if (entry.isSuperlike) ...[
-                                          const SizedBox(width: 4),
-                                          const Icon(Icons.star_rounded, color: Colors.blueAccent, size: 16),
-                                        ],
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13)),
+                                        if (entry.note != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Text('"${entry.note}"',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    color: Colors.white70, fontSize: 11)),
+                                          ),
+                                        const SizedBox(height: 4),
+                                        processing
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                    strokeWidth: 2, color: Colors.white))
+                                            : Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.spaceEvenly,
+                                                children: [
+                                                  IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(),
+                                                    onPressed: () => _respond(entry, 'pass'),
+                                                    icon: const Icon(Icons.close_rounded,
+                                                        color: Colors.white54, size: 20),
+                                                  ),
+                                                  IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    constraints: const BoxConstraints(),
+                                                    onPressed: () => _respond(entry, 'like'),
+                                                    icon: Icon(Icons.favorite_rounded,
+                                                        color: AppColors.secondary, size: 20),
+                                                  ),
+                                                ],
+                                              ),
                                       ],
                                     ),
-                                    if (entry.note != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text('"${entry.note}"',
-                                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              if (processing)
-                                const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2))
-                              else ...[
-                                IconButton(
-                                  onPressed: () => _respond(entry, 'pass'),
-                                  icon: Icon(Icons.close_rounded, color: AppColors.textFaint),
-                                ),
-                                IconButton(
-                                  onPressed: () => _respond(entry, 'like'),
-                                  icon: Icon(Icons.favorite_rounded, color: AppColors.secondary),
+                                  ),
                                 ),
                               ],
-                            ],
-                          ),
+                            ),
                           ),
                         );
                       },

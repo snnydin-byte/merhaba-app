@@ -246,10 +246,16 @@ class _PreCallScreenState extends State<PreCallScreen> {
     );
   }
 
+  // Dairesel ("porthole") önizleme - Canva mockup'ındaki gibi, dikdörtgen
+  // tam-ekran önizleme yerine. Grup görüşmesi hazırlık ekranından (kare/
+  // yuvarlak-köşeli, gelecek 2x2 grid'i çağrıştıran) KASITLI farklı - 1:1
+  // görüşme daha "samimi/yakın" hissettiren bir çerçeveyle ayrışıyor.
   Widget _buildPreview() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
+    return Center(
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: ClipOval(
+          child: Container(
         color: AppColors.surface,
         child: Stack(
           alignment: Alignment.center,
@@ -347,6 +353,8 @@ class _PreCallScreenState extends State<PreCallScreen> {
                 ),
               ),
           ],
+        ),
+          ),
         ),
       ),
     );

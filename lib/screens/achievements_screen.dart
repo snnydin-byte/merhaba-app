@@ -18,6 +18,13 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   List<Achievement> _achievements = [];
   bool _loading = true;
   final Set<String> _claiming = {};
+  // Canva mockup'ındaki ALL/LOCKED sekmeleri - gerçek unlocked/claimed
+  // durumuna göre filtreliyor, sahte bir sayı üretmiyor.
+  bool _showLockedOnly = false;
+
+  List<Achievement> get _visibleAchievements => _showLockedOnly
+      ? _achievements.where((a) => !a.unlocked).toList()
+      : _achievements;
 
   @override
   void initState() {
@@ -51,40 +58,57 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
   Widget build(BuildContext context) {
     final user = AuthService().currentUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('Görevler'), backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(
+        title: const Text('Görevler'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: PillBadge(label: '${user.xp} XP', color: Colors.amber),
+              ),
+            ),
+        ],
+      ),
       body: AppBackground(
         child: SafeArea(
           child: _loading
               ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-              : ListView(
-                  padding: const EdgeInsets.all(16),
+              : Column(
                   children: [
-                    if (user != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: GlassCard(
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 22,
-                                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                                child: Text('${user.level}',
-                                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text('Seviye ${user.level} · ${user.xp} XP',
-                                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
-                              ),
-                            ],
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        children: [
+                          _tabChip('Tümü', !_showLockedOnly, () => setState(() => _showLockedOnly = false)),
+                          const SizedBox(width: 8),
+                          _tabChip('Kilitli', _showLockedOnly, () => setState(() => _showLockedOnly = true)),
+                          const Spacer(),
+                          Text(
+                            '${_achievements.where((a) => a.unlocked).length}/${_achievements.length} rozet',
+                            style: AppText.caption,
                           ),
-                        ),
+                        ],
                       ),
-                    ..._achievements.map((a) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: GlassCard(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(
+                    ),
+                    Expanded(
+                      child: GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 0.95,
+                        ),
+                        itemCount: _visibleAchievements.length,
+                        itemBuilder: (_, i) {
+                          final a = _visibleAchievements[i];
+                          return GlassCard(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   a.claimed
@@ -93,33 +117,58 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                                   color: a.claimed
                                       ? Colors.amber
                                       : (a.unlocked ? AppColors.secondary : AppColors.textFaint),
+                                  size: 28,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(a.title,
-                                          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                                      Text(a.description,
-                                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
+                                const SizedBox(height: 8),
+                                Text(a.title,
+                                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
+                                const SizedBox(height: 2),
+                                Text(a.description,
+                                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                                const Spacer(),
                                 if (a.claimed)
-                                  Icon(Icons.check_circle_rounded, color: AppColors.secondary)
+                                  Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 20)
                                 else if (a.unlocked)
                                   _claiming.contains(a.id)
                                       ? const SizedBox(
-                                          width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                                      : TextButton(onPressed: () => _claim(a), child: const Text('Al'))
+                                          width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                      : SizedBox(
+                                          width: double.infinity,
+                                          child: TextButton(
+                                              onPressed: () => _claim(a),
+                                              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                                              child: const Text('Al')),
+                                        ),
                               ],
                             ),
-                          ),
-                        )),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _tabChip(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: selected ? AppColors.primary : AppColors.surfaceBorder),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                color: selected ? Colors.white : AppColors.textSecondary,
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
       ),
     );
   }

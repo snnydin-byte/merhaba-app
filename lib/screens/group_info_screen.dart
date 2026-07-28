@@ -208,10 +208,22 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                 Center(
                   child: Column(
                     children: [
-                      CircleAvatar(
-                        radius: 36,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                        child: Icon(Icons.groups_rounded, color: AppColors.primary, size: 32),
+                      Container(
+                        // Canva mockup'ındaki grup avatarını saran ince neon
+                        // halka - önceki düz CircleAvatar'ın üstüne eklendi.
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primary, width: 2),
+                          boxShadow: neonGlow(AppColors.primary,
+                              opacity: 0.4, blurRadius: 20, spreadRadius: 1),
+                        ),
+                        child: CircleAvatar(
+                          radius: 36,
+                          backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                          child:
+                              Icon(Icons.groups_rounded, color: AppColors.primary, size: 32),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       GestureDetector(
@@ -342,12 +354,39 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                   );
                 }),
                 const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: _confirmLeaveOrDelete,
-                  icon: Icon(_isOwner ? Icons.delete_outline_rounded : Icons.logout_rounded,
-                      color: AppColors.danger),
-                  label: Text(_isOwner ? 'Grubu sil' : 'Gruptan ayrıl',
-                      style: TextStyle(color: AppColors.danger)),
+                // Mockup'taki gibi tam genişlikte, tehlike-rengi çerçeveli
+                // bir kart - önceki sade TextButton.icon yerine.
+                Material(
+                  color: AppColors.danger.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    onTap: _confirmLeaveOrDelete,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                            color: AppColors.danger.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                              _isOwner
+                                  ? Icons.delete_outline_rounded
+                                  : Icons.logout_rounded,
+                              color: AppColors.danger,
+                              size: 18),
+                          const SizedBox(width: 8),
+                          Text(_isOwner ? 'Grubu sil' : 'Gruptan ayrıl',
+                              style: TextStyle(
+                                  color: AppColors.danger,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

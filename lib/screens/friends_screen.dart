@@ -38,6 +38,25 @@ class _FriendsScreenState extends State<FriendsScreen> {
   List<AppUser> _friends = [];
   Timer? _statusRefreshTimer;
 
+  // Canva mockup'ındaki filtre çipleri (All/Online/Offline/Favorites) -
+  // gerçek, zaten elimizde olan veriye (friend.online, closeFriendIds)
+  // dayanıyor, sahte bir sayaç/durum EKLEMİYOR.
+  String _filter = 'all';
+
+  List<AppUser> get _filteredFriends {
+    switch (_filter) {
+      case 'online':
+        return _friends.where((f) => f.online).toList();
+      case 'offline':
+        return _friends.where((f) => !f.online).toList();
+      case 'favorites':
+        final closeIds = AuthService().currentUser?.closeFriendIds ?? [];
+        return _friends.where((f) => closeIds.contains(f.id)).toList();
+      default:
+        return _friends;
+    }
+  }
+
   // Durum/hikaye (#71 anket maddesi) - gerçek zamanlı soket bildirimi
   // yerine (bkz. sınıf üstü not - MessagingService callback'leri ekranlar
   // arasında paylaşılan TEK bir alan, chat_screen.dart açıkken üzerine
@@ -350,16 +369,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
         // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
         // dokunuş yakalayan bölgesiyle çakışıyordu.
         padding: EdgeInsets.fromLTRB(0, 16 + kToolbarHeight, 0, 16),
-        itemCount: _friends.length + 3,
+        itemCount: _filteredFriends.length + 4,
         itemBuilder: (context, index) {
           if (index == 0) return _buildStoryRing();
+          if (index == 1) return _buildFilterChips();
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: index == 1
+            child: index == 2
                 ? _buildNoteToSelfTile()
-                : index == 2
+                : index == 3
                     ? _buildBotTile()
-                    : _buildFriendTile(_friends[index - 3]),
+                    : _buildFriendTile(_filteredFriends[index - 4]),
           );
         },
       ),
@@ -424,6 +444,52 @@ class _FriendsScreenState extends State<FriendsScreen> {
             );
           }),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    const options = [
+      ('all', 'Tümü'),
+      ('online', 'Çevrimiçi'),
+      ('offline', 'Çevrimdışı'),
+      ('favorites', 'Favoriler'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: options.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final (value, label) = options[i];
+            final selected = _filter == value;
+            return GestureDetector(
+              onTap: () => setState(() => _filter = value),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(
+                    color: selected ? AppColors.primary : AppColors.surfaceBorder,
+                  ),
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.white : AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

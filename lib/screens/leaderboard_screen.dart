@@ -35,6 +35,52 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     }
   }
 
+  // Canva mockup'ındaki 3'lü podyum - yalnızca gerçek liderlik verisindeki
+  // ilk 3 kişi (isim/foto/xp), sahte bir "dünya çapında" iddiası yok.
+  Widget _buildPodium() {
+    final second = _entries[1];
+    final first = _entries[0];
+    final third = _entries[2];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(child: _podiumTile(second, size: 52, medalColor: const Color(0xFFC0C0C0))),
+          Expanded(child: _podiumTile(first, size: 68, medalColor: Colors.amber, crown: true)),
+          Expanded(child: _podiumTile(third, size: 52, medalColor: const Color(0xFFCD7F32))),
+        ],
+      ),
+    );
+  }
+
+  Widget _podiumTile(LeaderboardEntry entry, {required double size, required Color medalColor, bool crown = false}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (crown) Icon(Icons.emoji_events_rounded, color: medalColor, size: 20),
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: medalColor, width: 2)),
+          child: CircleAvatar(
+            radius: size / 2,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+            backgroundImage: entry.photoUrl != null ? NetworkImage(entry.photoUrl!) : null,
+            child: entry.photoUrl == null
+                ? Text(entry.displayName.isNotEmpty ? entry.displayName[0].toUpperCase() : '?')
+                : null,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(entry.displayName,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
+        Text('${entry.xp} XP', style: TextStyle(color: medalColor, fontSize: 11, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myId = AuthService().currentUser?.id;
@@ -46,6 +92,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ? Center(child: CircularProgressIndicator(color: AppColors.primary))
               : Column(
                   children: [
+                    if (_entries.length >= 3) _buildPodium(),
                     if (_myRank != null && !_entries.any((e) => e.id == myId))
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -67,9 +114,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                     Expanded(
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: _entries.length,
+                        // İlk 3 podyumda gösterildiği için listede tekrar
+                        // etmiyor.
+                        itemCount: _entries.length >= 3 ? _entries.length - 3 : _entries.length,
                         itemBuilder: (_, i) {
-                          final entry = _entries[i];
+                          final entry = _entries[_entries.length >= 3 ? i + 3 : i];
                           final isMe = entry.id == myId;
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),

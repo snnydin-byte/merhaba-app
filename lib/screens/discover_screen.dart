@@ -363,7 +363,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 
   Widget _buildCard(DiscoverCandidate candidate, {required bool interactive}) {
-    final card = _cardContent(candidate);
+    final card = _cardContent(candidate, showStamp: interactive);
     if (!interactive) {
       return Transform.scale(scale: 0.95, child: card);
     }
@@ -386,7 +386,46 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     );
   }
 
-  Widget _cardContent(DiscoverCandidate candidate) {
+  // Sürükleme yönünde beliren "BEĞEN/GEÇ" damgası - popüler eşleşme
+  // uygulamalarındaki tanıdık geri bildirim deseni, ama bu projeye özel
+  // tipografi/renk diliyle (neon kenarlıklı, döndürülmüş rozet).
+  Widget _dragStamp() {
+    final dx = _dragOffset.dx;
+    if (dx.abs() < 24) return const SizedBox.shrink();
+    final isLike = dx > 0;
+    final opacity = (dx.abs() / 140).clamp(0.0, 1.0);
+    return Positioned(
+      top: 32,
+      left: isLike ? 24 : null,
+      right: isLike ? null : 24,
+      child: Opacity(
+        opacity: opacity,
+        child: Transform.rotate(
+          angle: isLike ? -0.25 : 0.25,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: isLike ? AppColors.secondary : AppColors.danger,
+                  width: 3),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Text(
+              isLike ? 'BEĞEN' : 'GEÇ',
+              style: TextStyle(
+                color: isLike ? AppColors.secondary : AppColors.danger,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 2,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _cardContent(DiscoverCandidate candidate, {bool showStamp = false}) {
     final user = candidate.user;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -400,6 +439,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         ),
         child: Stack(
           children: [
+            if (showStamp) _dragStamp(),
             if (user.photoUrl == null)
               Center(
                 child: Text(
@@ -482,46 +522,67 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     );
   }
 
+  // Kavisli (arc) buton dizilimi - orta iki buton (geç/beğen) daha yukarıda,
+  // yan butonlar aşağıda: düz sıra yerine hafif bir "gülümseme" eğrisi.
   Widget _buildActionBar() {
+    Widget arcOffset(Widget child, double lift) =>
+        Transform.translate(offset: Offset(0, -lift), child: child);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _roundButton(
-            icon: Icons.replay_rounded,
-            color: Colors.amber,
-            size: 44,
-            label: 'Geri al',
-            onTap: _rewind,
+          arcOffset(
+            _roundButton(
+              icon: Icons.replay_rounded,
+              color: Colors.amber,
+              size: 40,
+              label: 'Geri al',
+              onTap: _rewind,
+            ),
+            0,
           ),
-          _roundButton(
-            icon: Icons.close_rounded,
-            color: Colors.redAccent,
-            size: 56,
-            label: 'Geç',
-            onTap: () => _performSwipe('pass'),
+          arcOffset(
+            _roundButton(
+              icon: Icons.close_rounded,
+              color: Colors.redAccent,
+              size: 56,
+              label: 'Geç',
+              onTap: () => _performSwipe('pass'),
+            ),
+            10,
           ),
-          _roundButton(
-            icon: Icons.star_rounded,
-            color: Colors.blueAccent,
-            size: 44,
-            label: 'Süper beğen',
-            onTap: () => _performSwipe('superlike'),
+          arcOffset(
+            _roundButton(
+              icon: Icons.star_rounded,
+              color: Colors.blueAccent,
+              size: 40,
+              label: 'Süper beğen',
+              onTap: () => _performSwipe('superlike'),
+            ),
+            0,
           ),
-          _roundButton(
-            icon: Icons.favorite_rounded,
-            color: AppColors.secondary,
-            size: 56,
-            label: 'Beğen',
-            onTap: () => _performSwipe('like'),
+          arcOffset(
+            _roundButton(
+              icon: Icons.favorite_rounded,
+              color: AppColors.secondary,
+              size: 56,
+              label: 'Beğen',
+              onTap: () => _performSwipe('like'),
+            ),
+            10,
           ),
-          _roundButton(
-            icon: _pendingNote != null ? Icons.edit_note_rounded : Icons.message_outlined,
-            color: _pendingNote != null ? AppColors.primary : AppColors.textMuted,
-            size: 44,
-            label: 'Ön-mesaj ekle',
-            onTap: _showNoteDialog,
+          arcOffset(
+            _roundButton(
+              icon: _pendingNote != null ? Icons.edit_note_rounded : Icons.message_outlined,
+              color: _pendingNote != null ? AppColors.primary : AppColors.textMuted,
+              size: 40,
+              label: 'Ön-mesaj ekle',
+              onTap: _showNoteDialog,
+            ),
+            0,
           ),
         ],
       ),

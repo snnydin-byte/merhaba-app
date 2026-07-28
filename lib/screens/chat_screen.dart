@@ -1498,11 +1498,20 @@ class _ChatScreenState extends State<ChatScreen> {
                   : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * 0.72),
+              // Kuyruklu (asimetrik köşe) balon - jenerik tek-tip yuvarlak
+              // köşe yerine, konuşmacıya göre bir köşe daha keskin (gönderen
+              // tarafın alt-dış köşesi), gerçek mesajlaşma uygulamalarındaki
+              // "kuyruk" hissini taklit ediyor.
               decoration: isSticker
                   ? null
                   : BoxDecoration(
                       color: item.isMe ? AppColors.primary : AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: Radius.circular(item.isMe ? 16 : 4),
+                        bottomRight: Radius.circular(item.isMe ? 4 : 16),
+                      ),
                     ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

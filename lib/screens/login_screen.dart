@@ -8,6 +8,7 @@ import '../services/call_ui_controller.dart';
 import '../services/messaging_service.dart';
 import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/connection_mark.dart';
 import 'home_screen.dart';
 
 /// Giriş ve kayıt için tek bir ekran; ikisi arasında geçiş yapılabilir.
@@ -132,78 +133,165 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // Kompozisyon: merkezi-sütun form yerine, üstte sabit bir "aurora" atmosfer
+  // alanı (ekranın ~%38'i, hiç kaymıyor) + alttan yükselen yuvarlak köşeli bir
+  // "sheet" kart (form içeriği bunun içinde, kendi içinde kaydırılabilir).
+  // Popüler eşleşme uygulamalarının (Bumble/Hinge tarzı) giriş ekranlarındaki
+  // "atmosfer üstte, aksiyon altta sabit" hiyerarşisinden ilham alındı - ama
+  // marka öğeleri (ConnectionMark, neon palet) tamamen bu projeye özel.
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 12),
-                  _buildHeader(),
-                  const SizedBox(height: 32),
-                  if (_errorText != null) _buildError(),
-                  if (_isRegisterMode) ...[
-                    _buildNameField(),
-                    const SizedBox(height: 14),
-                  ],
-                  _buildEmailField(),
-                  const SizedBox(height: 14),
-                  _buildPasswordField(),
-                  const SizedBox(height: 22),
-                  _buildSubmitButton(),
-                  const SizedBox(height: 14),
-                  _buildModeToggle(),
-                  const SizedBox(height: 20),
-                  _buildDivider(),
-                  const SizedBox(height: 16),
-                  if (isGoogleSignInConfigured) ...[
-                    _buildGoogleButton(),
-                    const SizedBox(height: 12),
-                  ],
-                  _buildGuestButton(),
-                ],
-              ),
+      backgroundColor: AppColors.backgroundDeep,
+      body: Stack(
+        children: [
+          _buildAurora(screenHeight),
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: screenHeight * 0.34,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const ConnectionMark(width: 88),
+                        const SizedBox(height: 14),
+                        Text('MERHABA',
+                            style: AppText.display
+                                .copyWith(fontSize: 20, letterSpacing: 5)),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(32)),
+                      border: Border(
+                        top: BorderSide(color: AppColors.surfaceBorder),
+                        left: BorderSide(color: AppColors.surfaceBorder),
+                        right: BorderSide(color: AppColors.surfaceBorder),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Alt sheet'i tutan küçük "grabber" çubuğu -
+                            // bottom sheet paternini görsel olarak çağrıştırır.
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.only(bottom: 20),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceBorder,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              _isRegisterMode
+                                  ? 'Hesap oluştur'
+                                  : 'Tekrar hoş geldin',
+                              style: AppText.heading.copyWith(fontSize: 24),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              _isRegisterMode
+                                  ? 'Sohbetlerine devam etmek için birkaç bilgi gir.'
+                                  : 'Devam etmek için giriş yap.',
+                              style: AppText.body,
+                            ),
+                            const SizedBox(height: 24),
+                            if (_errorText != null) _buildError(),
+                            if (_isRegisterMode) ...[
+                              _buildNameField(),
+                              const SizedBox(height: 14),
+                            ],
+                            _buildEmailField(),
+                            const SizedBox(height: 14),
+                            _buildPasswordField(),
+                            const SizedBox(height: 22),
+                            _buildSubmitButton(),
+                            const SizedBox(height: 14),
+                            _buildModeToggle(),
+                            const SizedBox(height: 20),
+                            _buildDivider(),
+                            const SizedBox(height: 16),
+                            if (isGoogleSignInConfigured) ...[
+                              _buildGoogleButton(),
+                              const SizedBox(height: 12),
+                            ],
+                            _buildGuestButton(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: AppGradients.liveAccent,
-            boxShadow: neonGlow(AppColors.primary),
+  /// Üstteki sabit atmosfer alanı - iki örtüşen, farklı büyüklükte neon
+  /// radyal glow (mor + camgöbeği), sheet'in arkasında kalacak şekilde
+  /// konumlandırılmış. Gerçek bir video/görsel arka plan DEĞİL (performans +
+  /// bakım maliyeti gereksiz) - salt gradyan kompozisyonu.
+  Widget _buildAurora(double screenHeight) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: screenHeight * 0.42,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -60,
+            left: -40,
+            child: Container(
+              width: 260,
+              height: 260,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  AppColors.primary.withValues(alpha: 0.45),
+                  AppColors.primary.withValues(alpha: 0.0),
+                ]),
+              ),
+            ),
           ),
-          child:
-              const Icon(Icons.videocam_rounded, color: Colors.white, size: 32),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          _isRegisterMode ? 'Hesap oluştur' : 'Tekrar hoş geldin',
-          style: AppText.heading.copyWith(fontSize: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _isRegisterMode
-              ? 'Sohbetlerine devam etmek için birkaç bilgi gir.'
-              : 'Devam etmek için giriş yap.',
-          textAlign: TextAlign.center,
-          style: AppText.body,
-        ),
-      ],
+          Positioned(
+            top: 20,
+            right: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  AppColors.secondary.withValues(alpha: 0.35),
+                  AppColors.secondary.withValues(alpha: 0.0),
+                ]),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

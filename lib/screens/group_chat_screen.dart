@@ -239,6 +239,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return target.deleted ? 'Silinmiş mesaj' : target.text;
   }
 
+  // Canva mockup'ındaki gibi her göndericiye sabit/deterministik bir renk -
+  // grup sohbetinde kimin yazdığını isme bakmadan da ayırt etmeyi kolaylaştırır
+  // (aynı kullanıcı her zaman aynı rengi alır, id hash'inden türetilir).
+  static const _senderPalette = [
+    Color(0xFFC77DFF),
+    Color(0xFF00E5FF),
+    Color(0xFF00FF88),
+    Color(0xFFFF6FB5),
+    Color(0xFFFFB74D),
+    Color(0xFF6FF3FF),
+  ];
+
+  Color _senderColor(String userId) {
+    return _senderPalette[userId.hashCode.abs() % _senderPalette.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -342,7 +358,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isMe ? AppColors.primary : AppColors.textPrimary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(16),
+                // 1:1 sohbetle (chat_screen.dart) tutarlı kuyruklu balon.
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(16),
+                  topRight: const Radius.circular(16),
+                  bottomLeft: Radius.circular(isMe ? 16 : 4),
+                  bottomRight: Radius.circular(isMe ? 4 : 16),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +374,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       padding: const EdgeInsets.only(bottom: 2),
                       child: Text(_group.displayNameFor(item.fromId),
                           style: TextStyle(
-                              color: AppColors.secondaryLight,
+                              color: _senderColor(item.fromId),
                               fontSize: 11,
                               fontWeight: FontWeight.w700)),
                     ),

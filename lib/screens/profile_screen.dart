@@ -531,6 +531,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
+                // Canva mockup'ındaki avatarı saran ince neon halka.
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.secondary, width: 2),
+                    boxShadow: neonGlow(AppColors.secondary,
+                        opacity: 0.4, blurRadius: 22, spreadRadius: 1),
+                  ),
+                  child: _buildAvatarCircle(user),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(user.displayName, style: AppText.subheading),
+              if (user.verified) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.verified_rounded,
+                    color: AppColors.secondary, size: 18),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(user.email, style: AppText.caption),
+          if (user.verified) ...[
+            const SizedBox(height: AppSpacing.xs),
+            PillBadge(label: 'Onaylı hesap', color: AppColors.secondary),
+          ],
+          // Günlük giriş serisi (GECE_GELISTIRME madde 7) - saf görsel bir
+          // rozet, HİÇBİR parasal ödül YOK. 1 günlük seri gösterilmiyor
+          // (henüz "seri" sayılmaz, yalnızca bugün giriş yapılmış demek).
+          if (user.loginStreak > 1) ...[
+            const SizedBox(height: AppSpacing.xs),
+            PillBadge(
+              label: '${user.loginStreak} günlük seri 🔥',
+              color: AppColors.primary,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatarCircle(AppUser user) {
+    return Stack(
+              clipBehavior: Clip.none,
+              children: [
                 CircleAvatar(
                   radius: 44,
                   backgroundColor: user.photoUrl == null && user.avatarConfig != null
@@ -578,39 +629,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(user.displayName, style: AppText.subheading),
-              if (user.verified) ...[
-                const SizedBox(width: 6),
-                Icon(Icons.verified_rounded,
-                    color: AppColors.secondary, size: 18),
-              ],
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(user.email, style: AppText.caption),
-          if (user.verified) ...[
-            const SizedBox(height: AppSpacing.xs),
-            PillBadge(label: 'Onaylı hesap', color: AppColors.secondary),
-          ],
-          // Günlük giriş serisi (GECE_GELISTIRME madde 7) - saf görsel bir
-          // rozet, HİÇBİR parasal ödül YOK. 1 günlük seri gösterilmiyor
-          // (henüz "seri" sayılmaz, yalnızca bugün giriş yapılmış demek).
-          if (user.loginStreak > 1) ...[
-            const SizedBox(height: AppSpacing.xs),
-            PillBadge(
-              label: '${user.loginStreak} günlük seri 🔥',
-              color: AppColors.primary,
-            ),
-          ],
-        ],
-      ),
-    );
+            );
   }
 
   Widget _infoCard({required String label, required String value}) {
@@ -862,6 +881,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 .join(', '),
           ),
         const SizedBox(height: AppSpacing.md),
+        // Canva mockup'ındaki bento-istatistik kartı dili - ama mockup'taki
+        // uydurma oyun istatistikleri (maç sayısı, kazanma oranı vb.) YERİNE
+        // gerçekten var olan tek iki veri: seviye ve XP (bkz.
+        // gamification_service.dart).
         Row(
           children: [
             Expanded(
@@ -870,11 +893,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () => Navigator.of(context)
                     .push(AppPageRoute(builder: (_) => const AchievementsScreen())),
                 child: GlassCard(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.emoji_events_outlined, color: Colors.amber),
-                      const SizedBox(width: 8),
-                      Text('Sv. ${user.level}', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
+                      const SizedBox(height: 8),
+                      Text('${user.level}',
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800)),
+                      Text('Seviye', style: AppText.caption),
                     ],
                   ),
                 ),
@@ -887,11 +916,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onTap: () => Navigator.of(context)
                     .push(AppPageRoute(builder: (_) => const LeaderboardScreen())),
                 child: GlassCard(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.leaderboard_outlined, color: AppColors.primaryLight),
-                      const SizedBox(width: 8),
-                      Text('Liderlik', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                      Icon(Icons.bolt_rounded, color: AppColors.secondary, size: 20),
+                      const SizedBox(height: 8),
+                      Text('${user.xp}',
+                          style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w800)),
+                      Text('XP · Liderlik tablosu', style: AppText.caption),
                     ],
                   ),
                 ),

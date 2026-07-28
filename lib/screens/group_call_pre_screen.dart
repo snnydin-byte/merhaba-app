@@ -203,9 +203,40 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
     );
   }
 
+  // 2x2 grid önizlemesi - PreCall'ın (1:1) dairesel "porthole" önizlemesinden
+  // KASITLI farklı: kendi kameran sol-üst hücrede, diğer 3 hücre "bekleniyor"
+  // placeholder'ı - katılınca göreceğin gerçek GroupCallScreen grid'ini
+  // önceden gösteriyor.
   Widget _buildPreview() {
+    if (_permissionError) return _buildOwnTile(fullSize: true);
+    return GridView.count(
+      crossAxisCount: 2,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _buildOwnTile(fullSize: false),
+        _waitingTile(),
+        _waitingTile(),
+        _waitingTile(),
+      ],
+    );
+  }
+
+  Widget _waitingTile() => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          color: AppColors.surfaceElevated,
+          child: Center(
+            child: Icon(Icons.person_outline_rounded,
+                color: Colors.white.withValues(alpha: 0.25), size: 32),
+          ),
+        ),
+      );
+
+  Widget _buildOwnTile({required bool fullSize}) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(fullSize ? 20 : 16),
       child: Container(
         color: AppColors.surface,
         child: Stack(
@@ -252,7 +283,7 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
             else
               const Icon(Icons.videocam_off_rounded,
                   color: Colors.white38, size: 48),
-            if (!_permissionError)
+            if (!_permissionError && fullSize)
               Positioned(
                 bottom: 16,
                 child: Row(
@@ -276,6 +307,38 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
                         setState(() => _camOn = !_camOn);
                         _webrtc.toggleCamera(_camOn);
                       },
+                    ),
+                  ],
+                ),
+              ),
+            if (!fullSize)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _micOn = !_micOn);
+                        _webrtc.toggleMic(_micOn);
+                      },
+                      child: Icon(
+                          _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+                          color: _micOn ? Colors.white70 : AppColors.danger,
+                          size: 18),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() => _camOn = !_camOn);
+                        _webrtc.toggleCamera(_camOn);
+                      },
+                      child: Icon(
+                          _camOn
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          color: _camOn ? Colors.white70 : AppColors.danger,
+                          size: 18),
                     ),
                   ],
                 ),
