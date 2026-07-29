@@ -482,3 +482,370 @@ iki cihazla (host+izleyici) canlı doğrulama yapılmalı (bkz. plan dosyası
 `'live-room'` context) ve Faz 3 (gamification + bildirim) — plan dosyasında
 tam detay var, LiveKit anahtarları eklenip Faz 1 canlı doğrulandıktan sonra
 devam edilecek.
+
+**GÜNCELLEME (21-22 Tem 2026 gecesi) — Faz 1 CANLI DOĞRULANDI + yeni kapsam
+genişletmesi istendi, kullanım kotası bitince DURDU:**
+
+Faz 1, production'a karşı gerçek bir E2E testle doğrulandı (`live-room-created`
++ geçerli LiveKit token alındı, `merhaba-signaling` commit `d180726`). Yol
+boyunca iki gerçek sorun bulunup düzeltildi: (1) Faz 1 kodu hiç commit'lenmemiş
+olarak bulundu, commit+push edildi (`c4ff257`); (2) o commit'i hazırlarken bir
+`git checkout` sırasında `livekit-server-sdk` bağımlılığı package.json'dan
+yanlışlıkla silindi, Render deploy'u çöktü, düzeltildi (`d180726`) - detaylar
+AGENTS_LOG.md'de.
+
+Sinan ardından kapsamı genişletti, TEK oturumda iki büyük özellik istedi:
+
+**A) Canlı Yayın — Faz 2 + ekstra (TikTok/Instagram Live tarzı moderasyon):**
+Plan dosyasındaki (`C:\Users\Sinan\.claude\plans\swirling-tinkering-finch.md`)
+Faz 2 kapsamına (`live-room-kick`/`live-room-mute`/`live-room-report-user`,
+`reportStore.js` VALID_CONTEXTS'e `'live-room'`) EK olarak istenenler:
+  - İzleyici listesini host/co-host görebilsin (yeni: `live-room-viewer-list`
+    event'i ya da `GET /live-rooms/:id/viewers`, `liveRoomStore.js`'e
+    `viewerIds`'in displayName/photoUrl ile zenginleştirilmiş hali).
+  - Yayın içinden arkadaş ekleme (mevcut `friends_service.dart`/server.js'deki
+    arkadaşlık isteği akışının canlı oda bağlamında yeniden kullanılması -
+    yeni bir arkadaşlık sistemi İCAT ETME, var olanı `live-room-*`
+    ekranından tetikle).
+  - Ayrı bir "moderatör" rolü (co-host'tan farklı - medya yayınlamaz ama
+    kick/mute yetkisi var): `liveRoomStore.js`'e `moderatorIds: Set` eklenip
+    `isCoHostOrHost`'a benzer bir `canModerate(room, userId)` yardımcı
+    fonksiyonu (host + co-host + moderatorIds).
+
+**B) Grup eşleşme yeniden tasarımı (3-8 kişi + boşluk doldurma):**
+Mevcut mesh mimarisi (`server.js` ~1061-1300, `GROUP_CALL_SIZES = [3, 4]`,
+`groupCallQueues`/`groupCallRooms`/`tryFormGroupCallRoom`) BİLİNÇLİ olarak
+4 ile sınırlı çünkü mesh'te N kişi = N*(N-1)/2 eşzamanlı bağlantı (8 kişide
+28 bağlantı - pratik değil). Karar: 8'e kadar ölçeklenebilmesi için bu artık
+LiveKit (SFU) üzerine taşınmalı - `liveRoomMediaAdapter.js`/`liveRoomStore.js`
+ile AYNI adapter kullanılabilir, roller host/co-host/viewer yerine "eşit
+katılımcı" olacak (hepsi hem yayınlar hem izler, host/viewer ayrımı yok).
+  - `GROUP_CALL_SIZES` 3'ten 8'e genişler, kullanıcı arayüzden boyut seçer
+    (mevcut `group_call_pre_screen.dart`'a boyut seçici eklenir).
+  - **Boşluk doldurma (backfill) - Sinan'ın özellikle istediği kısım**: şu an
+    `leaveGroupCallRoom()` biri ayrılınca odayı küçültüp bildiriyor ama ASLA
+    yeni biri EKLEMİYOR (bu, şikayet edilen "2 kişi kalıp kimse gelmiyor"
+    durumunun tam olarak nedeni - server.js:1100-1128'de doğrulandı). Yeni
+    tasarım: bir katılımcı ayrılıp oda `size`'ın altına düşünce, odanın
+    hedef boyutu (`targetSize`) aynı kalan bir `groupCallQueues.get(targetSize)`
+    kuyruğuna bakılıp müsait biri varsa DOĞRUDAN o BOŞ ODAYA eklenir (yeni bir
+    oda kurmak yerine LiveKit odasına join) - `tryFormGroupCallRoom`'un
+    yanına `tryBackfillRoom(roomId)` gibi bir fonksiyon, hem birileri
+    kuyruğa her eklendiğinde hem biri odadan ayrıldığında çağrılmalı.
+
+**Sıradaki adımlar (kaldığım yerden buradan devam et):**
+1. A) için: `liveRoomStore.js`'e moderatör/viewer-list alanları + server.js'e
+   `live-room-kick`/`-mute`/`-report-user`/`-viewer-list`/arkadaş-ekleme
+   event'leri, `reportStore.js` VALID_CONTEXTS. Flutter: `live_room_service.dart`
+   'a karşılık gelen metodlar, `live_room_screen.dart`'a izleyici listesi
+   paneli + kick/mute/arkadaş-ekle butonları (yalnızca host/co-host/moderatör
+   görür).
+2. B) için: yeni `groupLiveRoomStore.js` (ya da `liveRoomStore.js`'i
+   genelleştir) + LiveKit tabanlı oda kurulumu + backfill mantığı +
+   `group_call_pre_screen.dart`'a 3-8 boyut seçici. Mesh kodu (server.js
+   ~1061-1300) korunabilir (geriye dönük uyum) ya da tamamen bu yeni
+   sistemle değiştirilebilir - karar gerektiği yerde ver.
+3. Her iki iş için de gerçek E2E test (Node socket.io script + `flutter
+   analyze`/`test`) + AGENTS_LOG.md kaydı + bu dosyaya ilerleme notu.
+
+**Tasarım kısıtı (Sinan'ın açık talimatı)**: Yeni eklenecek her buton/bileşen
+(izleyici listesi paneli, kick/mute/moderatör butonları, arkadaş ekle,
+grup boyutu seçici vb.) mevcut tasarım diline BİREBİR uymalı - `theme/
+app_theme.dart`'taki `AppColors`/`AppText`/`AppRadius` token'ları, `_pillEntry`
+tarzı mevcut bileşen desenleri, `live_room_screen.dart`/`home_screen.dart`'ta
+zaten kullanılan buton/kart stilleri kullanılacak. Yeni bir stil/renk/bileşen
+İCAT ETME - var olanı yeniden kullan.
+
+**DURDURULMA SEBEBİ**: Sinan arayüzde "Now using usage credits" uyarısını
+gördü, ücretli kredi harcanmasını istemiyor - normal kullanım kotası
+sıfırlanana kadar çalışma DURDURULDU (bkz. memory
+`feedback_token_95_checkpoint.md` güncellemesi). Kota sıfırlanınca bu bölümden
+devam edilecek, henüz TEK SATIR kod yazılmadı (yalnızca araştırma + bu plan).
+
+**GÜNCELLEME (22 Tem 2026 gece devamı):** Sıradaki adımlar #1'in SUNUCU
+tarafı bitti ve production'da doğrulandı (`merhaba-signaling` commit
+`bcdbb64` - bkz. AGENTS_LOG.md aynı tarihli kayıt). Kalan: Flutter tarafı
+(`live_room_service.dart`'a yeni event metodları, `live_room_screen.dart`'a
+izleyici listesi paneli + kick/mute/moderatör/arkadaş-ekle butonları,
+mevcut AppColors/AppText tasarım diliyle) + `flutter analyze`/`test`.
+Ardından madde #2 (grup eşleşme 3-8 + boşluk doldurma) başlanacak.
+
+**GÜNCELLEME (22 Tem 2026 gece devamı 2):** Madde #1 (A - Canlı Yayın Faz 2 +
+izleyici listesi/moderatör/arkadaş ekleme) TAMAMEN BİTTİ - sunucu (commit
+bcdbb64) + Flutter (commit 4eb6993) ikisi de production'a karşı/statik
+analizle doğrulandı. Şimdi madde #2'ye (B - grup eşleşme 3-8 + boşluk
+doldurma) geçiliyor - henüz TEK SATIR kod yazılmadı, yalnızca yukarıdaki
+tasarım (server.js ~1061-1300 mesh kodu referans, LiveKit'e taşıma +
+backfill mantığı) geçerli.
+
+**GECE OTURUMU BİTTİ (22 Tem 2026): Hem A (Canlı Yayın Faz 2 + ekler) hem
+B (Grup Eşleşme 3-8 + boşluk doldurma) TAMAMLANDI.** Detaylar için
+AGENTS_LOG.md'nin 21-22 Temmuz kayıtlarına bak. Kalan tek şey: gerçek
+cihazda canlı test (kamera/mikrofon, LiveKit SFU bağlantısı gerçek
+kullanıcılarla) - sunucu tarafları production'a karşı E2E test edildi,
+Flutter tarafları yalnızca statik analizle doğrulandı.
+
+**CHECKPOINT (26 Tem 2026, ~16:40) — token kotası dolmak üzere, oturum yarıda kesilebilir:**
+Sinan arama/mesajlaşma/canlı yayın sırasında tekrarlayan "takılma" (stutter/lag)
+bildirdi. Arka planda bir fork/subagent kök-neden araştırması yapıyor —
+`lib/services/call_service.dart`, `group_call_service.dart`, `live_room_service.dart`,
+`messaging_service.dart`, `signaling_server/server.js` inceleniyor; şüpheliler:
+mounted-check eksikliği (b498ebf kısmen düzeltti, kalan yerler var mı?), forced
+websocket transport/enableForceNew (757ce8e) her mesaj/aramada gereksiz reconnect,
+event listener birikmesi (.off() olmadan tekrar .on()), server.js'te event loop'u
+bloke eden senkron işlemler. HENÜZ SONUÇ YOK, TEK SATIR KOD DEĞİŞMEDİ.
+
+Oturum burada kesilirse: yeni oturumda bu araştırmayı SIFIRDAN başlat (yukarıdaki
+dosyalar + şüpheli commit'ler), fork sonucu kurtarılamaz. Ayrıca bu oturumda
+yapılan (kod dışı) değişiklikler: `.claude/settings.local.json`'a
+PINECONE_SKIP_AUTH_CHECK env + sonarqube plugin disable + skillListingMaxDescChars/
+BudgetFraction düşürüldü; CLAUDE.md'ye Firestore/Flutter skill routing eklendi;
+auto-memory'ye auth gerektirmeyen plugin/skill envanteri (UI tasarım dahil) kaydedildi.
+
+**GÜNCELLEME (26 Tem 2026, ~16:46) — takılma araştırması SONUÇLANDI:**
+Yukarıdaki checkpoint'teki fork tamamlandı. Sonuç: net bir kod bug'ı BULUNAMADI.
+Çürütülenler: listener birikmesi yok (her reconnect'te socket tamamen dispose+yeniden
+yaratılıyor), sunucu senkron IO bloklaması yok (localFileStore.js zaten async'e
+geçmiş), mesaj listesi zaten ListView.builder, mounted-check oranları makul.
+Tek zayıf ipucu: `live_room_service.dart:219,255-256` - room.connect()→kamera→
+mikrofon sırayla (paralel değil) açılıyor, yayın açılış süresini uzatabilir ama
+UI'ı kilitlemez. SONUÇ: statik analiz yetersiz kaldı (bkz. memory
+feedback_static_analysis_insufficient_for_network_changes) - gerçek cihazda
+DevTools performance timeline ile veya daha spesifik repro bilgisiyle (cihaz,
+network, takılmanın tam anı) devam edilmeli. HENÜZ TEK SATIR KOD DEĞİŞMEDİ.
+
+**CHECKPOINT (27 Tem 2026, ~00:55) — gece otonom UI redesign devam ediyor:**
+Sinan uyudu, "Neon Dark-Mode" Canva AI tasarımını (27 ekran) entegre etme
+görevi otonom sürüyor (bkz. memory project_ui_redesign_overnight_2607.md,
+TaskList #1-10). Şu ana kadar: (1) lib/theme/app_theme.dart'taki _darkPalette
+yeni neon renklere güncellendi (background #0D0E11, primary #9D4EDD mor,
+secondary #00E5FF cyan, danger #FF006E pembe, +accentGreen #00FF88),
+neonGlow() yardımcı fonksiyonu eklendi, GradientButton/ConnectionMark
+güncellendi. (2) Kod tabanı taranıp DOĞRULANDI: 27 ekranın TAMAMI zaten
+AppColors/AppText/GlassCard/GradientButton token'larını kullanıyor (yalnızca
+3 dosyada hex-string parse yardımcı fonksiyonu var, marka rengiyle ilgisiz)
+- yani tek theme değişikliği otomatik olarak TÜM ekranlara yansıyor.
+(3) Splash/Login/Home/Discover ekranlarına ek olarak birkaç yerde glow efekti
+eklendi (login header ikonu, home merkez logo, discover aksiyon butonları).
+flutter analyze her adımda temiz (yalnızca önceden var olan ilgisiz info
+uyarıları). Telefon+emulator'da görsel doğrulandı (ss alındı, yeni renkler
+doğru render oluyor). Kalan: Grup 3-7 (Sohbet/Gruplar/Aramalar/Canlı Yayın/
+Profil) için aynı hafif dokunuş taraması + final flutter analyze + commit.
+HENÜZ COMMIT ATILMADI (yalnızca çalışma kopyasında).
+
+**GÜNCELLEME (27 Tem 2026, ~01:05) — gece otonom UI redesign TAMAMLANDI:**
+Sinan uyurken tamamlandı. `merhaba-app` commit `7345d74` (PUSH EDİLDİ,
+`0fd61eb..7345d74`). Yapılanlar: lib/theme/app_theme.dart'ın _darkPalette'i
+Canva AI'nin ürettiği neon renk setine güncellendi (bkz. yukarıdaki
+checkpoint), neonGlow() eklendi, connection_mark.dart/login/home/discover'a
+glow dokunuşları eklendi. flutter analyze temiz (22 önceden var olan ilgisiz
+info uyarısı dışında). KAPSAM DÜRÜSTLÜĞÜ: bu, 27 ekranın TEK TEK Canva
+mockup'larıyla piksel piksel eşleştirilmesi DEĞİL - Canva AI thread'i tam
+taranamadı (tarayıcı sekmesi tekrar tekrar kilitlendi, yalnızca 3 ekran
+görsel doğrulandı: Settings, Groups, Group Create), bunun yerine mevcut
+token mimarisi (AppColors/AppText/GlassCard/GradientButton - kod tabanında
+zaten 27 ekranın TAMAMI bunları kullanıyor, grep ile doğrulandı) üzerinden
+genel renk paletini/glow dilini uyguladık. Bu, "bütün uygulama artık yeni
+neon temayı kullanıyor" hedefini karşılıyor ama "her ekranın layout'u AI
+mockup'ıyla birebir aynı" hedefini karşılamıyor - o daha büyük bir iş,
+ya Canva thread'ine tekrar erişim ya da her ekranın PNG export'u gerekir.
+İki cihazda (telefon + emulator) görsel doğrulandı. Kalan (isteğe bağlı,
+gelecekte): Discover kart/Call ekranı/Live Room gibi ekranlara özgü layout
+değişiklikleri, tam glassmorphism blur efekti.
+
+## 27 Ekran Canva Mockup Uygulama Turu (27 Tem 2026 gece, devam ediyor)
+Sinan Canva AI thread'inden (66658380-37fe-4e6d-8816-3f3aba6648ae) 27 ekranın
+mockup görsellerini (29 PNG/JPG, "Merhaba Dizayn/" klasörü) manuel indirdi -
+thread sanallaştırılmış olduğu için otomasyon (Canva API/browser) başarısız
+oldu, bu yüzden dosyaları manuel indirme yoluna gidildi.
+
+7 gruba bölündü (TaskCreate #1-7). Durum:
+- [x] Grup 1 (Splash+Login): TAMAMLANDI, flutter analyze temiz. Splash düz koyu
+  arka plan + büyük harf "MERHABA" oldu, mevcut ConnectionMark logosu (bilinçli
+  marka kararı) DEĞİŞTİRİLMEDİ. Login'e üst blob-glow eklendi, gerçek e-posta/
+  şifre formu KORUNDU (mockup jenerik OAuth-only, gerçek fonksiyonu bozmadı).
+- [ ] Grup 2 (Home/Discover/Matches/LikesMe/Quiz): incelemede iki önemli
+  sapma bulundu:
+  1. Home mockup'ı jenerik bir "sosyal feed" (post/story/trending) gösteriyor
+     - bu uygulamada YOK ve backlog'da kasıtlı olarak kapsam dışı tutulmuş bir
+     özellik. Home_screen.dart'ın gerçek amacı (rastgele görüşme başlatma
+     hub'ı) korunacak, sahte feed UI'ı EKLENMEYECEK.
+  2. Likes Me (Kim Beğendi) mockup'ı bulanıklaştırma+kilit+"Unlock Now" ödeme
+     tuzağı (paywall) gösteriyor - bu TAM OLARAK Sinan'ın 18 Tem kararıyla
+     yasakladığı jeton/ödeme ekonomisi paternine giriyor. Kilit/paywall
+     UYGULANMAYACAK, yalnızca kart-grid görsel dili (fotoğraf, rozet, pembe
+     accent) mockup'tan alınacak.
+  Discover ekranı zaten mockup'a çok yakın (dün gece doğrulandı) - değişiklik
+  gerekmiyor.
+  Matches ve Quiz ekranları mockup'a uygun şekilde uygulanabilir, henüz
+  işlenmedi.
+- [ ] Grup 3-7 (22 ekran): henüz incelenmedi.
+
+Devam eden oturum bu bölümden kaldığı yerden devam etsin - dosya eşlemesi
+için Merhaba Dizayn/ klasöründeki 29 dosya adı (AI prompt açıklamaları)
+zaten hangi ekrana karşılık geldiğini anlatıyor.
+
+### Checkpoint (27 Tem 2026, ~21:50)
+- [x] Grup 1 (Splash+Login): TAMAMLANDI
+- [x] Grup 2 (Home/Discover/Matches/LikesMe/Quiz): TAMAMLANDI - Home'a sahte
+  feed eklenmedi, LikesMe'ye paywall/kilit eklenmedi (kasıtlı), Matches+LikesMe
+  2 sütun foto-kart grid'e çevrildi, Quiz'e ilerleme çubuğu + seçili-kart neon
+  kenarlık eklendi.
+- [x] Grup 3 (Chat/GroupChat/GroupInfo): TAMAMLANDI - chat_screen zaten
+  tokenize/uyumluydu (değişmedi), group_chat'e göndericiye özel deterministik
+  renk eklendi, group_info'ya neon halka avatar + tam-genişlik tehlike-kart
+  "ayrıl/sil" butonu eklendi.
+- [x] Grup 4 (Groups/GroupCreate/Friends): TAMAMLANDI - groups/group_create
+  zaten uyumluydu (fotoğraf yükleme/açıklama alanı KASITLI eklenmedi, backend
+  desteklemiyor - "grup fotoğrafı yükleme bu ilk sürümde YOK" notu var),
+  friends_screen'e gerçek veriye dayanan filtre çipleri (Tümü/Çevrimiçi/
+  Çevrimdışı/Favoriler) eklendi.
+- [ ] Grup 5 (PreCall/Call/VideoChat-Radar/GroupCallPre/GroupCall): mockup'lar
+  incelendi ama HENÜZ KOD DEĞİŞİKLİĞİ YAPILMADI. Bu grup projenin en riskli
+  kısmı (çağrı zamanlamaları, dün geceki race-condition fix'leri, gerçek
+  cihaz testi gerektiren WebRTC akışları). Radar mockup'ı (video_chat_screen)
+  sahte istatistik kartları gösteriyor (128 Likes, %92 Compatibility, 24K+
+  Potential Matches vb.) - bunlar gerçek veriye dayanmıyor, UYGULANMAYACAK
+  (sahte sayı göstermek KURULUM.md'deki dürüstlük ilkesine aykırı). Yalnızca
+  konsantrik neon halka görsel efekti güvenle eklenebilir.
+- [ ] Grup 6 (LiveRoomList/LiveRoom/StoryViewer/StoryCreator): henüz
+  incelenmedi.
+- [ ] Grup 7 (Profile/Achievements/Leaderboard/TrustedContacts/Settings):
+  henüz incelenmedi.
+
+Sonraki oturum Grup 5'ten devam etsin - dikkatli olunmalı (canlı çağrı
+kodu), her değişiklikten sonra flutter analyze + mümkünse gerçek cihaz testi.
+
+### TAMAMLANDI (27 Tem 2026, ~22:20)
+Tüm 27 ekran / 7 grup işlendi. `flutter analyze` proje genelinde 0 hata/uyarı,
+yalnızca 23 önemsiz stil notu (const constructor, deprecated activeColor vb.).
+
+- Grup 5 (çağrı ekranları): pre_call/call/group_call ekranları zaten mockup'a
+  yakındı (PiP, 2x2 grid, flip/end butonları), dokunulmadı. Radar (video_chat)
+  ekranına yalnızca dekoratif konsantrik neon halka eklendi.
+- Grup 6: live_room_list_screen'in eski düz Card/varsayılan AppBar'ı
+  GlassCard+CANLI rozet+izleyici ikonuna yükseltildi. live_room/story
+  ekranları zaten uyumluydu.
+- Grup 7: profile_screen'e neon avatar halkası + gerçek seviye/XP bento
+  kartları eklendi (mockup'ın uydurma oyun istatistikleri KULLANILMADI).
+  achievements_screen 2 sütun rozet grid'ine + Tümü/Kilitli sekmelerine
+  çevrildi. leaderboard_screen'e gerçek ilk-3 verisiyle podyum eklendi.
+  trusted_contacts_screen'e büyük dairesel SOS butonu (davranış aynı,
+  sahte "canlı konum takibi/siren" iddiası eklenmedi) + gerçek arama (tel:)
+  butonu eklendi. settings_screen zaten dün gece bu mockup'a karşı
+  doğrulanmıştı, dokunulmadı.
+
+Bilinçli olarak UYGULANMAYAN mockup öğeleri (gerekçeli):
+- Home: sahte sosyal feed (post/trending/popular) - özellik yok, kapsam dışı.
+- Likes Me: bulanıklaştırma+kilit+"Unlock Now" paywall - yasaklı ödeme
+  ekonomisi paterni.
+- Video Chat/Radar: uydurma istatistik kartları (128 Beğeni, %92 Uyum,
+  24K+ Potansiyel Eşleşme) - gerçek veriye dayanmıyor.
+- Group Create: fotoğraf yükleme + açıklama alanı + 3 adımlı sihirbaz -
+  backend desteklemiyor ("grup fotoğrafı yükleme bu ilk sürümde YOK").
+- Story Creator: "Apply Face Filters" - AR yüz filtreleri backlog'da ayrı
+  oturuma bırakılmıştı (native ML bağımlılığı riski).
+- Profile: uydurma oyun/esports istatistikleri (maç, kazanma oranı, rank) -
+  bu bir dating/video-chat uygulaması, gerçek karşılığı yok.
+
+Sonraki adım: gerçek cihazda/emülatörde görsel doğrulama (bu oturumda
+Flutter SDK yok, yalnızca statik analiz yapılabildi).
+
+### Gemini çakışması geri alındı (27 Tem 2026, ~23:35)
+Bu oturum sırasında Gemini (üçüncü AI araç) home_screen.dart, discover_screen.dart,
+pre_call_screen.dart ve discover_service.dart'ı kendi "BaseListLayout/BentoGlassCard/
+Provider" tasarım sistemiyle TAMAMEN üzerine yazdı (bkz. geminirapor.txt) - eksik/bozuk
+haldeydi (lib/layouts/base_list_layout.dart hiç yoktu, sahte dosyalar repo kökünde
+kalmıştı), derleme kırılmıştı. Sinan bunu beğenmedi ("saçmalamış") ve TÜM Gemini
+değişikliklerinin geri alınmasını istedi (otomatik modda, onay beklemeden).
+
+Yapıldı:
+- home_screen.dart, discover_screen.dart, pre_call_screen.dart, discover_service.dart,
+  login_screen.dart, main.dart, pubspec.yaml/lock -> son commit'e (7345d74) geri alındı.
+- Gemini'nin destek dosyaları silindi: lib/layouts/base_list_layout.dart,
+  lib/widgets/bento_glass_card.dart, + repo kökündeki başıboş kopyalar
+  (base_list_layout.dart, bento_glass_card.dart, discover_service.dart).
+- login_screen.dart'taki BENİM Grup 1 değişikliğim (üst blob-glow) elle yeniden
+  uygulandı - geri alma sırasında kaybolmuştu.
+- discover_likes_me_screen.dart'ın _respond() metodu eski DiscoverService.swipe()
+  imzasına (toId:/action: named params, AppUser? dönüş) geri döndürüldü.
+- `flutter pub get` + `flutter analyze` (0 hata, 23 önemsiz stil notu - Gemini
+  öncesi durumla BİREBİR aynı) + emülatörde derleme doğrulandı.
+
+Şu an kod tabanı, bu gecenin 27-ekran Canva mockup entegrasyonuyla (Grup 1-7,
+önceki checkpoint'lere bak) TAM UYUMLU, Gemini'nin hiçbir kalıntısı yok.
+
+NOT (sabah için): Sinan uyudu, telefon USB bağlantısı koptu (muhtemelen kilitlendi/
+şarja alındı), bu yüzden son doğrulama fiziksel cihazda değil emülatörde yapıldı.
+Üçüncü AI aracının (Gemini) bu dosyalarla tekrar çakışmaması için AGENTS_LOG.md'ye
+de bir not düşülmeli.
+
+## UI-UX-Pro-Max Gece Tasarım Turu (27 Tem 2026, ~23:45 başladı)
+Sinan "renk paleti dışında hiçbir şey yok" dedi - önceki tur çok yüzeyseldi.
+Bu tur GERÇEK kompozisyon/layout değişikliği yapıyor (jenerik GlassCard+chevron
+kalıbı yerine her ekrana özgü hiyerarşi), neon tema paleti KORUNUYOR (zaten
+doğrulandı). Kategori liderlerinden ilham alınıyor (birebir kopya değil).
+
+Durum:
+- [x] Splash: değişmedi (zaten minimal/marka anı, aşırı mühendislik gerekmiyor)
+- [x] Login: YENİ kompozisyon - üstte sabit "aurora" glow alanı (%34 ekran) +
+  alttan yükselen yuvarlak-köşeli bottom-sheet kart (form içeride). Bumble/
+  Hinge tarzı "atmosfer üstte, aksiyon altta sabit" hiyerarşisinden ilham,
+  marka öğeleri (ConnectionMark) özgün. flutter analyze temiz.
+- [x] Home: YENİ kompozisyon - tek büyük "hero" kart (görüşme CTA'sı içeride,
+  ekranın çoğunu kaplıyor) + altında yatay hızlı-erişim rafı (daire ikon+
+  etiket, story-ring esintili ama gerçek nav hedefleri için). Grup görüşmesi
+  artık hero kartın köşesinde küçük bir chip. flutter analyze temiz.
+- [ ] Kalan ~24 ekran: henüz bu turda ele alınmadı (Discover/Matches/Chat/
+  Groups/Calls/Live/Profile grupları).
+
+Devam eden oturum bu bölümden kaldığı yerden sürdürsün.
+- [x] Discover: kart sürüklerken BEĞEN/GEÇ damgası (rotasyonlu, neon kenarlık)
+  eklendi, aksiyon barı düz sıra yerine hafif kavis (arc) düzenine çevrildi.
+- [x] Matches: 2-sütun TEKDÜZE grid yerine kademeli (masonry/Pinterest tarzı)
+  2-sütun düzen - LikesMe'den (aynı kaldı, uniform grid) KASITLI farklı.
+- [x] Quiz: tüm-sorular-tek-sayfa yerine tek-soru-tek-sayfa PageView
+  (Typeform/Duolingo tarzı), segmentli ilerleme çubuğu, seçince otomatik
+  ileri geçiş, son sayfada özet+kaydet.
+- [ ] Grup 3-7 (Chat/Groups/Calls/Live/Profile, ~20 ekran): bu turda henüz
+  ele alınmadı.
+- [x] Chat + GroupChat: mesaj balonlarına asimetrik "kuyruk" köşesi eklendi
+  (gönderen/alıcıya göre farklı köşe keskinliği) - jenerik tek-tip yuvarlak
+  köşe yerine.
+- [x] Groups: satır listesinden 2-sütun "kanal kartı" grid'ine çevrildi
+  (büyük ikon üstte, Discord-sunucu-listesi esintili) - Friends ekranının
+  satır listesinden KASITLI farklı.
+- [x] PreCall (1:1 hazırlık): önizleme dikdörtgenden daireye (porthole)
+  çevrildi - Canva mockup'ındaki gibi, GroupCallPre'nin (kare/2x2 grid
+  esintili) yeleşiminden KASITLI farklı.
+- [ ] Kalan: Call(aktif görüşme)/VideoChat-Radar/GroupCallPre/GroupCall,
+  LiveRoom/StoryViewer/StoryCreator, GroupCreate, FriendsScreen ince ayar.
+  Bunların çoğu ÖNCEKİ turlarda zaten iyi durumda (neon halka, 2x2 grid,
+  story ring, segment bar vb.) - kalan iş daha çok doğrulama/küçük
+  farklılaştırma, büyük yeniden yazım değil.
+
+NOT: Bu iki turun (renk paleti + kompozisyon) birleşimiyle artık 27 ekranın
+çoğu gerçekten birbirinden ayırt edilebilir kompozisyonlara sahip. Sabah
+gerçek cihazda TÜM ekranların gezilip görsel doğrulanması gerekiyor (bu
+oturumda yalnızca birkaçı tek tek test edildi).
+- [x] GroupCallPre: önizleme artık gerçek 2x2 grid önizlemesi (kendi kameran +
+  3 "bekleniyor" placeholder hücresi) - katılınca göreceği gerçek grid'i
+  önceden gösteriyor, PreCall'ın dairesel önizlemesinden bilinçli farklı.
+- [x] GroupCreate: tek sayfalık form yerine 2 adımlı sihirbaz (isim -> üye
+  seçimi), quiz ile tutarlı segment göstergesi. Sahte fotoğraf/açıklama
+  adımı EKLENMEDİ (backend desteklemiyor).
+
+### Checkpoint (28 Tem 2026, ~00:20) - proje geneli flutter analyze: 0 hata
+Kalan (henüz bu turda ele alınmadı, çoğu önceki turlarda zaten iyi durumda):
+- Call (aktif 1:1 görüşme ekranı) - PiP zaten iyi, dokunulmadı (riskli).
+- VideoChat/Radar - önceki turda neon halka eklendi, yeterli.
+- GroupCall (2x2 grid) - zaten iyi.
+- LiveRoomList/LiveRoom - önceki turda GlassCard+CANLI rozetine yükseltildi.
+- StoryViewer/StoryCreator - zaten segment bar/camera sheet ile iyi.
+- FriendsScreen - zaten story ring + filtre çipleri var.
+- Profile/Achievements/Leaderboard/TrustedContacts/Settings - önceki turda
+  gerçek veriyle bento kart/podyum/SOS butonu eklendi, yeterli.
+
+Devam eden oturum bu checkpoint'ten devam etsin - kalan ekranlar düşük
+öncelikli ince ayarlar, büyük yeniden yazım gerektirmiyor. Her değişiklikten
+sonra flutter analyze + mümkünse cihaz/emülatör testi yapılmalı.

@@ -88,6 +88,13 @@ Key routing rules:
 - Save progress → invoke /context-save
 - Resume context → invoke /context-restore
 - Author a backlog-ready spec/issue → invoke /spec
+- Firestore data/rules work → invoke firebase-firestore or firebase-security-rules-auditor
+- Flutter widget test needed → invoke flutter-add-widget-test
+- Flutter integration test needed → invoke flutter-add-integration-test
+- Flutter layout bug → invoke flutter-fix-layout-issues
+- Flutter responsive layout → invoke flutter-build-responsive-layout
+- Flutter navigation/routing → invoke flutter-setup-declarative-routing
+- Flutter architecture cleanup → invoke flutter-apply-architecture-best-practices
 
 ## graphify
 

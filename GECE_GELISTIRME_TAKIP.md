@@ -1,5 +1,16 @@
 # Gece Geliştirme Takibi — 17-18 Temmuz 2026
 
+**NOT (22 Tem 2026 gece, gstack)**: Bu dosyadaki madde 2-7'nin TAMAMI aslında
+20 Temmuz 2026'da (`OZELLIK_BACKLOG_UYGULAMA.md`'nin "Batch D" bölümü) zaten
+tamamlanıp E2E test edilmişti - bu dosya o zaman güncellenmemiş, "Beklemede"
+etiketleri YANLIŞ/ESKİ kalmıştı. Madde 2'yi ("Tekrar eşleş") bu gece tekrar
+inceleyip düzeltirken fark edildi (bkz. AGENTS_LOG.md 22 Tem "DÜZELTME"
+kaydı). **Bu dosyada gerçekten yapılacak bir şey KALMADI** - yeni bir
+oturum bu dosyayı görürse doğrudan `OZELLIK_BACKLOG_UYGULAMA.md`'nin Batch D
+bölümüne bakıp orada zaten "TAMAMLANDI" yazdığını doğrulasın, buradaki
+"Beklemede" etiketlerine GÜVENMESİN.
+
+
 Bu dosya, Sinan uyurken saatlik/iki saatlik aralıklarla tetiklenen ayrı Claude
 (bulut) oturumlarının SIRAYLA, TEK TEK işlediği bir kontrol listesidir. Her
 oturum bu dosyayı okur, sıradaki "Beklemede" maddeyi alır, uygular, test eder,
@@ -66,12 +77,18 @@ cihaza yazar, AGENTS_LOG.md'ye (Otomatik: Evet ile) işler, bu dosyada maddeyi
   `lib/services/webrtc_service.dart`, `lib/screens/video_chat_screen.dart`.
 
 ### 2. "Tekrar eşleş" — önceki partnere dönme
-- Durum: Beklemede
-- Ne: Bir görüşme bittikten sonra (video_chat_screen.dart'ta görüşme
-  sonlandığında) "Tekrar eşleş" gibi bir buton/seçenek - son partnerin
-  hâlâ müsait olup olmadığını sunucuya sorup öyleyse doğrudan onunla
-  yeniden eşleştirme. Partner müsait değilse normal rastgele eşleşmeye
-  düşülmeli.
+- Durum: Tamamlandı (22 Tem 2026 gece, gstack tarafından DOĞRULANDI - kod
+  zaten önceki bir oturumda tam yazılmıştı ama hiç canlı test edilmemişti,
+  bu yüzden bu madde yanlışlıkla "Beklemede" kalmıştı). `call_service.dart`
+  `requestRematch()` -> sunucudaki `rematch-invite` (call-invite/
+  pendingCallInvites altyapısını yeniden kullanıyor) -> karşı tarafa
+  `call-invite-received` (isRematch:true) -> kabul/red `call-invite-response`
+  -> ikisi de `matched`. `video_chat_screen.dart`'ta karşı taraf ayrılınca
+  gösterilen snackbar'daki "Tekrar Eşleş" aksiyonu bunu tetikliyor.
+  Production'a karşı gerçek E2E testle (davet gönderme/ulaşma/kabul/
+  yeniden eşleşme) doğrulandı. `merhaba-signaling` commit: `7d6f53c`
+  (yalnızca zararsız bir `establishMatch()` refactor'ü + bu maddeyle
+  ALAKASIZ, yanlışlıkla eklenip geri alınan bir kod - detay AGENTS_LOG.md).
 
 ### 3. Uygulama içi hızlı tepkiler (görüşme sırasında emoji tepkisi)
 - Durum: Beklemede

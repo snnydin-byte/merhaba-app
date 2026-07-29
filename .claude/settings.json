@@ -72,5 +72,9 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "data-engineering@claude-plugins-official": true
   }
 }

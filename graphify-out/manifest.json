@@ -1,13 +1,13 @@
 {
   ".claude/settings.json": {
-    "mtime": 1784652101.5168104,
-    "ast_hash": "0b0a9e63c22062bd895d8c8c18e820fa",
+    "mtime": 1785063340.0233643,
+    "ast_hash": "cae9b30d1a0c78013d72a45cebfcce21",
     "semantic_hash": ""
   },
   ".claude/settings.local.json": {
-    "mtime": 1784624906.080372,
-    "ast_hash": "c879c010aa894196bbb2cd841b8a61be",
-    "semantic_hash": "c879c010aa894196bbb2cd841b8a61be"
+    "mtime": 1785176402.9320998,
+    "ast_hash": "4baa879e88d45a2f379dbca7334e1a3a",
+    "semantic_hash": ""
   },
   ".vscode/settings.json": {
     "mtime": 1784370812.8914545,
@@ -85,114 +85,114 @@
     "semantic_hash": "d7e52028eb2df6c0c2e287e3a546cd76"
   },
   "lib/main.dart": {
-    "mtime": 1784627520.2959628,
+    "mtime": 1785184313.6064994,
     "ast_hash": "816314460b868ed50023f71b7085e057",
     "semantic_hash": "816314460b868ed50023f71b7085e057"
   },
   "lib/screens/achievements_screen.dart": {
-    "mtime": 1784628065.6882334,
-    "ast_hash": "8732f2fe392ba0924a9c5d7ea180345b",
-    "semantic_hash": "8732f2fe392ba0924a9c5d7ea180345b"
+    "mtime": 1785179120.803617,
+    "ast_hash": "329a2979694824e10e727da42898668f",
+    "semantic_hash": ""
   },
   "lib/screens/call_screen.dart": {
-    "mtime": 1784627781.9076,
-    "ast_hash": "7ab87382a49bb9c07cc318416b58fd14",
-    "semantic_hash": "7ab87382a49bb9c07cc318416b58fd14"
+    "mtime": 1785087676.7676744,
+    "ast_hash": "fa1794bb63960bddd1a495fd68d7ffbf",
+    "semantic_hash": ""
   },
   "lib/screens/chat_screen.dart": {
-    "mtime": 1784628279.8464012,
-    "ast_hash": "ddbcbe7fe48937f156e94c1ad5b3336e",
-    "semantic_hash": "ddbcbe7fe48937f156e94c1ad5b3336e"
+    "mtime": 1785185762.4735923,
+    "ast_hash": "80c65c9401a3c51504b2705aa87914e9",
+    "semantic_hash": ""
   },
   "lib/screens/discover_likes_me_screen.dart": {
-    "mtime": 1784628192.2036605,
-    "ast_hash": "b41e8240ff571833c1a644dcf88863b5",
-    "semantic_hash": "b41e8240ff571833c1a644dcf88863b5"
+    "mtime": 1785184421.626114,
+    "ast_hash": "95370d3e13345081498c71dac5540ea6",
+    "semantic_hash": ""
   },
   "lib/screens/discover_matches_screen.dart": {
-    "mtime": 1784628173.6859126,
-    "ast_hash": "4264695a02ebe97369aec928492cf3d9",
-    "semantic_hash": "4264695a02ebe97369aec928492cf3d9"
+    "mtime": 1785185566.1652374,
+    "ast_hash": "d07b4628ee6261af01a746aeed8b0285",
+    "semantic_hash": ""
   },
   "lib/screens/discover_quiz_screen.dart": {
-    "mtime": 1784628226.9014826,
-    "ast_hash": "b53c6da29ebe539fa756243ad8d8853d",
-    "semantic_hash": "b53c6da29ebe539fa756243ad8d8853d"
+    "mtime": 1785185671.9916453,
+    "ast_hash": "04604b90b467a10c3a64040f8147f1f4",
+    "semantic_hash": ""
   },
   "lib/screens/discover_screen.dart": {
-    "mtime": 1784628052.9992824,
-    "ast_hash": "cd3ee8c22553c3fb13964225ef4b53b4",
-    "semantic_hash": "cd3ee8c22553c3fb13964225ef4b53b4"
+    "mtime": 1785185449.1531415,
+    "ast_hash": "f629fde4e7938960972e2a7d8c640133",
+    "semantic_hash": ""
   },
   "lib/screens/friends_screen.dart": {
-    "mtime": 1784628112.9272985,
-    "ast_hash": "62b17651ae12ab0ecb4b4461e21c4bca",
-    "semantic_hash": "62b17651ae12ab0ecb4b4461e21c4bca"
+    "mtime": 1785178086.2912505,
+    "ast_hash": "3c5f8b0dbd9408604eb5b776e4fd2b82",
+    "semantic_hash": ""
   },
   "lib/screens/group_call_pre_screen.dart": {
-    "mtime": 1784627738.948055,
-    "ast_hash": "e15f71819819e7f3775c64e2cfd4e873",
-    "semantic_hash": "e15f71819819e7f3775c64e2cfd4e873"
+    "mtime": 1785186259.8274343,
+    "ast_hash": "e08605125fefe45d0abbd514350dcc1b",
+    "semantic_hash": ""
   },
   "lib/screens/group_call_screen.dart": {
-    "mtime": 1784627750.7577639,
-    "ast_hash": "e27736244ceee83676e1f789017c9af6",
-    "semantic_hash": "e27736244ceee83676e1f789017c9af6"
+    "mtime": 1784676655.1447537,
+    "ast_hash": "1dc63f82b3f0ed3840cd097637cff92d",
+    "semantic_hash": ""
   },
   "lib/screens/group_chat_screen.dart": {
-    "mtime": 1784628219.8743227,
-    "ast_hash": "5ca064fb6a8f817d670cee15c7587464",
-    "semantic_hash": "5ca064fb6a8f817d670cee15c7587464"
+    "mtime": 1785185852.9958706,
+    "ast_hash": "9c7b9765a49e7b0a3238116021a9b84a",
+    "semantic_hash": ""
   },
   "lib/screens/group_create_screen.dart": {
-    "mtime": 1784628205.2307765,
-    "ast_hash": "ec53488fd73b3428fa763fd7141a26eb",
-    "semantic_hash": "ec53488fd73b3428fa763fd7141a26eb"
+    "mtime": 1785186439.562417,
+    "ast_hash": "55bb12603cc603b1314221df3a62bafb",
+    "semantic_hash": ""
   },
   "lib/screens/group_info_screen.dart": {
-    "mtime": 1784628144.8476844,
-    "ast_hash": "1665e85b5ed59f929e99f4780882a392",
-    "semantic_hash": "1665e85b5ed59f929e99f4780882a392"
+    "mtime": 1785177809.6689687,
+    "ast_hash": "321ebaefa24e3167f06cddca809092bf",
+    "semantic_hash": ""
   },
   "lib/screens/groups_screen.dart": {
-    "mtime": 1784628202.7722971,
-    "ast_hash": "7430d24b7d94ebdd821b769957846e31",
-    "semantic_hash": "7430d24b7d94ebdd821b769957846e31"
+    "mtime": 1785185944.5106478,
+    "ast_hash": "0d2d1e112d1269a60d51fccd24c79f31",
+    "semantic_hash": ""
   },
   "lib/screens/home_screen.dart": {
-    "mtime": 1784659120.2350864,
-    "ast_hash": "58183f48d1304cb9c7b74338699d2fd3",
+    "mtime": 1785185297.4171176,
+    "ast_hash": "de2ee50ed011bb36bc60806c97eed55e",
     "semantic_hash": ""
   },
   "lib/screens/leaderboard_screen.dart": {
-    "mtime": 1784628052.0667796,
-    "ast_hash": "910b5a5569de2c9932517e315327e545",
-    "semantic_hash": "910b5a5569de2c9932517e315327e545"
+    "mtime": 1785179198.3646073,
+    "ast_hash": "e3d494bdd0a49ffb8df30756b586d470",
+    "semantic_hash": ""
   },
   "lib/screens/live_room_list_screen.dart": {
-    "mtime": 1784627749.163525,
-    "ast_hash": "5dcefe13dd0c34971034942dd705be12",
-    "semantic_hash": "5dcefe13dd0c34971034942dd705be12"
+    "mtime": 1785178751.954267,
+    "ast_hash": "5f963a73084c6311e1266e33c62b4904",
+    "semantic_hash": ""
   },
   "lib/screens/live_room_screen.dart": {
-    "mtime": 1784627765.6678994,
-    "ast_hash": "a75379d72988603b45948bbd1205e1b4",
-    "semantic_hash": "a75379d72988603b45948bbd1205e1b4"
+    "mtime": 1784675602.6845152,
+    "ast_hash": "39480b55a01f5e435724d79b7010eebf",
+    "semantic_hash": ""
   },
   "lib/screens/login_screen.dart": {
-    "mtime": 1784628111.1384199,
-    "ast_hash": "47cdbb8d417d7199d5799ab222801dfb",
-    "semantic_hash": "47cdbb8d417d7199d5799ab222801dfb"
+    "mtime": 1785185004.6187868,
+    "ast_hash": "7f75a602f99cd47b407714ff9d13aa59",
+    "semantic_hash": ""
   },
   "lib/screens/pre_call_screen.dart": {
-    "mtime": 1784627770.013442,
-    "ast_hash": "48881c6a4924da3a59df44564588aa0e",
-    "semantic_hash": "48881c6a4924da3a59df44564588aa0e"
+    "mtime": 1785186055.2555962,
+    "ast_hash": "b13f9804d3691d4020add46ffe511ae1",
+    "semantic_hash": ""
   },
   "lib/screens/profile_screen.dart": {
-    "mtime": 1784628219.0324888,
-    "ast_hash": "a5902f949ace65207a4e74e024126619",
-    "semantic_hash": "a5902f949ace65207a4e74e024126619"
+    "mtime": 1785179028.2440374,
+    "ast_hash": "2392d1c7b834ff43a9a17b97e9c8555f",
+    "semantic_hash": ""
   },
   "lib/screens/settings_screen.dart": {
     "mtime": 1784628076.9186342,
@@ -200,8 +200,8 @@
     "semantic_hash": "6b6deaab99b3e63face612286408740b"
   },
   "lib/screens/splash_screen.dart": {
-    "mtime": 1784659104.585449,
-    "ast_hash": "16778bfe2a01fe44f029e237ce75c2ea",
+    "mtime": 1785176541.599234,
+    "ast_hash": "0dec4aeb2be26e81c42a056c707c0e60",
     "semantic_hash": ""
   },
   "lib/screens/story_creator_sheet.dart": {
@@ -215,14 +215,14 @@
     "semantic_hash": "dd5367ab74b6908a9d4772f689e94395"
   },
   "lib/screens/trusted_contacts_screen.dart": {
-    "mtime": 1784628173.6859126,
-    "ast_hash": "d7afc5a18ce9871ff10d630364521baa",
-    "semantic_hash": "d7afc5a18ce9871ff10d630364521baa"
+    "mtime": 1785179321.1849723,
+    "ast_hash": "4ed33f36f5694f0efcbd8b3bbf5de5cc",
+    "semantic_hash": ""
   },
   "lib/screens/video_chat_screen.dart": {
-    "mtime": 1784627722.365514,
-    "ast_hash": "008e5b5c3b6aa476a7a57801ffd5557e",
-    "semantic_hash": "008e5b5c3b6aa476a7a57801ffd5557e"
+    "mtime": 1785178645.4022696,
+    "ast_hash": "8c2666d9b2ac5ad3e43163bbd42dfd65",
+    "semantic_hash": ""
   },
   "lib/services/auth_service.dart": {
     "mtime": 1784515047.7146893,
@@ -230,9 +230,9 @@
     "semantic_hash": "7514a04e3ab6be7773babe825c7439fe"
   },
   "lib/services/call_service.dart": {
-    "mtime": 1784498382.3058524,
-    "ast_hash": "4e11a0d613923969b312383ebd1e0cc4",
-    "semantic_hash": "4e11a0d613923969b312383ebd1e0cc4"
+    "mtime": 1785067111.5107245,
+    "ast_hash": "e8b99c34405908de3688389c2d1bac4d",
+    "semantic_hash": ""
   },
   "lib/services/call_ui_controller.dart": {
     "mtime": 1784498424.0379941,
@@ -240,9 +240,9 @@
     "semantic_hash": "854dd1752e5f806e879ea74f8b17f3ff"
   },
   "lib/services/discover_service.dart": {
-    "mtime": 1784512951.5466983,
-    "ast_hash": "982e71b9f6347d98dca92d95d072da55",
-    "semantic_hash": "982e71b9f6347d98dca92d95d072da55"
+    "mtime": 1785184313.611581,
+    "ast_hash": "b8497ea02ea56f0725cca44e1046c4f2",
+    "semantic_hash": ""
   },
   "lib/services/friends_service.dart": {
     "mtime": 1783810283.202658,
@@ -255,19 +255,19 @@
     "semantic_hash": "ee37a72d66d286cf9233f3b90a51a136"
   },
   "lib/services/group_call_service.dart": {
-    "mtime": 1784496100.4504821,
-    "ast_hash": "90367ecb912ef2eaaf0e19f3907ea2cb",
-    "semantic_hash": "90367ecb912ef2eaaf0e19f3907ea2cb"
+    "mtime": 1785067130.0957093,
+    "ast_hash": "43193d8b76bc15d941cd7a5364ea671d",
+    "semantic_hash": ""
   },
   "lib/services/live_room_service.dart": {
-    "mtime": 1784652653.3783574,
-    "ast_hash": "78edc0dbfda1c4ea5a223c447a152cc0",
+    "mtime": 1785067121.506143,
+    "ast_hash": "1b98951d1dc88cfc02daed2111b1f40f",
     "semantic_hash": ""
   },
   "lib/services/messaging_service.dart": {
-    "mtime": 1784514169.1627302,
-    "ast_hash": "741e3b6c99a2ff330b69c7afb449c166",
-    "semantic_hash": "741e3b6c99a2ff330b69c7afb449c166"
+    "mtime": 1785067103.0287354,
+    "ast_hash": "ccb0632830db3e276ae047311baef8bc",
+    "semantic_hash": ""
   },
   "lib/services/navigation_service.dart": {
     "mtime": 1784141314.7303617,
@@ -280,14 +280,14 @@
     "semantic_hash": "7b5eec2e04478c4a865971ecee7be4ea"
   },
   "lib/services/webrtc_service.dart": {
-    "mtime": 1784498638.851313,
-    "ast_hash": "f5272714131e47a07440bb4f56c471fc",
-    "semantic_hash": "f5272714131e47a07440bb4f56c471fc"
+    "mtime": 1785067094.61768,
+    "ast_hash": "ba88bf4c0b479c24ab51e0ef672804b6",
+    "semantic_hash": ""
   },
   "lib/theme/app_theme.dart": {
-    "mtime": 1784627479.0173814,
-    "ast_hash": "26eeb41dc6346da04610c3dbcfb94148",
-    "semantic_hash": "26eeb41dc6346da04610c3dbcfb94148"
+    "mtime": 1785101575.3895223,
+    "ast_hash": "523d8b88b3cd1e2113f3d0c50cccb834",
+    "semantic_hash": ""
   },
   "lib/utils/message_safety.dart": {
     "mtime": 1784513965.9056344,
@@ -430,14 +430,14 @@
     "semantic_hash": "41b83367a766e94c6884c407cd6f8ed2"
   },
   "CLAUDE.md": {
-    "mtime": 1784652101.5168104,
-    "ast_hash": "7d56dc7a40a5c125e4f5e9bdd69db79b",
+    "mtime": 1785071617.5019324,
+    "ast_hash": "7546ceb29c842aad2183133fffaab5c8",
     "semantic_hash": ""
   },
   "GECE_GELISTIRME_TAKIP.md": {
-    "mtime": 1784364054.9381022,
-    "ast_hash": "e3cedafafa92b95fa9581d78f36bb589",
-    "semantic_hash": "e3cedafafa92b95fa9581d78f36bb589"
+    "mtime": 1784679614.2251582,
+    "ast_hash": "97b5cd1fff516be2ecd14366a5e890dc",
+    "semantic_hash": ""
   },
   "KURULUM.md": {
     "mtime": 1784495617.8667266,
@@ -450,9 +450,9 @@
     "semantic_hash": "4b47287a0d70455133c86e29effe4662"
   },
   "OZELLIK_BACKLOG_UYGULAMA.md": {
-    "mtime": 1784624375.5428574,
-    "ast_hash": "5aa04078a58e0071499b61054ae506a4",
-    "semantic_hash": "5aa04078a58e0071499b61054ae506a4"
+    "mtime": 1785186512.897195,
+    "ast_hash": "84e85d694b3b8b261e9f357bd442eec5",
+    "semantic_hash": ""
   },
   "RAKIP_ANALIZI_VE_YOL_HARITASI.md": {
     "mtime": 1784329872.081126,
@@ -570,7 +570,7 @@
     "semantic_hash": "30cc1614b16214b66c014af09ba699eb"
   },
   "pubspec.yaml": {
-    "mtime": 1784624095.6912365,
+    "mtime": 1785184313.6131804,
     "ast_hash": "1129b4b6b753bf1e49e4794504be03e6",
     "semantic_hash": "1129b4b6b753bf1e49e4794504be03e6"
   },
@@ -605,103 +605,103 @@
     "semantic_hash": "0080a19326334b15728254ecc7e5d9f4"
   },
   "android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
-    "mtime": 1784657766.8549519,
-    "ast_hash": "cee14a776cd9d41b0e13bf9e09e4f7ca",
+    "mtime": 1784661443.8988705,
+    "ast_hash": "27f4e11179c80a5bae2b6177bbde2d60",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
-    "mtime": 1784657766.8477275,
-    "ast_hash": "bca1fe83aa412c3e7ee18041754f494e",
+    "mtime": 1784661443.7144887,
+    "ast_hash": "ad60bb20af55bd7aaa7654a03308cbf9",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
-    "mtime": 1784657766.8614607,
-    "ast_hash": "1367ce0439b3cf90eedff886a2341762",
+    "mtime": 1784661444.0988615,
+    "ast_hash": "41e538bee7bc9d36896cff39a110f36c",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
-    "mtime": 1784657766.8691924,
-    "ast_hash": "37b329bb48dde7bab4e73a1504e71570",
+    "mtime": 1784661444.567837,
+    "ast_hash": "3d7c10dec391e7f382ba0643c661e90e",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
-    "mtime": 1784657766.8793654,
-    "ast_hash": "64026ec0594146bfee6855942bdbd67c",
+    "mtime": 1784661446.2324183,
+    "ast_hash": "61d3c4ada56966ea8ccf15447f6aea8d",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png": {
-    "mtime": 1784657767.0044968,
-    "ast_hash": "76d85aa0a3e16a58c8224c0da9772228",
+    "mtime": 1784661505.3795407,
+    "ast_hash": "86e0ac9dd23a2e73344895516190133e",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png": {
-    "mtime": 1784657766.8859062,
-    "ast_hash": "b7a3c5aa79b4d38ce778a46b8c7451d4",
+    "mtime": 1784661505.389583,
+    "ast_hash": "930c4de22f5dd4d386118dec788f75ca",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png": {
-    "mtime": 1784657766.8939464,
-    "ast_hash": "3f3437fe41dd84ba523da3a79a736e31",
+    "mtime": 1784661505.4142542,
+    "ast_hash": "cfc4f3255b3c180809bf02ccb1cb7eb8",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png": {
-    "mtime": 1784657766.9008415,
-    "ast_hash": "1943e3873930e227ee532c830566523f",
+    "mtime": 1784661505.4588456,
+    "ast_hash": "2dcf32edd0ef266a491e387fa27c199f",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png": {
-    "mtime": 1784657766.9078414,
-    "ast_hash": "e749591230a4426886f3c339f4b29b9c",
+    "mtime": 1784661505.4733732,
+    "ast_hash": "eaa18cbcecd7d2ab3b1e18d11f8da7d0",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png": {
-    "mtime": 1784657766.9139183,
-    "ast_hash": "addf16081bb7eeb8e56ad9ea24f5a602",
+    "mtime": 1784661505.5155375,
+    "ast_hash": "aa9c9908010a97f48394e2003c97d275",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png": {
-    "mtime": 1784657766.9219506,
-    "ast_hash": "5db252fa9f3487bf059ed864ed1b40ce",
+    "mtime": 1784661505.6243215,
+    "ast_hash": "f0ffb3eeab0d186093b925d43ebf8c58",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png": {
-    "mtime": 1784657766.9279504,
-    "ast_hash": "3f3437fe41dd84ba523da3a79a736e31",
+    "mtime": 1784661505.6253214,
+    "ast_hash": "cfc4f3255b3c180809bf02ccb1cb7eb8",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png": {
-    "mtime": 1784657766.935729,
-    "ast_hash": "e935beb9e1f6f1d422c5855bd06ad32e",
+    "mtime": 1784661505.7070863,
+    "ast_hash": "4b1c952cbb55bf2c18037fb0b3fe7210",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png": {
-    "mtime": 1784657766.944296,
-    "ast_hash": "a667fbd2e619423563d6984b0c2491e2",
+    "mtime": 1784661505.958809,
+    "ast_hash": "b690f2934ba05cc5bd19313c56f3d437",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png": {
-    "mtime": 1784657766.9524617,
-    "ast_hash": "a667fbd2e619423563d6984b0c2491e2",
+    "mtime": 1784661505.9598093,
+    "ast_hash": "b690f2934ba05cc5bd19313c56f3d437",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png": {
-    "mtime": 1784657766.9609663,
-    "ast_hash": "67c67fb84892a322e68cb95e40ec191d",
+    "mtime": 1784661507.3672354,
+    "ast_hash": "ae0cb6b0929b508f4bae887c7a81baee",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png": {
-    "mtime": 1784657766.9680076,
-    "ast_hash": "f076bc2b4323bef28e4df79c4ef510d7",
+    "mtime": 1784661507.4358537,
+    "ast_hash": "16d355c960b1c3a9eb971d08dee1d863",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png": {
-    "mtime": 1784657766.981447,
-    "ast_hash": "5712f0618246444a0c5a513d3e274785",
+    "mtime": 1784661507.926722,
+    "ast_hash": "9836281841a6edc2e0581cfff31e87b6",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png": {
-    "mtime": 1784657766.9929817,
-    "ast_hash": "45aee6e91f3a364358b580497fe3f33c",
+    "mtime": 1784661509.1579251,
+    "ast_hash": "8bfb3916da4c4a4ec459895716863592",
     "semantic_hash": ""
   },
   "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png": {
@@ -720,93 +720,93 @@
     "semantic_hash": "978c1bee49d7ad5fc1a4d81099b13e18"
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png": {
-    "mtime": 1784657767.0620053,
-    "ast_hash": "76d85aa0a3e16a58c8224c0da9772228",
+    "mtime": 1784661509.1799698,
+    "ast_hash": "86e0ac9dd23a2e73344895516190133e",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_128.png": {
-    "mtime": 1784657767.031466,
-    "ast_hash": "02faa1b5d23575466b04eb7bdc70e39f",
+    "mtime": 1784661509.417617,
+    "ast_hash": "dcff20c2ee4bdc4b3c1efbd6063a6e6a",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_16.png": {
-    "mtime": 1784657767.0100038,
-    "ast_hash": "c77920a292479f85a4e5bcf3a50ac628",
+    "mtime": 1784661509.429149,
+    "ast_hash": "ef13c9065209adba7eef2629c9c2a4ec",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png": {
-    "mtime": 1784657767.0414796,
-    "ast_hash": "f5914c018acb396c6f3a63e2558c4f31",
+    "mtime": 1784661512.2384205,
+    "ast_hash": "5444cc405fce1babaa9c7a47a2f3803c",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_32.png": {
-    "mtime": 1784657767.0171797,
-    "ast_hash": "50822e8463bc6112fa8e1e4a75891253",
+    "mtime": 1784661512.255463,
+    "ast_hash": "134e90631658f1c415ddb040d94c862f",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png": {
-    "mtime": 1784657767.0544968,
-    "ast_hash": "df0a3a694dbf12292f810ec208e4110c",
+    "mtime": 1784661523.5567026,
+    "ast_hash": "a3d047302fe49ba5f50039517f93cc7c",
     "semantic_hash": ""
   },
   "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_64.png": {
-    "mtime": 1784657767.0242069,
-    "ast_hash": "bb6863a941a30139759974bff81f8654",
+    "mtime": 1784661523.6089401,
+    "ast_hash": "3ec463414eb9a384c0c4cc55011728ed",
     "semantic_hash": ""
   },
   "web/favicon.png": {
-    "mtime": 1784657767.068053,
-    "ast_hash": "c77920a292479f85a4e5bcf3a50ac628",
+    "mtime": 1784661523.609939,
+    "ast_hash": "ef13c9065209adba7eef2629c9c2a4ec",
     "semantic_hash": ""
   },
   "web/icons/Icon-192.png": {
-    "mtime": 1784657767.076472,
-    "ast_hash": "64026ec0594146bfee6855942bdbd67c",
+    "mtime": 1784661523.6119483,
+    "ast_hash": "61d3c4ada56966ea8ccf15447f6aea8d",
     "semantic_hash": ""
   },
   "web/icons/Icon-512.png": {
-    "mtime": 1784657767.0901506,
-    "ast_hash": "df0a3a694dbf12292f810ec208e4110c",
+    "mtime": 1784661523.6194594,
+    "ast_hash": "a3d047302fe49ba5f50039517f93cc7c",
     "semantic_hash": ""
   },
   "web/icons/Icon-maskable-192.png": {
-    "mtime": 1784657767.0976536,
-    "ast_hash": "7e4aad272d53f9739275acd787866a4f",
+    "mtime": 1784661523.9935062,
+    "ast_hash": "3867e6d29519498b067e3efe53f31249",
     "semantic_hash": ""
   },
   "web/icons/Icon-maskable-512.png": {
-    "mtime": 1784657767.111216,
-    "ast_hash": "96f27debd284644bd58c6a5f05b64de3",
+    "mtime": 1784661530.3947725,
+    "ast_hash": "3b9645e710d515224844cd991c5c1b34",
     "semantic_hash": ""
   },
   "lib/widgets/connection_mark.dart": {
-    "mtime": 1784659069.2800386,
-    "ast_hash": "4d757e8318558be0d0f92f7986c8c096",
+    "mtime": 1785101725.247404,
+    "ast_hash": "3452f270c4173e009a36c80b10fd6669",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
-    "mtime": 1784659223.7092555,
-    "ast_hash": "68859ef784e8e9a4cb8ab1e0349c68fb",
+    "mtime": 1784661446.5883865,
+    "ast_hash": "1254ee9b24c87361f79951b32f99a41e",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
-    "mtime": 1784659223.6977248,
-    "ast_hash": "2fceb4db53dfb399aefb4378c5fd262c",
+    "mtime": 1784661446.319198,
+    "ast_hash": "04f15c3076c226733e8fc3c150cf8ee4",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
-    "mtime": 1784659223.7223074,
-    "ast_hash": "bac82ef461dc5efa528556907bfcd818",
+    "mtime": 1784661447.800823,
+    "ast_hash": "73a4d5c2cc9154bba9235978e89b7989",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
-    "mtime": 1784659223.737847,
-    "ast_hash": "f9e5cccc68f1dd21d6afb2f90c529e63",
+    "mtime": 1784661450.9555027,
+    "ast_hash": "8f523a51f541792ecaf173574c6955c5",
     "semantic_hash": ""
   },
   "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
-    "mtime": 1784659223.7549255,
-    "ast_hash": "fb5b3e3db684a6407b43ea66b9d39b5b",
+    "mtime": 1784661455.9058442,
+    "ast_hash": "755a070d0c97ada305e4d5a3cb4cad14",
     "semantic_hash": ""
   },
   "uygulamadan al\u0131nt\u0131lar/ana ekran.png": {
@@ -822,6 +822,161 @@
   "uygulamadan al\u0131nt\u0131lar/logo.png": {
     "mtime": 1784658417.4006863,
     "ast_hash": "87fcf11978a0aeddc1805dc9536e5364",
+    "semantic_hash": ""
+  },
+  "bilgi.txt": {
+    "mtime": 1785050182.3653593,
+    "ast_hash": "853fe307a6709ec6cd29df5c03f1798f",
+    "semantic_hash": ""
+  },
+  "geminirapor.txt": {
+    "mtime": 1785093688.519991,
+    "ast_hash": "ffc73df8e9bf321766b779833c1c8d2f",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Active 1-on-1 full screen mobile video call conversation user interface, dark mode theme. The entire canvas background is occupied by the remote user's high-definition video stream. In the top-right corner, a small.jpg": {
+    "mtime": 1785175276.7145731,
+    "ast_hash": "b03d3211214c4dfe336e67408335cbf0",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Application preferences and configuration settings directory page, mobile interface dark mode theme. Background #0D0E11. Clean, minimal vertical menu row layout. Options like 'Account Information', 'Privacy Logs', .jpg": {
+    "mtime": 1785175465.3223345,
+    "ast_hash": "d58e27ec166c2ae2be0c1319317d425f",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Bottom sheet modal tray UI layout sliding up over a smartphone camera viewfinder screen, dark mode design. The drawer panel is a dark frosted glassmorphism tray containing an grid layout of square bento shortcut ti.jpg": {
+    "mtime": 1785175407.914869,
+    "ast_hash": "44594dfeb4590bba72344c621fa55dd4",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Competitive global rank user leaderboard directory, mobile screen layout in dark mode theme. Background #0D0E11. Top center displays a sleek flat stylized geometric 3-tier podium graphic showcasing the top 3 users..jpg": {
+    "mtime": 1785175445.2841575,
+    "ast_hash": "1eb53539fb3408abab7a1402b7062c77",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Dating mobile app discover swipe interface mockup, dark mode theme. Solid background #0D0E11. Center features a full-screen vertical swipe card with heavily rounded corners showing a young user portrait. The lower .jpg": {
+    "mtime": 1785174913.324271,
+    "ast_hash": "1c2e9e8d6f1c14c89e2d61915d82f30c",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Ephemeral social story slide viewer interface layout for a mobile app, dark mode style. Full screen graphic asset background. At the topmost margin, a sequence of thin horizontal loading progress segment dashes (ti.jpg": {
+    "mtime": 1785175386.436116,
+    "ast_hash": "761d009b0eed30d5606930a9424027a4",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Form wizard step user interface for creating a new group channel, mobile app dark mode theme. Background #0D0E11. Top center displays a large dashed circular boundary placeholder icon for uploading a group phot (1).jpg": {
+    "mtime": 1785175163.848374,
+    "ast_hash": "ff47d367644490a9d72b8a1fdd06a1be",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Form wizard step user interface for creating a new group channel, mobile app dark mode theme. Background #0D0E11. Top center displays a large dashed circular boundary placeholder icon for uploading a group phot (2).jpg": {
+    "mtime": 1785175165.9808836,
+    "ast_hash": "5972f95384bb62b14d372b9e87e13f1f",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Form wizard step user interface for creating a new group channel, mobile app dark mode theme. Background #0D0E11. Top center displays a large dashed circular boundary placeholder icon for uploading a group photo. B.jpg": {
+    "mtime": 1785175162.0427873,
+    "ast_hash": "a3331ea2b4c3adba5f82dd1e2fcac5b7",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Gamified rewards achievements badge showcase grid panel for mobile application, dark mode theme. Background #0D0E11. Grid list of flat vector token icons. Unlocked milestone badges are illustrated in vibrant vivid .jpg": {
+    "mtime": 1785175435.4303384,
+    "ast_hash": "e4df72e2e562d90a94a5e1a76a9d9a75",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Group messaging chat room channel interface layout for a mobile app, dark mode theme. Deep background #0D0E11. Scrollable stream of messages where incoming chat bubbles feature distinct user nicknames written in di.jpg": {
+    "mtime": 1785175062.0508592,
+    "ast_hash": "fe1616533bde202650121bebd4055e11",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Instant messenger 1-to-1 conversation chat room mobile interface, dark mode theme. Deep solid background #0D0E11. User text chat bubbles on the right are styled in a solid neon purple #9D4EDD, while incoming messag.jpg": {
+    "mtime": 1785174991.7412393,
+    "ast_hash": "b9a54449e021bb3bd3c55779bdf9b031",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Interactive gamified quiz questionnaire screen for a social mobile app, dark mode theme. Background #0D0E11. Features a clear top header with a sleek loading progress indicator bar. The body consists of 4 distinct .jpg": {
+    "mtime": 1785174977.9322379,
+    "ast_hash": "4b89a0938476c6b89d4b3ec17ebc2629",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Minimalist mobile app startup splash screen, dark mode theme. Solid deep midnight background #0D0E11. In the absolute center, a sleek modern chat bubble icon glowing with a soft neon blue #00E5FF back-light effect..jpg": {
+    "mtime": 1785174811.406886,
+    "ast_hash": "1ff13eeef89310c4a357fa51aaf6e7e5",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile app user onboarding authentication login screen, dark mode theme. Solid background #0D0E11 with an abstract glowing neon purple #9D4EDD fluid gradient blob behind the center. At the lower portion of the scre.jpg": {
+    "mtime": 1785174877.422522,
+    "ast_hash": "18e02073a1e5cfcce3efde24f21550f3",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile application UI design for a 4-way group video conference chat screen, dark mode theme. Background deep solid charcoal #0D0E11. The screen layout is structured as a perfect 2x2 bento grid split, showing 4 vid.jpg": {
+    "mtime": 1785175327.5804672,
+    "ast_hash": "990a86f384ed392766f263eb49e67ae8",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile application interface for matching connections directory grid, dark mode theme. Background deep charcoal #0D0E11. Structured layout composed of a 2x2 modular bento grid, where each tile is a frosted glass ca.jpg": {
+    "mtime": 1785174924.243585,
+    "ast_hash": "0e066ce8f6de5ee845a6f54deac39495",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile community application joined channels list directory dashboard, dark mode theme. Solid background #0D0E11. Features a top sleek search bar input field. Below, a vertical scrolling list of horizontal bento gl.jpg": {
+    "mtime": 1785175113.9624171,
+    "ast_hash": "83f6423ead9c8698c04732f1fbea6365",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile messaging application group management and settings info dashboard, dark mode theme. Background #0D0E11. Top center features a large circular group avatar. Below the avatar, a vertical stack of clean frosted.jpg": {
+    "mtime": 1785175090.3452024,
+    "ast_hash": "85574edbc3c2778a45b8d77ede40132c",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile social application homepage dashboard UI layout, dark mode theme. Deep background #0D0E11. At the very top, a horizontal scrolling row of circular user story avatars, each encircled by a glowing neon purple .jpg": {
+    "mtime": 1785174894.5026844,
+    "ast_hash": "9c8a99e38cb12272a82d0eec1a9a7a73",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Mobile video live streaming application interface mockup, user viewer perspective, dark mode style. The background is a crisp full-screen vertical live video broadcast of an influencer. At the top-left corner, a ro.jpg": {
+    "mtime": 1785175374.985523,
+    "ast_hash": "d0f19d7f8761b881f07065a3689cbbc1",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Modern minimalist UI design of a dating app matching radar screen, dark mode theme. Background deep midnight solid color #0D0E11 with a subtle soft glowing neon purple fluid gradient blob behind the center. In the .jpg": {
+    "mtime": 1785175288.4354508,
+    "ast_hash": "10f048252a4a398760f935c8ad544363",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Multiplayer video conference lounge pre-join waiting room screen interface, mobile dark mode. Background #0D0E11. Features a central square live webcam feed box with rounded borders. Surrounding the frame are small.jpg": {
+    "mtime": 1785175312.4663358,
+    "ast_hash": "375c73f16f42f3023a4faa7403e3cb96",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Premium feature dating application screen layout showing incoming likes, dark mode theme. Solid background #0D0E11. Grid list of user cards where the images are heavily covered by a translucent frosted glass blur e.jpg": {
+    "mtime": 1785174961.256754,
+    "ast_hash": "d43100b7cb77dc232ce10395808f6284",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Safety monitoring utility and emergency assistance panel for a mobile application, dark mode theme. Solid background #0D0E11. The upper half is dominated by a large, circular, heavily embossed central button gl (1).jpg": {
+    "mtime": 1785175456.0747495,
+    "ast_hash": "13e8dc2dcf3c9e35f64a51d0bd6ce185",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Social networking application friend list contact roster screen layout, dark mode theme. Solid deep background #0D0E11. Vertical list of clean bento glass rows representing friends. At the bottom-right edge of each.jpg": {
+    "mtime": 1785175249.3764913,
+    "ast_hash": "5ec6e0c3839c159ab7df9bf9b6f5f748",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/User personal account profile portfolio page mobile dashboard, dark mode theme. Solid deep background #0D0E11. Top center displays a large circular avatar framed by a fine neon cyan glow ring. Below, a highly organ.jpg": {
+    "mtime": 1785175422.2424583,
+    "ast_hash": "528414669d15f1c555864fa7644e1844",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Video conferencing pre-call connection green room setup screen on a mobile phone, dark mode theme. Background #0D0E11. In the center, a large circular camera frame showing a mirror reflection local video preview. D.jpg": {
+    "mtime": 1785175260.865956,
+    "ast_hash": "15a296b9718e475ba8b84e4084f668f1",
+    "semantic_hash": ""
+  },
+  "Merhaba Dizayn/Video streaming application active broadcast channels dashboard, mobile app dark mode style. Deep background #0D0E11. Vertical feed displaying rectangular bento card video tiles with rounded card edges. In the top-.jpg": {
+    "mtime": 1785175351.7531266,
+    "ast_hash": "271938e75242299435ba7a0b903b49d2",
     "semantic_hash": ""
   }
 }
