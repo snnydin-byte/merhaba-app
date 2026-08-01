@@ -24,7 +24,8 @@ class DiscoverCandidate {
     this.distanceKm,
   });
 
-  factory DiscoverCandidate.fromJson(Map<String, dynamic> json) => DiscoverCandidate(
+  factory DiscoverCandidate.fromJson(Map<String, dynamic> json) =>
+      DiscoverCandidate(
         user: AppUser.fromJson(json),
         isBoosted: json['isBoosted'] as bool? ?? false,
         compatibilityPercent: json['compatibilityPercent'] as int?,
@@ -61,14 +62,22 @@ class DateMatch {
   final AppUser user;
   final DateTime createdAt;
   final bool? weMet;
+  final bool isFriend;
 
-  DateMatch({required this.matchId, required this.user, required this.createdAt, this.weMet});
+  DateMatch({
+    required this.matchId,
+    required this.user,
+    required this.createdAt,
+    this.weMet,
+    this.isFriend = false,
+  });
 
   factory DateMatch.fromJson(Map<String, dynamic> json) => DateMatch(
         matchId: json['matchId'] as String,
         user: AppUser.fromJson(json['user'] as Map<String, dynamic>),
         createdAt: DateTime.parse(json['createdAt'] as String),
         weMet: json['weMet'] as bool?,
+        isFriend: json['isFriend'] as bool? ?? false,
       );
 }
 
@@ -77,12 +86,16 @@ class CompatibilityQuestion {
   final String question;
   final List<String> options;
 
-  CompatibilityQuestion({required this.id, required this.question, required this.options});
+  CompatibilityQuestion(
+      {required this.id, required this.question, required this.options});
 
-  factory CompatibilityQuestion.fromJson(Map<String, dynamic> json) => CompatibilityQuestion(
+  factory CompatibilityQuestion.fromJson(Map<String, dynamic> json) =>
+      CompatibilityQuestion(
         id: json['id'] as String,
         question: json['question'] as String,
-        options: (json['options'] as List<dynamic>).map((e) => e.toString()).toList(),
+        options: (json['options'] as List<dynamic>)
+            .map((e) => e.toString())
+            .toList(),
       );
 }
 
@@ -94,7 +107,8 @@ class DiscoverService {
         'Authorization': 'Bearer ${_auth.token}',
       };
 
-  Future<List<DiscoverCandidate>> fetchCandidates({double? myLat, double? myLng}) async {
+  Future<List<DiscoverCandidate>> fetchCandidates(
+      {double? myLat, double? myLng}) async {
     final query = <String, String>{};
     if (myLat != null && myLng != null) {
       query['myLat'] = myLat.toString();
@@ -102,20 +116,25 @@ class DiscoverService {
     }
     final uri = Uri.parse('$signalingServerUrl/discover/candidates')
         .replace(queryParameters: query.isEmpty ? null : query);
-    final response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+    final response = await http
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return (data['candidates'] as List<dynamic>)
-        .map((e) => DiscoverCandidate.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map((e) =>
+            DiscoverCandidate.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
   /// Dönüş: eşleşme oluştuysa eşleşen kişinin [AppUser]'ı, oluşmadıysa null.
-  Future<AppUser?> swipe({required String toId, required String action, String? note}) async {
+  Future<AppUser?> swipe(
+      {required String toId, required String action, String? note}) async {
     final response = await http
         .post(
           Uri.parse('$signalingServerUrl/discover/swipe'),
           headers: _headers,
-          body: jsonEncode({'toId': toId, 'action': action, if (note != null) 'note': note}),
+          body: jsonEncode(
+              {'toId': toId, 'action': action, if (note != null) 'note': note}),
         )
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
@@ -127,14 +146,16 @@ class DiscoverService {
 
   Future<void> rewind() async {
     final response = await http
-        .post(Uri.parse('$signalingServerUrl/discover/rewind'), headers: _headers, body: '{}')
+        .post(Uri.parse('$signalingServerUrl/discover/rewind'),
+            headers: _headers, body: '{}')
         .timeout(const Duration(seconds: 10));
     _decodeOrThrow(response);
   }
 
   Future<List<LikedYouEntry>> fetchLikesMe() async {
     final response = await http
-        .get(Uri.parse('$signalingServerUrl/discover/likes-me'), headers: _headers)
+        .get(Uri.parse('$signalingServerUrl/discover/likes-me'),
+            headers: _headers)
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return (data['likes'] as List<dynamic>)
@@ -144,7 +165,8 @@ class DiscoverService {
 
   Future<List<DateMatch>> fetchMatches() async {
     final response = await http
-        .get(Uri.parse('$signalingServerUrl/discover/matches'), headers: _headers)
+        .get(Uri.parse('$signalingServerUrl/discover/matches'),
+            headers: _headers)
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return (data['matches'] as List<dynamic>)
@@ -163,9 +185,37 @@ class DiscoverService {
     _decodeOrThrow(response);
   }
 
+  /// Karşılıklı beğeniden doğan mevcut eşleşmeyi arkadaşlığa dönüştürür.
+  /// Eşleşme zaten iki tarafın karşılıklı onayı olduğu için ikinci bir socket
+  /// isteği gerektirmez; kalıcı sohbet altyapısı hemen kullanılabilir olur.
+  Future<void> addMatchFriend(String matchId) async {
+    final response = await http
+        .post(
+          Uri.parse('$signalingServerUrl/discover/matches/$matchId/friendship'),
+          headers: _headers,
+          body: '{}',
+        )
+        .timeout(const Duration(seconds: 10));
+    _decodeOrThrow(response);
+  }
+
+  /// Eşleşmeyi listeden ve Keşfet eşleşme durumundan kaldırır. Arkadaşlık
+  /// ayrıca ve açıkça kurulmuşsa korunur; kullanıcı arkadaş listesinden ayrıca
+  /// kaldırana kadar sohbet geçmişi silinmez.
+  Future<void> unmatch(String matchId) async {
+    final response = await http
+        .delete(
+          Uri.parse('$signalingServerUrl/discover/matches/$matchId'),
+          headers: _headers,
+        )
+        .timeout(const Duration(seconds: 10));
+    _decodeOrThrow(response);
+  }
+
   Future<AppUser> activateBoost() async {
     final response = await http
-        .post(Uri.parse('$signalingServerUrl/discover/boost'), headers: _headers, body: '{}')
+        .post(Uri.parse('$signalingServerUrl/discover/boost'),
+            headers: _headers, body: '{}')
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return AppUser.fromJson(data['user'] as Map<String, dynamic>);
@@ -173,17 +223,20 @@ class DiscoverService {
 
   Future<List<CompatibilityQuestion>> fetchQuizQuestions() async {
     final response = await http
-        .get(Uri.parse('$signalingServerUrl/discover/quiz-questions'), headers: _headers)
+        .get(Uri.parse('$signalingServerUrl/discover/quiz-questions'),
+            headers: _headers)
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return (data['questions'] as List<dynamic>)
-        .map((e) => CompatibilityQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map((e) =>
+            CompatibilityQuestion.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
   }
 
   Future<List<String>> fetchBadgeCatalog() async {
     final response = await http
-        .get(Uri.parse('$signalingServerUrl/discover/badge-catalog'), headers: _headers)
+        .get(Uri.parse('$signalingServerUrl/discover/badge-catalog'),
+            headers: _headers)
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     return (data['badges'] as List<dynamic>).map((e) => e.toString()).toList();

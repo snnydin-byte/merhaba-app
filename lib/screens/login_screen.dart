@@ -8,7 +8,7 @@ import '../services/call_ui_controller.dart';
 import '../services/messaging_service.dart';
 import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/connection_mark.dart';
+import '../widgets/warm_signal_mark.dart';
 import 'home_screen.dart';
 
 /// Giriş ve kayıt için tek bir ekran; ikisi arasında geçiş yapılabilir.
@@ -157,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const ConnectionMark(width: 88),
+                        const WarmSignalMark(size: 88),
                         const SizedBox(height: 14),
                         Text('MERHABA',
                             style: AppText.display
@@ -171,8 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(32)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(32)),
                       border: Border(
                         top: BorderSide(color: AppColors.surfaceBorder),
                         left: BorderSide(color: AppColors.surfaceBorder),
@@ -306,8 +306,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded,
-              color: AppColors.danger, size: 16),
+          Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -434,7 +433,8 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.g_mobiledata_rounded, size: 26, color: AppColors.textPrimary),
+            Icon(Icons.g_mobiledata_rounded,
+                size: 26, color: AppColors.textPrimary),
             const SizedBox(width: 4),
             const Text('Google ile devam et'),
           ],

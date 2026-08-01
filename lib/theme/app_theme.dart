@@ -204,6 +204,16 @@ class AppColors {
 class AppGradients {
   AppGradients._();
 
+  static const warmSignal = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF7C4DFF),
+      Color(0xFFFFB26B),
+      Color(0xFF00BFA5),
+    ],
+  );
+
   /// Ana marka gradyanı - CTA butonları, aktif durumlar, seçili sekmeler.
   static LinearGradient get primary => LinearGradient(
         begin: Alignment.topLeft,
@@ -409,7 +419,8 @@ class GradientButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: gradient ?? AppGradients.primary,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: enabled ? neonGlow(AppColors.primary, opacity: 0.45) : null,
+          boxShadow:
+              enabled ? neonGlow(AppColors.primary, opacity: 0.45) : null,
         ),
         child: Opacity(
           opacity: enabled ? 1 : 0.45,
@@ -456,6 +467,61 @@ class GlassCard extends StatelessWidget {
 }
 
 /// Küçük durum/etiket rozeti (ör. "CANLI", "Onaylı", kategori etiketleri).
+/// Liste, ayar ve topluluk ekranlarında içeriğin ne için olduğunu ilk bakışta
+/// anlatan kompakt giriş bölümü. Ekranları ayrı ayrı kart yığınları gibi
+/// hissettirmek yerine aynı Merhaba hiyerarşisine bağlar.
+class AppScreenIntro extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+
+  const AppScreenIntro({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border:
+                Border.all(color: AppColors.primary.withValues(alpha: 0.42)),
+            boxShadow:
+                neonGlow(AppColors.primary, opacity: 0.13, blurRadius: 18),
+          ),
+          child: Icon(icon, color: AppColors.secondary, size: 23),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: AppText.subheading.copyWith(fontSize: 17)),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: AppText.caption,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
+      ],
+    );
+  }
+}
+
 class PillBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -661,6 +727,16 @@ ThemeData buildAppTheme() {
       titleMedium: AppText.subheading,
       bodyMedium: TextStyle(color: AppColors.textPrimary),
     ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: AppText.subheading,
+      iconTheme: IconThemeData(color: AppColors.textSecondary),
+      actionsIconTheme: IconThemeData(color: AppColors.textSecondary),
+    ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
@@ -674,6 +750,16 @@ ThemeData buildAppTheme() {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(foregroundColor: AppColors.primaryLight),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textPrimary,
+        minimumSize: const Size(0, 48),
+        side: BorderSide(color: AppColors.secondary.withValues(alpha: 0.58)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -700,16 +786,34 @@ ThemeData buildAppTheme() {
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: AppColors.surfaceElevated,
+      surfaceTintColor: Colors.transparent,
+      elevation: 12,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
+      titleTextStyle: AppText.heading,
+      contentTextStyle: AppText.body,
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      barrierColor: Colors.black.withValues(alpha: 0.68),
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.surfaceElevated,
+      contentTextStyle: AppText.body.copyWith(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w500,
+      ),
+      actionTextColor: AppColors.secondary,
+      disabledActionTextColor: AppColors.textMuted,
+      elevation: 10,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
+      // Alt gezinme ve görüşme kontrolleri uyarının altında kalmaz.
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 112),
+      actionOverflowThreshold: 0.34,
+      dismissDirection: DismissDirection.horizontal,
     ),
   );
 }

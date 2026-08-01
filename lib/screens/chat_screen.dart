@@ -276,8 +276,8 @@ class _ChatScreenState extends State<ChatScreen> {
       // yerine sessizce yok sayıyoruz.
       if (_persistentItems.any((i) => i.serverId == message.id)) return;
       setState(() {
-        _persistentItems.add(_ChatItem.fromMessage(message,
-            isMe: message.fromId == _myId));
+        _persistentItems
+            .add(_ChatItem.fromMessage(message, isMe: message.fromId == _myId));
       });
       _scrollToBottom();
       // Bu sohbet ekranı zaten açık olduğu için gelen mesaj anlık "okundu"
@@ -461,8 +461,8 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _persistentItems
           ..clear()
-          ..addAll(history.map(
-              (m) => _ChatItem.fromMessage(m, isMe: m.fromId == _myId)));
+          ..addAll(history
+              .map((m) => _ChatItem.fromMessage(m, isMe: m.fromId == _myId)));
         _loadingHistory = false;
       });
       _scrollToBottom();
@@ -515,9 +515,12 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
         title: Text(title, style: TextStyle(color: AppColors.textPrimary)),
-        content: Text(message, style: TextStyle(color: AppColors.textSecondary)),
+        content:
+            Text(message, style: TextStyle(color: AppColors.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Yine de gönder'),
@@ -595,7 +598,9 @@ class _ChatScreenState extends State<ChatScreen> {
   /// modunda kullanılır (bkz. _buildInputBar - ek menüsü yalnızca o modda
   /// gösteriliyor), "Kaybolan Mesajlar" bilerek sade metinle sınırlı.
   void _sendRich(
-      {required String kind, required Map<String, dynamic> meta, String caption = ''}) {
+      {required String kind,
+      required Map<String, dynamic> meta,
+      String caption = ''}) {
     final clientId =
         'c${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';
     final item = _ChatItem(
@@ -672,14 +677,18 @@ class _ChatScreenState extends State<ChatScreen> {
     );
     if (_controller.text.trim() == text) _controller.clear();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Mesaj ${_formatScheduleTime(picked)} için planlandı.')),
+      SnackBar(
+          content:
+              Text('Mesaj ${_formatScheduleTime(picked)} için planlandı.')),
     );
   }
 
   String _formatScheduleTime(DateTime dt) {
     final local = dt.toLocal();
     final now = DateTime.now();
-    final sameDay = local.year == now.year && local.month == now.month && local.day == now.day;
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
     final time =
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     if (sameDay) return 'bugün $time';
@@ -719,7 +728,8 @@ class _ChatScreenState extends State<ChatScreen> {
                 else
                   ..._scheduledForThisChat.map((s) => Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
                         decoration: BoxDecoration(
                           color: AppColors.textPrimary.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(12),
@@ -733,19 +743,24 @@ class _ChatScreenState extends State<ChatScreen> {
                                   Text(s.text,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                                      style: TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 13)),
                                   const SizedBox(height: 2),
                                   Text(_formatScheduleTime(s.sendAt),
                                       style: TextStyle(
-                                          color: AppColors.primaryLight, fontSize: 11)),
+                                          color: AppColors.primaryLight,
+                                          fontSize: 11)),
                                 ],
                               ),
                             ),
                             IconButton(
-                              icon: Icon(Icons.close_rounded, color: AppColors.textMuted, size: 18),
+                              icon: Icon(Icons.close_rounded,
+                                  color: AppColors.textMuted, size: 18),
                               onPressed: () {
                                 _messaging.cancelScheduledMessage(s.id);
-                                setSheetState(() => _scheduledForThisChat.removeWhere((e) => e.id == s.id));
+                                setSheetState(() => _scheduledForThisChat
+                                    .removeWhere((e) => e.id == s.id));
                               },
                             ),
                           ],
@@ -765,7 +780,8 @@ class _ChatScreenState extends State<ChatScreen> {
       builder: (dialogContext) => _PollComposerDialog(
         onSubmit: (question, options) {
           Navigator.pop(dialogContext);
-          _sendRich(kind: 'poll', meta: {'question': question, 'options': options});
+          _sendRich(
+              kind: 'poll', meta: {'question': question, 'options': options});
         },
       ),
     );
@@ -799,7 +815,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: AppColors.textPrimary.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(16),
                         ),
-                        child: Text(s.emoji, style: const TextStyle(fontSize: 32)),
+                        child:
+                            Text(s.emoji, style: const TextStyle(fontSize: 32)),
                       ),
                     ))
                 .toList(),
@@ -830,9 +847,12 @@ class _ChatScreenState extends State<ChatScreen> {
       // Play Services'in ayar çözümleme akışında asılı kalabiliyor) - basit
       // bir "konumumu paylaş" özelliği için zaten yeterli hassasiyette.
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.low),
       ).timeout(const Duration(seconds: 15));
-      _sendRich(kind: 'location', meta: {'lat': position.latitude, 'lng': position.longitude});
+      _sendRich(
+          kind: 'location',
+          meta: {'lat': position.latitude, 'lng': position.longitude});
     } catch (_) {
       _showSnack('Konum alınamadı, tekrar dene.');
     }
@@ -850,13 +870,17 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
-              title: Text('Kameradan çek', style: TextStyle(color: AppColors.textPrimary)),
+              leading: Icon(Icons.camera_alt_outlined,
+                  color: AppColors.textSecondary),
+              title: Text('Kameradan çek',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
             ),
             ListTile(
-              leading: Icon(Icons.photo_outlined, color: AppColors.textSecondary),
-              title: Text('Galeriden seç', style: TextStyle(color: AppColors.textPrimary)),
+              leading:
+                  Icon(Icons.photo_outlined, color: AppColors.textSecondary),
+              title: Text('Galeriden seç',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
             ),
           ],
@@ -868,7 +892,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final picker = ImagePicker();
     XFile? picked;
     try {
-      picked = await picker.pickImage(source: source, maxWidth: 1280, imageQuality: 80);
+      picked = await picker.pickImage(
+          source: source, maxWidth: 1280, imageQuality: 80);
     } catch (_) {
       _showSnack('Fotoğraf alınamadı, tekrar dene.');
       return;
@@ -877,7 +902,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() => _uploadingAttachment = true);
     try {
-      final result = await _messaging.uploadChatMedia(File(picked.path), mimeType: 'image/jpeg');
+      final result = await _messaging.uploadChatMedia(File(picked.path),
+          mimeType: 'image/jpeg');
       if (!mounted) return;
       _sendRich(kind: 'view_once_photo', meta: {'url': result['url']});
     } catch (e) {
@@ -895,7 +921,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final dir = await getTemporaryDirectory();
     final path =
         '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    await _audioRecorder.start(const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path);
     _recordingStartedAt = DateTime.now();
     _recordingTicker = Timer.periodic(const Duration(milliseconds: 200), (_) {
       if (!mounted) return;
@@ -922,7 +949,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     setState(() => _uploadingAttachment = true);
     try {
-      final result = await _messaging.uploadChatMedia(File(path), mimeType: 'audio/mp4');
+      final result =
+          await _messaging.uploadChatMedia(File(path), mimeType: 'audio/mp4');
       if (!mounted) return;
       _sendRich(kind: 'voice', meta: {
         'url': result['url'],
@@ -958,7 +986,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final url = item.meta?['url'] as String?;
     if (url == null) {
-      _showSnack(item.isMe ? 'Bu fotoğraf zaten görüntülendi.' : 'Fotoğraf artık görüntülenemiyor.');
+      _showSnack(item.isMe
+          ? 'Bu fotoğraf zaten görüntülendi.'
+          : 'Fotoğraf artık görüntülenemiyor.');
       return;
     }
     if (!mounted) return;
@@ -986,7 +1016,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _openInMaps(double lat, double lng) async {
     final uri = Uri.parse('geo:$lat,$lng?q=$lat,$lng');
-    final fallback = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    final fallback =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
@@ -1000,7 +1031,8 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Mesajı düzenle', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Mesajı düzenle',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           autofocus: true,
@@ -1032,7 +1064,8 @@ class _ChatScreenState extends State<ChatScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Mesajı sil', style: TextStyle(color: AppColors.textPrimary)),
+        title:
+            Text('Mesajı sil', style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           'Bu mesaj herkesten (karşı tarafın ekranından da) silinecek.',
           style: TextStyle(color: AppColors.textSecondary),
@@ -1045,7 +1078,8 @@ class _ChatScreenState extends State<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              if (item.serverId != null) _messaging.deleteMessage(item.serverId!);
+              if (item.serverId != null)
+                _messaging.deleteMessage(item.serverId!);
             },
             child: Text('Sil', style: TextStyle(color: AppColors.danger)),
           ),
@@ -1073,16 +1107,19 @@ class _ChatScreenState extends State<ChatScreen> {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.primary),
             ),
             SizedBox(width: 16),
-            Text('Çevriliyor...', style: TextStyle(color: AppColors.textSecondary)),
+            Text('Çevriliyor...',
+                style: TextStyle(color: AppColors.textSecondary)),
           ],
         ),
       ),
     );
     try {
-      final translated = await AuthService().translateText(item.text, targetLang);
+      final translated =
+          await AuthService().translateText(item.text, targetLang);
       if (!mounted) return;
       Navigator.pop(context);
       showDialog<void>(
@@ -1090,21 +1127,25 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
           title: Text('Çeviri', style: TextStyle(color: AppColors.textPrimary)),
-          content: Text(translated, style: TextStyle(color: AppColors.textSecondary)),
+          content: Text(translated,
+              style: TextStyle(color: AppColors.textSecondary)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Kapat')),
           ],
         ),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Çeviri yapılamadı, tekrar dene.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Çeviri yapılamadı, tekrar dene.')));
     }
   }
 
@@ -1133,7 +1174,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           },
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Text(emoji, style: const TextStyle(fontSize: 26)),
+                            child: Text(emoji,
+                                style: const TextStyle(fontSize: 26)),
                           ),
                         ))
                     .toList(),
@@ -1142,7 +1184,8 @@ class _ChatScreenState extends State<ChatScreen> {
             Divider(color: AppColors.divider, height: 1),
             ListTile(
               leading: Icon(Icons.reply, color: AppColors.textSecondary),
-              title: Text('Yanıtla', style: TextStyle(color: AppColors.textPrimary)),
+              title: Text('Yanıtla',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(sheetContext);
                 setState(() => _replyingTo = item);
@@ -1150,8 +1193,10 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             if (item.kind == 'text')
               ListTile(
-                leading: Icon(Icons.translate_rounded, color: AppColors.textSecondary),
-                title: Text('Çevir', style: TextStyle(color: AppColors.textPrimary)),
+                leading: Icon(Icons.translate_rounded,
+                    color: AppColors.textSecondary),
+                title: Text('Çevir',
+                    style: TextStyle(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _translateMessage(item);
@@ -1175,8 +1220,10 @@ class _ChatScreenState extends State<ChatScreen> {
             if (item.isMe) ...[
               if (item.kind == 'text')
                 ListTile(
-                  leading: Icon(Icons.edit_outlined, color: AppColors.textSecondary),
-                  title: Text('Düzenle', style: TextStyle(color: AppColors.textPrimary)),
+                  leading:
+                      Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+                  title: Text('Düzenle',
+                      style: TextStyle(color: AppColors.textPrimary)),
                   onTap: () {
                     Navigator.pop(sheetContext);
                     _startEdit(item);
@@ -1224,23 +1271,86 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        toolbarHeight: 72,
+        titleSpacing: 0,
+        title: Row(
           children: [
-            Text(_isNoteToSelf ? 'Kendime Not' : widget.friend.displayName),
-            // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
-            if (_partnerTyping)
-              Text(
-                'yazıyor...',
-                style: TextStyle(
-                    color: AppColors.primaryLight,
-                    fontSize: 11,
-                    fontWeight: FontWeight.normal),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.22),
+                  backgroundImage:
+                      !_isNoteToSelf && widget.friend.photoUrl != null
+                          ? NetworkImage(widget.friend.photoUrl!)
+                          : null,
+                  child: _isNoteToSelf
+                      ? Icon(Icons.sticky_note_2_outlined,
+                          color: AppColors.secondary, size: 19)
+                      : widget.friend.photoUrl == null
+                          ? Text(
+                              widget.friend.displayName.isNotEmpty
+                                  ? widget.friend.displayName[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                  color: AppColors.primaryLight,
+                                  fontWeight: FontWeight.w800),
+                            )
+                          : null,
+                ),
+                if (!_isNoteToSelf && widget.friend.online)
+                  Positioned(
+                    right: -1,
+                    bottom: -1,
+                    child: Container(
+                      width: 11,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: AppColors.accentGreen,
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: AppColors.background, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _isNoteToSelf ? 'Kendime Not' : widget.friend.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.subheading.copyWith(fontSize: 16),
+                  ),
+                  Text(
+                    _partnerTyping
+                        ? 'yazıyor...'
+                        : _isNoteToSelf
+                            ? 'yalnızca sen görebilirsin'
+                            : widget.friend.online
+                                ? 'çevrimiçi'
+                                : 'sohbeti sürdür',
+                    style: TextStyle(
+                      color: _partnerTyping || widget.friend.online
+                          ? AppColors.secondary
+                          : AppColors.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
+            ),
           ],
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.background.withValues(alpha: 0.94),
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         actions: [
           if (_mode == _ChatMode.persistent && _scheduledForThisChat.isNotEmpty)
@@ -1250,7 +1360,8 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: Badge(
                 label: Text('${_scheduledForThisChat.length}'),
                 backgroundColor: AppColors.primary,
-                child: Icon(Icons.schedule_send_rounded, color: AppColors.textSecondary),
+                child: Icon(Icons.schedule_send_rounded,
+                    color: AppColors.textSecondary),
               ),
             ),
         ],
@@ -1259,7 +1370,10 @@ class _ChatScreenState extends State<ChatScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              if (!_isNoteToSelf) _buildModeToggle() else const SizedBox(height: kToolbarHeight + 16),
+              if (!_isNoteToSelf)
+                _buildModeToggle()
+              else
+                const SizedBox(height: 88),
               if (_connectionError != null) _buildConnectionBanner(),
               if (_mode == _ChatMode.persistent && _pinnedItems.isNotEmpty)
                 _buildPinnedBar(),
@@ -1296,8 +1410,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           if (pinned.length > 1)
             Text('+${pinned.length - 1}',
-                style: TextStyle(
-                    color: AppColors.textMuted, fontSize: 11)),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
         ],
       ),
     );
@@ -1311,8 +1424,7 @@ class _ChatScreenState extends State<ChatScreen> {
       decoration: BoxDecoration(
         color: AppColors.textPrimary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border(
-            left: BorderSide(color: AppColors.primary, width: 3)),
+        border: Border(left: BorderSide(color: AppColors.primary, width: 3)),
       ),
       child: Row(
         children: [
@@ -1321,8 +1433,7 @@ class _ChatScreenState extends State<ChatScreen> {
               _previewTextFor(replying),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: AppColors.textSecondary, fontSize: 12),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
           ),
           GestureDetector(
@@ -1342,12 +1453,13 @@ class _ChatScreenState extends State<ChatScreen> {
     // olan bu mod anahtarı ("Kalıcı Sohbet"/"Kaybolan Mesajlar")
     // AppBar'ın dokunuş yakalayan bölgesiyle çakışıyordu.
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 12 + kToolbarHeight, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 84, 16, 4),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: AppColors.textPrimary.withValues(alpha: 0.05),
+          color: AppColors.surface.withValues(alpha: 0.88),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.surfaceBorder),
         ),
         child: Row(
           children: [
@@ -1367,7 +1479,8 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
+          gradient: selected ? AppGradients.warmSignal : null,
+          color: selected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         alignment: Alignment.center,
@@ -1420,8 +1533,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessageList() {
     if (_mode == _ChatMode.persistent && _loadingHistory) {
-      return Center(
-          child: CircularProgressIndicator(color: AppColors.primary));
+      return Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
     final items = _currentItems;
@@ -1446,7 +1558,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       itemCount: items.length,
       itemBuilder: (context, index) => _buildBubble(items[index]),
     );
@@ -1505,13 +1617,17 @@ class _ChatScreenState extends State<ChatScreen> {
               decoration: isSticker
                   ? null
                   : BoxDecoration(
-                      color: item.isMe ? AppColors.primary : AppColors.surface,
+                      gradient: item.isMe ? AppGradients.warmSignal : null,
+                      color: item.isMe ? null : AppColors.surfaceElevated,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
                         bottomLeft: Radius.circular(item.isMe ? 16 : 4),
                         bottomRight: Radius.circular(item.isMe ? 4 : 16),
                       ),
+                      border: item.isMe
+                          ? null
+                          : Border.all(color: AppColors.surfaceBorder),
                     ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1521,7 +1637,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Icon(Icons.push_pin,
                           size: 12,
-                          color: item.isMe ? Colors.white70 : AppColors.textSecondary),
+                          color: item.isMe
+                              ? Colors.white70
+                              : AppColors.textSecondary),
                     ),
                   if (replySource != null && !isSticker)
                     Container(
@@ -1533,7 +1651,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border(
                             left: BorderSide(
-                                color: item.isMe ? Colors.white54 : AppColors.textMuted,
+                                color: item.isMe
+                                    ? Colors.white54
+                                    : AppColors.textMuted,
                                 width: 2)),
                       ),
                       child: Text(
@@ -1548,7 +1668,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   _buildContentForKind(item),
-                  if (item.editedAt != null && !item.deleted && item.kind == 'text')
+                  if (item.editedAt != null &&
+                      !item.deleted &&
+                      item.kind == 'text')
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text('düzenlendi',
@@ -1564,8 +1686,7 @@ class _ChatScreenState extends State<ChatScreen> {
             if (item.reactions.isNotEmpty && !item.deleted)
               Container(
                 margin: const EdgeInsets.only(bottom: 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.textPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -1598,7 +1719,9 @@ class _ChatScreenState extends State<ChatScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: 4, bottom: 4),
                 child: Icon(
-                  item.readAt != null ? Icons.done_all_rounded : Icons.done_rounded,
+                  item.readAt != null
+                      ? Icons.done_all_rounded
+                      : Icons.done_rounded,
                   size: 14,
                   color: item.readAt != null
                       ? AppColors.secondaryLight
@@ -1634,16 +1757,23 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'view_once_photo':
         return _buildViewOncePhotoContent(item);
       default:
-        return Text(item.text, style: TextStyle(color: onBubbleColor, fontSize: 14));
+        return Text(item.text,
+            style: TextStyle(color: onBubbleColor, fontSize: 14));
     }
   }
 
   Widget _buildPollContent(_ChatItem item) {
     final meta = item.meta ?? const {};
     final question = meta['question'] as String? ?? '';
-    final options = (meta['options'] as List?)?.cast<dynamic>().map((e) => e.toString()).toList() ?? const <String>[];
+    final options = (meta['options'] as List?)
+            ?.cast<dynamic>()
+            .map((e) => e.toString())
+            .toList() ??
+        const <String>[];
     final votesRaw = meta['votes'];
-    final votes = votesRaw is Map ? Map<String, dynamic>.from(votesRaw) : <String, dynamic>{};
+    final votes = votesRaw is Map
+        ? Map<String, dynamic>.from(votesRaw)
+        : <String, dynamic>{};
     final total = votes.length;
     final myVote = votes[_myId] is int ? votes[_myId] as int : null;
 
@@ -1655,7 +1785,8 @@ class _ChatScreenState extends State<ChatScreen> {
           Row(
             children: [
               Icon(Icons.bar_chart_rounded,
-                  size: 16, color: item.isMe ? Colors.white70 : AppColors.textSecondary),
+                  size: 16,
+                  color: item.isMe ? Colors.white70 : AppColors.textSecondary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(question,
@@ -1674,26 +1805,32 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           Text('$total oy',
               style: TextStyle(
-                  color: item.isMe ? Colors.white.withValues(alpha: 0.5) : AppColors.textMuted,
+                  color: item.isMe
+                      ? Colors.white.withValues(alpha: 0.5)
+                      : AppColors.textMuted,
                   fontSize: 10)),
         ],
       ),
     );
   }
 
-  Widget _pollOption(_ChatItem item, int index, String label, Map<String, dynamic> votes, int total, int? myVote) {
+  Widget _pollOption(_ChatItem item, int index, String label,
+      Map<String, dynamic> votes, int total, int? myVote) {
     final count = votes.values.where((v) => v == index).length;
     final pct = total == 0 ? 0.0 : count / total;
     final selected = myVote == index;
     return GestureDetector(
       onTap: item.serverId == null
           ? null
-          : () => _messaging.votePoll(messageId: item.serverId!, optionIndex: index),
+          : () => _messaging.votePoll(
+              messageId: item.serverId!, optionIndex: index),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: Stack(
           children: [
-            Container(height: 34, color: AppColors.textPrimary.withValues(alpha: 0.08)),
+            Container(
+                height: 34,
+                color: AppColors.textPrimary.withValues(alpha: 0.08)),
             FractionallySizedBox(
               widthFactor: pct.clamp(0.0, 1.0),
               child: Container(
@@ -1711,7 +1848,10 @@ class _ChatScreenState extends State<ChatScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 4),
                         child: Icon(Icons.check_circle,
-                            size: 14, color: item.isMe ? Colors.white : AppColors.textPrimary),
+                            size: 14,
+                            color: item.isMe
+                                ? Colors.white
+                                : AppColors.textPrimary),
                       ),
                     Expanded(
                       child: Text(
@@ -1719,15 +1859,19 @@ class _ChatScreenState extends State<ChatScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: item.isMe ? Colors.white : AppColors.textPrimary,
+                          color:
+                              item.isMe ? Colors.white : AppColors.textPrimary,
                           fontSize: 12,
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
                         ),
                       ),
                     ),
                     Text('${(pct * 100).round()}%',
                         style: TextStyle(
-                            color: item.isMe ? Colors.white70 : AppColors.textSecondary,
+                            color: item.isMe
+                                ? Colors.white70
+                                : AppColors.textSecondary,
                             fontSize: 11)),
                   ],
                 ),
@@ -1744,7 +1888,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final lat = (meta['lat'] as num?)?.toDouble();
     final lng = (meta['lng'] as num?)?.toDouble();
     if (lat == null || lng == null) {
-      return Text('📍 Konum', style: TextStyle(color: AppColors.textPrimary, fontSize: 14));
+      return Text('📍 Konum',
+          style: TextStyle(color: AppColors.textPrimary, fontSize: 14));
     }
     return GestureDetector(
       onTap: () => _openInMaps(lat, lng),
@@ -1767,8 +1912,10 @@ class _ChatScreenState extends State<ChatScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: Icon(Icons.location_on_rounded, color: AppColors.textPrimary, size: 20),
+                  color: AppColors.textPrimary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle),
+              child: Icon(Icons.location_on_rounded,
+                  color: AppColors.textPrimary, size: 20),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1777,10 +1924,13 @@ class _ChatScreenState extends State<ChatScreen> {
                 children: [
                   Text('Konum paylaşıldı',
                       style: TextStyle(
-                          color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 12)),
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12)),
                   const SizedBox(height: 2),
                   Text('${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}',
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 10)),
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 10)),
                   const SizedBox(height: 4),
                   Text('Haritada aç →',
                       style: TextStyle(
@@ -1798,27 +1948,32 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildStickerContent(_ChatItem item) {
     final stickerId = item.meta?['stickerId'] as String? ?? '';
-    return Text(stickerEmojiFor(stickerId), style: const TextStyle(fontSize: 62));
+    return Text(stickerEmojiFor(stickerId),
+        style: const TextStyle(fontSize: 62));
   }
 
   Widget _buildVoiceContent(_ChatItem item) {
     final meta = item.meta ?? const {};
     final durationMs = (meta['durationMs'] as num?)?.toInt() ?? 0;
     final seconds = (durationMs / 1000).round();
-    final isPlaying = item.serverId != null && _playingVoiceMessageId == item.serverId;
+    final isPlaying =
+        item.serverId != null && _playingVoiceMessageId == item.serverId;
     return SizedBox(
       width: 190,
       child: Row(
         children: [
           GestureDetector(
-            onTap: item.serverId == null ? null : () => _toggleVoicePlayback(item),
+            onTap:
+                item.serverId == null ? null : () => _toggleVoicePlayback(item),
             child: CircleAvatar(
               radius: 18,
               backgroundColor: item.isMe
                   ? Colors.white.withValues(alpha: 0.2)
                   : AppColors.textPrimary.withValues(alpha: 0.12),
-              child: Icon(isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  color: item.isMe ? Colors.white : AppColors.textPrimary, size: 20),
+              child: Icon(
+                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: item.isMe ? Colors.white : AppColors.textPrimary,
+                  size: 20),
             ),
           ),
           const SizedBox(width: 10),
@@ -1837,7 +1992,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           margin: const EdgeInsets.symmetric(horizontal: 1),
                           height: 5 + (i % 5) * 3.0,
                           decoration: BoxDecoration(
-                            color: (item.isMe ? Colors.white : AppColors.textPrimary)
+                            color: (item.isMe
+                                    ? Colors.white
+                                    : AppColors.textPrimary)
                                 .withValues(alpha: isPlaying ? 0.9 : 0.5),
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -1849,7 +2006,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 const SizedBox(height: 4),
                 Text('$seconds sn',
                     style: TextStyle(
-                        color: item.isMe ? Colors.white.withValues(alpha: 0.6) : AppColors.textSecondary,
+                        color: item.isMe
+                            ? Colors.white.withValues(alpha: 0.6)
+                            : AppColors.textSecondary,
                         fontSize: 10)),
               ],
             ),
@@ -1882,12 +2041,18 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.visibility_rounded, color: AppColors.textPrimary, size: 26),
+              Icon(Icons.visibility_rounded,
+                  color: AppColors.textPrimary, size: 26),
               const SizedBox(height: 6),
               Text('Görmek için dokun',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text('Tek seferlik', style: TextStyle(color: AppColors.textSecondary, fontSize: 9)),
+              Text('Tek seferlik',
+                  style:
+                      TextStyle(color: AppColors.textSecondary, fontSize: 9)),
             ],
           ),
         ),
@@ -1898,13 +2063,16 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(vertical: 18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: (item.isMe ? Colors.white : AppColors.textPrimary).withValues(alpha: 0.06),
+        color: (item.isMe ? Colors.white : AppColors.textPrimary)
+            .withValues(alpha: 0.06),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            item.isMe && !viewed ? Icons.lock_clock_outlined : Icons.check_circle_outline,
+            item.isMe && !viewed
+                ? Icons.lock_clock_outlined
+                : Icons.check_circle_outline,
             color: item.isMe ? Colors.white38 : AppColors.textFaint,
             size: 26,
           ),
@@ -1912,7 +2080,9 @@ class _ChatScreenState extends State<ChatScreen> {
           Text(
             item.isMe && !viewed ? 'Gönderildi · tek seferlik' : 'Görüntülendi',
             textAlign: TextAlign.center,
-            style: TextStyle(color: item.isMe ? Colors.white38 : AppColors.textFaint, fontSize: 10),
+            style: TextStyle(
+                color: item.isMe ? Colors.white38 : AppColors.textFaint,
+                fontSize: 10),
           ),
         ],
       ),
@@ -1950,23 +2120,37 @@ class _ChatScreenState extends State<ChatScreen> {
               Text(
                 _formatDuration(_recordingElapsed),
                 style: TextStyle(
-                    color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: () => _stopVoiceRecordingAndSend(cancel: true),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  child:
+                      Icon(Icons.close_rounded, color: AppColors.textSecondary),
                 ),
               ),
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: () => _stopVoiceRecordingAndSend(cancel: false),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.primary,
-                  child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: AppGradients.warmSignal,
+                    boxShadow: neonGlow(
+                      AppColors.primary,
+                      opacity: 0.26,
+                      blurRadius: 15,
+                      spreadRadius: 0,
+                    ),
+                  ),
+                  child: const Icon(Icons.send_rounded,
+                      color: Colors.white, size: 18),
                 ),
               ),
             ],
@@ -1989,8 +2173,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 height: 40,
                 margin: const EdgeInsets.only(right: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.06),
+                  color: AppColors.surfaceElevated,
                   shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.surfaceBorder),
                 ),
                 child: _uploadingAttachment
                     ? Padding(
@@ -2017,12 +2202,21 @@ class _ChatScreenState extends State<ChatScreen> {
                         : 'Kaybolan mesaj yaz...',
                 hintStyle: TextStyle(color: AppColors.textFaint),
                 filled: true,
-                fillColor: AppColors.textPrimary.withValues(alpha: 0.06),
+                fillColor: AppColors.surfaceElevated,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: AppColors.surfaceBorder),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: AppColors.surfaceBorder),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide:
+                      BorderSide(color: AppColors.secondary, width: 1.2),
                 ),
               ),
               onSubmitted: (_) => _send(),
@@ -2031,9 +2225,19 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 8),
           GestureDetector(
             onTap: showMicInstead ? _startVoiceRecording : _send,
-            child: CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.primary,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppGradients.warmSignal,
+                boxShadow: neonGlow(
+                  AppColors.primary,
+                  opacity: 0.26,
+                  blurRadius: 15,
+                  spreadRadius: 0,
+                ),
+              ),
               child: Icon(
                 showMicInstead ? Icons.mic_rounded : Icons.send_rounded,
                 color: Colors.white,
@@ -2062,7 +2266,8 @@ class _PulsingDot extends StatefulWidget {
   State<_PulsingDot> createState() => _PulsingDotState();
 }
 
-class _PulsingDotState extends State<_PulsingDot> with SingleTickerProviderStateMixin {
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 800),
@@ -2183,7 +2388,8 @@ class _AttachmentSheet extends StatelessWidget {
               child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
+            Text(label,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           ],
         ),
       ),
@@ -2240,8 +2446,10 @@ class _PollComposerDialogState extends State<_PollComposerDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-      title: Text('Anket oluştur', style: TextStyle(color: AppColors.textPrimary)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg)),
+      title:
+          Text('Anket oluştur', style: TextStyle(color: AppColors.textPrimary)),
       content: SizedBox(
         width: 320,
         child: SingleChildScrollView(
@@ -2266,16 +2474,20 @@ class _PollComposerDialogState extends State<_PollComposerDialog> {
                         child: TextField(
                           controller: _optionControllers[i],
                           style: TextStyle(color: AppColors.textPrimary),
-                          decoration: InputDecoration(hintText: 'Seçenek ${i + 1}'),
+                          decoration:
+                              InputDecoration(hintText: 'Seçenek ${i + 1}'),
                           maxLength: 80,
                           buildCounter: (_,
-                                  {required currentLength, required isFocused, maxLength}) =>
+                                  {required currentLength,
+                                  required isFocused,
+                                  maxLength}) =>
                               null,
                         ),
                       ),
                       if (_optionControllers.length > 2)
                         IconButton(
-                          icon: Icon(Icons.remove_circle_outline, color: AppColors.textFaint, size: 20),
+                          icon: Icon(Icons.remove_circle_outline,
+                              color: AppColors.textFaint, size: 20),
                           onPressed: () => _removeOption(i),
                         ),
                     ],
@@ -2284,7 +2496,8 @@ class _PollComposerDialogState extends State<_PollComposerDialog> {
               if (_optionControllers.length < 8)
                 TextButton.icon(
                   onPressed: _addOption,
-                  icon: Icon(Icons.add, color: AppColors.primaryLight, size: 18),
+                  icon:
+                      Icon(Icons.add, color: AppColors.primaryLight, size: 18),
                   label: Text('Seçenek ekle',
                       style: TextStyle(color: AppColors.primaryLight)),
                 ),
@@ -2314,7 +2527,8 @@ class _ScheduleComposerDialog extends StatefulWidget {
   const _ScheduleComposerDialog({required this.textController});
 
   @override
-  State<_ScheduleComposerDialog> createState() => _ScheduleComposerDialogState();
+  State<_ScheduleComposerDialog> createState() =>
+      _ScheduleComposerDialogState();
 }
 
 class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
@@ -2335,7 +2549,8 @@ class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
     );
     if (time == null || !mounted) return;
     setState(() {
-      _picked = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+      _picked =
+          DateTime(date.year, date.month, date.day, time.hour, time.minute);
     });
   }
 
@@ -2348,7 +2563,8 @@ class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
     if (widget.textController.text.trim().isEmpty || _picked == null) return;
     if (_picked!.isBefore(DateTime.now().add(const Duration(seconds: 55)))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gönderim zamanı en az 1 dakika sonrası olmalı.')),
+        const SnackBar(
+            content: Text('Gönderim zamanı en az 1 dakika sonrası olmalı.')),
       );
       return;
     }
@@ -2359,8 +2575,10 @@ class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surfaceElevated,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-      title: Text('Mesajı zamanla', style: TextStyle(color: AppColors.textPrimary)),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg)),
+      title: Text('Mesajı zamanla',
+          style: TextStyle(color: AppColors.textPrimary)),
       content: SizedBox(
         width: 320,
         child: Column(
@@ -2382,19 +2600,25 @@ class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
               onTap: _pickDateTime,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: AppColors.textPrimary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.schedule_rounded, color: AppColors.primaryLight, size: 18),
+                    Icon(Icons.schedule_rounded,
+                        color: AppColors.primaryLight, size: 18),
                     const SizedBox(width: 10),
                     Text(
-                      _picked == null ? 'Tarih ve saat seç' : _formatPicked(_picked!),
+                      _picked == null
+                          ? 'Tarih ve saat seç'
+                          : _formatPicked(_picked!),
                       style: TextStyle(
-                          color: _picked == null ? AppColors.textMuted : AppColors.textPrimary,
+                          color: _picked == null
+                              ? AppColors.textMuted
+                              : AppColors.textPrimary,
                           fontSize: 13),
                     ),
                   ],

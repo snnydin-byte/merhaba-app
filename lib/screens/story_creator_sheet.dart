@@ -23,13 +23,17 @@ Future<void> showStoryCreatorSheet(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: Icon(Icons.text_fields_rounded, color: AppColors.textSecondary),
-            title: Text('Metin durumu', style: TextStyle(color: AppColors.textPrimary)),
+            leading:
+                Icon(Icons.text_fields_rounded, color: AppColors.textSecondary),
+            title: Text('Metin durumu',
+                style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, 'text'),
           ),
           ListTile(
-            leading: Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
-            title: Text('Fotoğraf durumu', style: TextStyle(color: AppColors.textPrimary)),
+            leading:
+                Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
+            title: Text('Fotoğraf durumu',
+                style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, 'photo'),
           ),
         ],
@@ -59,13 +63,16 @@ Future<void> _createPhotoStory(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           ListTile(
-            leading: Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
-            title: Text('Kameradan çek', style: TextStyle(color: AppColors.textPrimary)),
+            leading:
+                Icon(Icons.camera_alt_outlined, color: AppColors.textSecondary),
+            title: Text('Kameradan çek',
+                style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
           ),
           ListTile(
             leading: Icon(Icons.photo_outlined, color: AppColors.textSecondary),
-            title: Text('Galeriden seç', style: TextStyle(color: AppColors.textPrimary)),
+            title: Text('Galeriden seç',
+                style: TextStyle(color: AppColors.textPrimary)),
             onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
           ),
         ],
@@ -77,7 +84,8 @@ Future<void> _createPhotoStory(BuildContext context) async {
   final picker = ImagePicker();
   XFile? picked;
   try {
-    picked = await picker.pickImage(source: source, maxWidth: 1280, imageQuality: 80);
+    picked = await picker.pickImage(
+        source: source, maxWidth: 1280, imageQuality: 80);
   } catch (_) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -95,9 +103,12 @@ Future<void> _createPhotoStory(BuildContext context) async {
     context: context,
     builder: (_) => AlertDialog(
       backgroundColor: AppColors.surfaceElevated,
-      title: Text('Kimler görsün?', style: TextStyle(color: AppColors.textPrimary)),
-      content: Text('Bu hikayeyi tüm arkadaşların mı, yalnızca yakın '
-          'arkadaşların mı görsün?', style: TextStyle(color: AppColors.textSecondary)),
+      title: Text('Kimler görsün?',
+          style: TextStyle(color: AppColors.textPrimary)),
+      content: Text(
+          'Bu hikayeyi tüm arkadaşların mı, yalnızca yakın '
+          'arkadaşların mı görsün?',
+          style: TextStyle(color: AppColors.textSecondary)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
@@ -115,8 +126,8 @@ Future<void> _createPhotoStory(BuildContext context) async {
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(const SnackBar(content: Text('Hikaye yükleniyor...')));
   try {
-    final result =
-        await MessagingService().uploadChatMedia(File(picked.path), mimeType: 'image/jpeg');
+    final result = await MessagingService()
+        .uploadChatMedia(File(picked.path), mimeType: 'image/jpeg');
     final clientId = 'story${DateTime.now().microsecondsSinceEpoch}';
     MessagingService().createStory(
       kind: 'photo',
@@ -144,7 +155,8 @@ class _TextStoryComposerScreen extends StatefulWidget {
   const _TextStoryComposerScreen();
 
   @override
-  State<_TextStoryComposerScreen> createState() => _TextStoryComposerScreenState();
+  State<_TextStoryComposerScreen> createState() =>
+      _TextStoryComposerScreenState();
 }
 
 class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
@@ -188,9 +200,21 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          TextButton(
-            onPressed: _submit,
-            child: const Text('Paylaş', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.32)),
+            ),
+            child: TextButton.icon(
+              onPressed: _submit,
+              icon:
+                  const Icon(Icons.send_rounded, color: Colors.white, size: 16),
+              label: const Text('Paylaş',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w700)),
+            ),
           ),
         ],
       ),
@@ -208,7 +232,9 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
                     maxLength: 300,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700),
                     decoration: const InputDecoration(
                       hintText: 'Ne düşünüyorsun?',
                       hintStyle: TextStyle(color: Colors.white70),
@@ -246,7 +272,8 @@ class _TextStoryComposerScreenState extends State<_TextStoryComposerScreen> {
               padding: const EdgeInsets.only(bottom: 12),
               child: CheckboxListTile(
                 value: _closeFriendsOnly,
-                onChanged: (v) => setState(() => _closeFriendsOnly = v ?? false),
+                onChanged: (v) =>
+                    setState(() => _closeFriendsOnly = v ?? false),
                 controlAffinity: ListTileControlAffinity.leading,
                 activeColor: Colors.white,
                 checkColor: _parseColor(_selectedColor),

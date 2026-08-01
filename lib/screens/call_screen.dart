@@ -50,6 +50,12 @@ class _CallScreenState extends State<CallScreen> {
   bool _connectionTimedOut = false;
   String _status = 'Bağlanılıyor...';
   Timer? _connectTimeoutTimer;
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+  final List<_CallChatMessage> _messages = [];
+  bool _chatOpen = false;
+  int _unreadMessageCount = 0;
+  bool _sendingMessage = false;
 
   // ÖNCEDEN bu ekran, karşı taraf kabul ettikten sonra WebRTC bağlantısı
   // (offer/answer/ICE) herhangi bir sebeple tamamlanmazsa (ör. TURN/STUN
@@ -107,11 +113,22 @@ class _CallScreenState extends State<CallScreen> {
       if (!mounted) return;
       setState(() {
         _connected = false;
+        _chatOpen = false;
+        _unreadMessageCount = 0;
         _status = '${widget.peerDisplayName} aramadan ayrıldı.';
       });
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) Navigator.of(context).pop();
       });
+    };
+
+    widget.callService.onChatMessage = (message) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_CallChatMessage(text: message, isMe: false));
+        if (!_chatOpen) _unreadMessageCount++;
+      });
+      _scrollChatToLatest();
     };
 
     final granted = await _ensurePermissions();
@@ -200,9 +217,58 @@ class _CallScreenState extends State<CallScreen> {
     Navigator.of(context).pop();
   }
 
+  void _toggleChat() {
+    final openingChat = !_chatOpen;
+    setState(() {
+      _chatOpen = openingChat;
+      if (_chatOpen) _unreadMessageCount = 0;
+    });
+    if (openingChat) _scrollChatToLatest();
+  }
+
+  void _scrollChatToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_chatOpen || !_chatScrollController.hasClients) return;
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final message = _messageController.text.trim();
+    if (message.isEmpty || _sendingMessage) return;
+
+    setState(() => _sendingMessage = true);
+    final sent = await widget.callService.sendChatMessage(message);
+    if (!mounted) return;
+
+    if (!sent) {
+      setState(() => _sendingMessage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Mesaj kanalı hazırlanıyor, birkaç saniye sonra tekrar dene.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _messages.add(_CallChatMessage(text: message, isMe: true));
+      _messageController.clear();
+      _sendingMessage = false;
+    });
+    _scrollChatToLatest();
+  }
+
   @override
   void dispose() {
     _connectTimeoutTimer?.cancel();
+    _messageController.dispose();
+    _chatScrollController.dispose();
     if (widget.isVideo) {
       _localRenderer.dispose();
       _remoteRenderer.dispose();
@@ -224,6 +290,12 @@ class _CallScreenState extends State<CallScreen> {
           children: [
             Expanded(
                 child: widget.isVideo ? _buildVideoArea() : _buildAudioArea()),
+            if (_chatOpen) _buildChatPanel(),
+            if (_connected && !_chatOpen)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                child: _buildConversationButton(),
+              ),
             _buildControlBar(),
           ],
         ),
@@ -446,6 +518,223 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
+  Widget _buildConversationButton() {
+    final unreadLabel =
+        _unreadMessageCount > 9 ? '9+' : _unreadMessageCount.toString();
+    final hasUnreadMessages = _unreadMessageCount > 0;
+
+    return Semantics(
+      button: true,
+      label: hasUnreadMessages
+          ? 'Mesajlaş, $_unreadMessageCount okunmamış mesaj'
+          : 'Mesajlaş',
+      child: Tooltip(
+        message: 'Görüşme içi mesajlaşmayı aç',
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: hasUnreadMessages
+                  ? AppColors.danger.withValues(alpha: 0.18)
+                  : AppColors.surfaceElevated.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: hasUnreadMessages
+                    ? AppColors.danger.withValues(alpha: 0.9)
+                    : AppColors.secondary.withValues(alpha: 0.52),
+              ),
+              boxShadow: neonGlow(
+                hasUnreadMessages ? AppColors.danger : AppColors.secondary,
+                opacity: hasUnreadMessages ? 0.26 : 0.12,
+                blurRadius: 22,
+                spreadRadius: 0,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: _toggleChat,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_rounded,
+                      color: hasUnreadMessages
+                          ? AppColors.danger
+                          : AppColors.secondary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      hasUnreadMessages ? 'Yeni mesaj' : 'Mesajlaş',
+                      style: AppText.button.copyWith(fontSize: 15),
+                    ),
+                    if (hasUnreadMessages) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          unreadLabel,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatPanel() {
+    return Container(
+      height: 200,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.chat_bubble_rounded,
+                    color: AppColors.secondary, size: 17),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Görüşme içi mesajlaşma',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Mesajlaşmayı kapat',
+                  onPressed: _toggleChat,
+                  icon:
+                      const Icon(Icons.close, color: Colors.white54, size: 19),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _messages.isEmpty
+                ? Center(
+                    child: Text(
+                      'Konuşmadan yazışmak için buradan mesaj gönder.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.48),
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _chatScrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
+                      return Align(
+                        alignment: message.isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: message.isMe
+                                ? AppColors.primary
+                                : Colors.white12,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            message.text,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    enabled: !_sendingMessage,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Mesaj yaz...',
+                      hintStyle:
+                          TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.06),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Mesajı gönder',
+                  onPressed: _sendingMessage ? null : _sendMessage,
+                  icon: _sendingMessage
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(Icons.send_rounded, color: AppColors.secondary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildControlBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
@@ -506,4 +795,11 @@ class _CallScreenState extends State<CallScreen> {
       ),
     );
   }
+}
+
+class _CallChatMessage {
+  const _CallChatMessage({required this.text, required this.isMe});
+
+  final String text;
+  final bool isMe;
 }

@@ -32,7 +32,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Güvenilir kişi ekle', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Güvenilir kişi ekle',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -50,8 +51,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ekle')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ekle')),
         ],
       ),
     );
@@ -61,8 +66,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     if (name.isEmpty || phone.isEmpty) return;
     if (_contacts.length >= 5) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('En fazla 5 güvenilir kişi ekleyebilirsin.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('En fazla 5 güvenilir kişi ekleyebilirsin.')));
       }
       return;
     }
@@ -80,7 +85,9 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     try {
       await AuthService().updateTrustedContacts(_contacts);
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -93,11 +100,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-      final granted =
-          permission != LocationPermission.denied && permission != LocationPermission.deniedForever;
+      final granted = permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever;
       if (!granted || !await Geolocator.isLocationServiceEnabled()) return '';
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.low),
       ).timeout(const Duration(seconds: 8));
       return ' Konumum: https://maps.google.com/?q=${position.latitude},${position.longitude}';
     } catch (_) {
@@ -131,7 +139,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${contact.name} için SMS uygulaması açılamadı.')),
+          SnackBar(
+              content: Text('${contact.name} için SMS uygulaması açılamadı.')),
         );
       }
     }
@@ -143,13 +152,14 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   /// gönderir) - `sms:` şeması güvenilir şekilde tek alıcı destekliyor.
   Future<void> _triggerPanic() async {
     if (_contacts.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
       return;
     }
     final locationText = await _locationSnippet();
     if (!mounted) return;
-    final body = 'Yardıma ihtiyacım olabilir, lütfen benimle iletişime geç.$locationText';
+    final body =
+        'Yardıma ihtiyacım olabilir, lütfen benimle iletişime geç.$locationText';
     for (final contact in _contacts) {
       await _sendToContact(contact, body);
     }
@@ -161,15 +171,19 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Buluşma detayını paylaş', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Buluşma detayını paylaş',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           maxLines: 3,
           style: TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Kiminle, nerede, ne zaman buluşuyorsun?'),
+          decoration: const InputDecoration(
+              hintText: 'Kiminle, nerede, ne zaman buluşuyorsun?'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Vazgeç')),
           TextButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
             child: const Text('Gönder'),
@@ -179,8 +193,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     );
     if (details == null || details.isEmpty || !mounted) return;
     if (_contacts.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
       return;
     }
     final locationText = await _locationSnippet();
@@ -195,24 +209,36 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Güvenilir Kişiler'), backgroundColor: Colors.transparent, elevation: 0),
+          title: const Text('Güvenilir Kişiler'),
+          backgroundColor: Colors.transparent,
+          elevation: 0),
       body: AppBackground(
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                'Güvenilir kişiler gerçek bir hesap değil - yalnızca isim ve telefon '
-                'numarası. Panik butonuna bastığında ya da buluşma detayını '
-                'paylaştığında, her biri için telefonunun SMS uygulaması hazır bir '
-                'mesajla açılır - göndermek sana kalmış.',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+              const AppScreenIntro(
+                icon: Icons.shield_outlined,
+                title: 'Güvenlik ağın',
+                subtitle: 'Zor bir anda ulaşabileceğin kişileri seç.',
+              ),
+              const SizedBox(height: 14),
+              GlassCard(
+                child: Text(
+                  'Güvenilir kişiler gerçek bir hesap değil - yalnızca isim ve telefon '
+                  'numarası. Panik butonuna bastığında ya da buluşma detayını '
+                  'paylaştığında, her biri için telefonunun SMS uygulaması hazır bir '
+                  'mesajla açılır - göndermek sana kalmış.',
+                  style: TextStyle(
+                      color: AppColors.textMuted, fontSize: 12, height: 1.45),
+                ),
               ),
               const SizedBox(height: 16),
               ..._contacts.asMap().entries.map((entry) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: GlassCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
                       child: Row(
                         children: [
                           Expanded(
@@ -220,19 +246,27 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(entry.value.name,
-                                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                                    style: TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontWeight: FontWeight.w600)),
                                 Text(entry.value.phone,
-                                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                                    style: TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12)),
                               ],
                             ),
                           ),
                           IconButton(
                             onPressed: () => _callContact(entry.value),
-                            icon: Icon(Icons.call_rounded, color: AppColors.secondary),
+                            icon: Icon(Icons.call_rounded,
+                                color: AppColors.secondary),
                           ),
                           IconButton(
-                            onPressed: _saving ? null : () => _removeContact(entry.key),
-                            icon: Icon(Icons.delete_outline, color: AppColors.danger),
+                            onPressed: _saving
+                                ? null
+                                : () => _removeContact(entry.key),
+                            icon: Icon(Icons.delete_outline,
+                                color: AppColors.danger),
                           ),
                         ],
                       ),
@@ -260,7 +294,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                       shape: BoxShape.circle,
                       color: AppColors.danger.withValues(alpha: 0.15),
                       border: Border.all(color: AppColors.danger, width: 2),
-                      boxShadow: neonGlow(AppColors.danger, opacity: 0.5, blurRadius: 36, spreadRadius: 4),
+                      boxShadow: neonGlow(AppColors.danger,
+                          opacity: 0.5, blurRadius: 36, spreadRadius: 4),
                     ),
                     child: Center(
                       child: _locating
@@ -268,12 +303,15 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
                           : Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.emergency_share_rounded, color: AppColors.danger, size: 32),
+                                Icon(Icons.emergency_share_rounded,
+                                    color: AppColors.danger, size: 32),
                                 const SizedBox(height: 6),
                                 Text('YARDIM\nİSTE',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                        color: AppColors.danger, fontWeight: FontWeight.w800, fontSize: 15)),
+                                        color: AppColors.danger,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15)),
                               ],
                             ),
                     ),

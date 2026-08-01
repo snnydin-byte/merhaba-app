@@ -6,7 +6,7 @@ import '../services/call_ui_controller.dart';
 import '../services/messaging_service.dart';
 import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/connection_mark.dart';
+import '../widgets/warm_signal_mark.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -104,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   scale: value.clamp(0, 1.15),
                   child: Opacity(opacity: value.clamp(0, 1), child: child),
                 ),
-                child: const ConnectionMark(width: 168),
+                child: const WarmSignalMark(size: 168),
               ),
               const SizedBox(height: 28),
               Text(
@@ -116,7 +116,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: AppColors.secondary),
+                    strokeWidth: 2.5, color: const Color(0xFFFFB26B)),
               ),
             ],
           ),
