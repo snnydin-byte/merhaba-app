@@ -12,8 +12,7 @@ class LiveRoomScreen extends StatefulWidget {
   final String? title; // host modu
   final String? existingRoomId; // izleyici modu
 
-  const LiveRoomScreen.host({super.key, this.title})
-      : existingRoomId = null;
+  const LiveRoomScreen.host({super.key, this.title}) : existingRoomId = null;
 
   const LiveRoomScreen.viewer({super.key, required String roomId})
       : existingRoomId = roomId,
@@ -88,7 +87,9 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     _service.onMuteChanged = (userId, muted) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(muted ? 'Yayıncı susturuldu.' : 'Yayıncının sesi açıldı.')),
+        SnackBar(
+            content: Text(
+                muted ? 'Yayıncı susturuldu.' : 'Yayıncının sesi açıldı.')),
       );
     };
     _service.onKicked = () {
@@ -98,8 +99,10 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         barrierDismissible: false,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Yayından atıldın', style: TextStyle(color: Colors.white)),
-          content: const Text('Host seni bu canlı yayından çıkardı.', style: TextStyle(color: Colors.white70)),
+          title: const Text('Yayından atıldın',
+              style: TextStyle(color: Colors.white)),
+          content: const Text('Host seni bu canlı yayından çıkardı.',
+              style: TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
               onPressed: () {
@@ -121,13 +124,17 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       setState(() => _friendRequestSent = false);
       final name = displayName ?? 'Kullanıcı';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(accepted ? '$name artık arkadaşın!' : '$name isteği reddetti.')),
+        SnackBar(
+            content: Text(accepted
+                ? '$name artık arkadaşın!'
+                : '$name isteği reddetti.')),
       );
     };
     _service.onFriendRequestError = (message) {
       if (!mounted) return;
       setState(() => _friendRequestSent = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     };
     _service.onReportSent = (id) {
       if (!mounted) return;
@@ -137,7 +144,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     };
     _service.onReportError = (message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     };
   }
 
@@ -150,7 +158,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     if (widget.isHost) {
       await _service.createRoom(authToken: token, title: widget.title);
     } else {
-      await _service.joinAsViewer(authToken: token, roomId: widget.existingRoomId!);
+      await _service.joinAsViewer(
+          authToken: token, roomId: widget.existingRoomId!);
     }
   }
 
@@ -178,7 +187,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         canPop: false,
         child: AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Arkadaşlık isteği', style: TextStyle(color: Colors.white)),
+          title: const Text('Arkadaşlık isteği',
+              style: TextStyle(color: Colors.white)),
           content: Text(
             '$fromDisplayName seni arkadaş olarak eklemek istiyor.',
             style: const TextStyle(color: Colors.white70),
@@ -196,7 +206,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                 Navigator.pop(context);
                 _service.respondToFriendRequest(true);
               },
-              child: Text('Kabul Et', style: TextStyle(color: AppColors.secondary)),
+              child: Text('Kabul Et',
+                  style: TextStyle(color: AppColors.secondary)),
             ),
           ],
         ),
@@ -219,14 +230,17 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Kullanıcıyı bildir', style: TextStyle(color: Colors.white)),
+        title: const Text('Kullanıcıyı bildir',
+            style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: reasons
               .map((r) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(r.$2, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    title: Text(r.$2,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 14)),
                     onTap: () {
                       Navigator.pop(context);
                       _service.reportUser(targetUserId, reason: r.$1);
@@ -235,7 +249,9 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
               .toList(),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Vazgeç')),
         ],
       ),
     );
@@ -246,10 +262,14 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('İzleyiciyi at', style: TextStyle(color: AppColors.textPrimary)),
-        content: Text('${viewer.displayName} bu yayından atılacak.', style: TextStyle(color: AppColors.textSecondary)),
+        title: Text('İzleyiciyi at',
+            style: TextStyle(color: AppColors.textPrimary)),
+        content: Text('${viewer.displayName} bu yayından atılacak.',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Vazgeç')),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -283,20 +303,27 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('İzleyiciler (${_viewers.length})',
-                        style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
                     const SizedBox(height: 12),
                     if (_viewers.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text('Henüz izleyici yok.', style: TextStyle(color: AppColors.textSecondary)),
+                        child: Text('Henüz izleyici yok.',
+                            style: TextStyle(color: AppColors.textSecondary)),
                       )
                     else
                       ConstrainedBox(
-                        constraints: BoxConstraints(maxHeight: MediaQuery.of(sheetContext).size.height * 0.5),
+                        constraints: BoxConstraints(
+                            maxHeight:
+                                MediaQuery.of(sheetContext).size.height * 0.5),
                         child: ListView.builder(
                           shrinkWrap: true,
                           itemCount: _viewers.length,
-                          itemBuilder: (_, index) => _buildViewerRow(_viewers[index]),
+                          itemBuilder: (_, index) =>
+                              _buildViewerRow(_viewers[index]),
                         ),
                       ),
                   ],
@@ -319,9 +346,13 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
             CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-              backgroundImage: viewer.photoUrl != null ? NetworkImage(viewer.photoUrl!) : null,
+              backgroundImage: viewer.photoUrl != null
+                  ? NetworkImage(viewer.photoUrl!)
+                  : null,
               child: viewer.photoUrl == null
-                  ? Text(viewer.displayName.isNotEmpty ? viewer.displayName[0].toUpperCase() : '?')
+                  ? Text(viewer.displayName.isNotEmpty
+                      ? viewer.displayName[0].toUpperCase()
+                      : '?')
                   : null,
             ),
             const SizedBox(width: 10),
@@ -332,13 +363,16 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                     child: Text(
                       viewer.displayName,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                      style:
+                          TextStyle(color: AppColors.textPrimary, fontSize: 13),
                     ),
                   ),
                   if (viewer.isModerator)
                     Padding(
                       padding: const EdgeInsets.only(left: 6),
-                      child: Text('Moderatör', style: TextStyle(color: AppColors.secondaryLight, fontSize: 10)),
+                      child: Text('Moderatör',
+                          style: TextStyle(
+                              color: AppColors.secondaryLight, fontSize: 10)),
                     ),
                 ],
               ),
@@ -361,7 +395,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                   case 'friend-request':
                     _service.sendFriendRequest(viewer.userId);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Arkadaşlık isteği gönderildi.')),
+                      const SnackBar(
+                          content: Text('Arkadaşlık isteği gönderildi.')),
                     );
                     break;
                   case 'report':
@@ -377,13 +412,24 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                   PopupMenuItem(
                     value: 'toggle-moderator',
                     child: Text(
-                      viewer.isModerator ? 'Moderatörlükten al' : 'Moderatör yap',
+                      viewer.isModerator
+                          ? 'Moderatörlükten al'
+                          : 'Moderatör yap',
                       style: TextStyle(color: AppColors.textPrimary),
                     ),
                   ),
-                PopupMenuItem(value: 'kick', child: Text('At', style: TextStyle(color: AppColors.danger))),
-                PopupMenuItem(value: 'friend-request', child: Text('Arkadaş ekle', style: TextStyle(color: AppColors.textPrimary))),
-                PopupMenuItem(value: 'report', child: Text('Bildir', style: TextStyle(color: AppColors.textPrimary))),
+                PopupMenuItem(
+                    value: 'kick',
+                    child:
+                        Text('At', style: TextStyle(color: AppColors.danger))),
+                PopupMenuItem(
+                    value: 'friend-request',
+                    child: Text('Arkadaş ekle',
+                        style: TextStyle(color: AppColors.textPrimary))),
+                PopupMenuItem(
+                    value: 'report',
+                    child: Text('Bildir',
+                        style: TextStyle(color: AppColors.textPrimary))),
               ],
             ),
           ],
@@ -403,22 +449,32 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.backgroundDeep,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: Text(widget.isHost ? 'Canlı Yayınım' : 'Canlı Yayın'),
+        backgroundColor: AppColors.backgroundDeep,
+        foregroundColor: AppColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(widget.isHost ? 'Canlı yayınım' : 'Canlı yayın',
+                style: AppText.subheading.copyWith(fontSize: 17)),
+            Text(
+              _ended ? 'yayın sona erdi' : 'toplulukla canlı bağlantı',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+            ),
+          ],
+        ),
         actions: [
           if (_viewerCount > 0)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6),
               child: Center(
-                child: Row(
-                  children: [
-                    const Icon(Icons.visibility, size: 18, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Text('$_viewerCount', style: const TextStyle(color: Colors.white70)),
-                  ],
+                child: PillBadge(
+                  label: '$_viewerCount',
+                  color: AppColors.secondary,
+                  icon: Icons.visibility_rounded,
                 ),
               ),
             ),
@@ -439,8 +495,11 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
               onPressed: _sendFriendRequestToHost,
               icon: Container(
                 padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.08), shape: BoxShape.circle),
-                child: const Icon(Icons.person_add_alt_1_rounded, size: 18, color: Colors.white),
+                decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    shape: BoxShape.circle),
+                child: const Icon(Icons.person_add_alt_1_rounded,
+                    size: 18, color: Colors.white),
               ),
             ),
         ],
@@ -448,13 +507,74 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(child: _buildVideoArea()),
+            Expanded(child: _buildVideoStage()),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                child: Text(_error!,
+                    style: const TextStyle(color: Colors.redAccent)),
               ),
             _buildChatBar(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoStage() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.surfaceBorder),
+        boxShadow: neonGlow(
+          AppColors.primary,
+          opacity: 0.14,
+          blurRadius: 24,
+          spreadRadius: 0,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: Stack(
+          children: [
+            Positioned.fill(child: _buildVideoArea()),
+            Positioned(
+              top: 14,
+              left: 14,
+              child: PillBadge(
+                label: _ended ? 'BİTTİ' : 'CANLI',
+                color: _ended ? AppColors.textMuted : AppColors.danger,
+              ),
+            ),
+            Positioned(
+              right: 14,
+              bottom: 14,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.backgroundDeep.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.forum_outlined,
+                        color: AppColors.secondary, size: 15),
+                    const SizedBox(width: 6),
+                    Text('${_messages.length}',
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -464,13 +584,15 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   Widget _buildVideoArea() {
     if (_ended) {
       return const Center(
-        child: Text('Yayın sona erdi.', style: TextStyle(color: Colors.white70)),
+        child:
+            Text('Yayın sona erdi.', style: TextStyle(color: Colors.white70)),
       );
     }
     final remoteParticipants = _service.remoteParticipants.toList();
     if (widget.isHost) {
       // Host kendi kamerasını LiveKit'in yerel önizlemesiyle görür.
-      final localVideoTrack = _service.room?.localParticipant?.videoTrackPublications
+      final localVideoTrack = _service
+          .room?.localParticipant?.videoTrackPublications
           .map((p) => p.track)
           .whereType<livekit.LocalVideoTrack>()
           .firstOrNull;
@@ -479,7 +601,10 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
           child: Text(_status, style: const TextStyle(color: Colors.white70)),
         );
       }
-      return livekit.VideoTrackRenderer(localVideoTrack);
+      return livekit.VideoTrackRenderer(
+        localVideoTrack,
+        fit: livekit.VideoViewFit.cover,
+      );
     }
 
     if (remoteParticipants.isEmpty) {
@@ -499,18 +624,26 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         child: Text(_status, style: const TextStyle(color: Colors.white70)),
       );
     }
-    return livekit.VideoTrackRenderer(videoTrack);
+    return livekit.VideoTrackRenderer(
+      videoTrack,
+      fit: livekit.VideoViewFit.cover,
+    );
   }
 
   Widget _buildChatBar() {
     return Container(
-      color: Colors.black.withValues(alpha: 0.6),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.surfaceBorder),
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: 120,
+            height: 132,
             child: ListView.builder(
               reverse: true,
               itemCount: _messages.length,
@@ -520,11 +653,14 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: RichText(
                     text: TextSpan(
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 13),
                       children: [
                         TextSpan(
                           text: '${message.displayName ?? '?'}: ',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.w800),
                         ),
                         TextSpan(text: message.text),
                       ],
@@ -540,18 +676,35 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                 Expanded(
                   child: TextField(
                     controller: _chatController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: AppColors.textPrimary),
+                    decoration: InputDecoration(
                       hintText: 'Mesaj yaz...',
-                      hintStyle: TextStyle(color: Colors.white54),
-                      border: InputBorder.none,
+                      hintStyle: TextStyle(color: AppColors.textFaint),
+                      filled: true,
+                      fillColor: AppColors.background.withValues(alpha: 0.72),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                     onSubmitted: (_) => _sendChat(),
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.send, color: AppColors.primary),
-                  onPressed: _sendChat,
+                GestureDetector(
+                  onTap: _sendChat,
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    margin: const EdgeInsets.only(left: 8),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: AppGradients.warmSignal,
+                    ),
+                    child: const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 19),
+                  ),
                 ),
               ],
             ),

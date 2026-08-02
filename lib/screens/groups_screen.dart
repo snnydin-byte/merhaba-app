@@ -156,7 +156,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
             children: [
               Icon(Icons.groups_outlined, color: AppColors.textFaint, size: 56),
               const SizedBox(height: 16),
-              Text('Henüz bir grubun yok', style: AppText.subheading, textAlign: TextAlign.center),
+              Text('Henüz bir grubun yok',
+                  style: AppText.subheading, textAlign: TextAlign.center),
               const SizedBox(height: 8),
               Text(
                 'Arkadaşlarınla bir grup sohbeti oluşturabilirsin.',
@@ -183,68 +184,80 @@ class _GroupsScreenState extends State<GroupsScreen> {
       onRefresh: _load,
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceElevated,
-      child: GridView.builder(
-        padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.95,
+      child: LayoutBuilder(
+        builder: (context, constraints) => GridView.builder(
+          padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: constraints.maxWidth >= 780
+                ? 4
+                : constraints.maxWidth >= 560
+                    ? 3
+                    : 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.95,
+          ),
+          itemCount: _groups.length,
+          itemBuilder: (context, index) {
+            final group = _groups[index];
+            return GestureDetector(
+              onTap: () async {
+                await Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => GroupChatScreen(group: group)),
+                );
+                if (mounted) _wireCallbacks();
+              },
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: AppColors.surfaceBorder),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.25),
+                          backgroundImage: group.photoUrl != null
+                              ? NetworkImage(group.photoUrl!)
+                              : null,
+                          child: group.photoUrl == null
+                              ? Icon(Icons.groups_rounded,
+                                  color: AppColors.primary, size: 22)
+                              : null,
+                        ),
+                        const Spacer(),
+                        if (group.isAdmin(_myId))
+                          Icon(Icons.shield_rounded,
+                              color: AppColors.secondaryLight
+                                  .withValues(alpha: 0.8),
+                              size: 16),
+                      ],
+                    ),
+                    const Spacer(),
+                    Text(group.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.subheading.copyWith(fontSize: 14)),
+                    const SizedBox(height: 4),
+                    Text(
+                      group.announcementOnly
+                          ? '📢 Duyuru · ${group.members.length} üye'
+                          : '${group.members.length} üye',
+                      style:
+                          TextStyle(color: AppColors.textMuted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-        itemCount: _groups.length,
-        itemBuilder: (context, index) {
-          final group = _groups[index];
-          return GestureDetector(
-            onTap: () async {
-              await Navigator.of(context).push(
-                AppPageRoute(builder: (_) => GroupChatScreen(group: group)),
-              );
-              if (mounted) _wireCallbacks();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.surfaceBorder),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                        backgroundImage:
-                            group.photoUrl != null ? NetworkImage(group.photoUrl!) : null,
-                        child: group.photoUrl == null
-                            ? Icon(Icons.groups_rounded, color: AppColors.primary, size: 22)
-                            : null,
-                      ),
-                      const Spacer(),
-                      if (group.isAdmin(_myId))
-                        Icon(Icons.shield_rounded,
-                            color: AppColors.secondaryLight.withValues(alpha: 0.8), size: 16),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(group.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppText.subheading.copyWith(fontSize: 14)),
-                  const SizedBox(height: 4),
-                  Text(
-                    group.announcementOnly
-                        ? '📢 Duyuru · ${group.members.length} üye'
-                        : '${group.members.length} üye',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }

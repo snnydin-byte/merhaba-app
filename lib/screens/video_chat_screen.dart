@@ -54,6 +54,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   bool _permissionError = false;
   bool _permissionPermanentlyDenied = false;
   String _status = 'Kameraya erişiliyor...';
+  String? _rematchPartnerName;
 
   // ÖNCEDEN eşleşme/sinyal sunucusu bir sebeple (ör. sunucu tarafında
   // beklenmedik bir durum, ağ sorunu, ya da canlı olarak gözlemlenen WebRTC
@@ -113,7 +114,9 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   bool _reportSending = false;
 
   final TextEditingController _msgController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
   final List<_ChatMsg> _messages = [];
+  int _unreadMessageCount = 0;
 
   // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - o an ekranda
   // "yüzen" tepkiler, her biri birkaç saniye sonra kendini listeden çıkarır
@@ -125,7 +128,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     if (!mounted) return;
     final id = _reactionIdCounter++;
     final xOffset = (Random().nextDouble() - 0.5) * 200;
-    setState(() => _floatingReactions.add(_FloatingReaction(id, emoji, xOffset)));
+    setState(
+        () => _floatingReactions.add(_FloatingReaction(id, emoji, xOffset)));
     Timer(const Duration(seconds: 2, milliseconds: 200), () {
       if (!mounted) return;
       setState(() => _floatingReactions.removeWhere((r) => r.id == id));
@@ -202,7 +206,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
 
     _webrtc.onChatMessage = (text) {
       if (!mounted) return;
-      setState(() => _messages.add(_ChatMsg(text, false)));
+      setState(() {
+        _messages.add(_ChatMsg(text, false));
+        if (!_chatOpen) _unreadMessageCount++;
+      });
+      _scrollChatToLatest();
     };
 
     _webrtc.onReaction = (emoji) => _addFloatingReaction(emoji);
@@ -221,6 +229,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       setState(() {
         _connected = false;
         _messages.clear();
+        _unreadMessageCount = 0;
+        _chatOpen = false;
         _remoteRenderer.srcObject = null;
         _status = 'Karşı taraf ayrıldı, yeni biri aranıyor...';
         _partnerHasAccount = false;
@@ -230,22 +240,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         _partnerTextOnly = false;
         _hasPartner = false;
         _friendStatus = _FriendStatus.none;
+        _rematchPartnerName = canRematch ? rematchName : null;
       });
       _stopSpeedRoundTimer();
       _startMatchTimeout();
       _webrtc.skipToNext();
-      if (canRematch) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$rematchName ayrıldı.'),
-            duration: const Duration(seconds: 8),
-            action: SnackBarAction(
-              label: 'Tekrar Eşleş',
-              onPressed: () => CallUiController().requestRematch(rematchName!),
-            ),
-          ),
-        );
-      }
     };
 
     // Yeni bir eşleşme bulunduğunda karşı tarafın hesabı olup olmadığını,
@@ -264,6 +263,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         _partnerTextOnly = partnerTextOnly;
         _hasPartner = true;
         _friendStatus = _FriendStatus.none;
+        _rematchPartnerName = null;
       });
       _startSpeedRoundTimer(speedRoundSeconds);
     };
@@ -584,6 +584,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _messages.add(_ChatMsg(text, true));
       _msgController.clear();
     });
+    _scrollChatToLatest();
     _webrtc.sendChatMessage(text);
   }
 
@@ -641,6 +642,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     setState(() {
       _connected = false;
       _messages.clear();
+      _unreadMessageCount = 0;
+      _chatOpen = false;
       _remoteRenderer.srcObject = null;
       _status = 'Yeni eşleşme aranıyor...';
       _partnerHasAccount = false;
@@ -650,6 +653,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       _partnerTextOnly = false;
       _hasPartner = false;
       _friendStatus = _FriendStatus.none;
+      _rematchPartnerName = null;
     });
     _stopSpeedRoundTimer();
     _startMatchTimeout();
@@ -694,7 +698,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Hızlı tur bitti', style: TextStyle(color: Colors.white)),
+        title: const Text('Hızlı tur bitti',
+            style: TextStyle(color: Colors.white)),
         content: const Text(
           'Bu turun süresi doldu. Sohbete devam etmek mi, sıradaki kişiyle tanışmak mı istersin?',
           style: TextStyle(color: Colors.white70),
@@ -739,6 +744,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
     _msgController.dispose();
+    _chatScrollController.dispose();
     _webrtc.dispose();
     super.dispose();
   }
@@ -751,432 +757,468 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         child: Stack(
           children: [
             Column(
-          children: [
-            // ÜST BAR
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _connected
-                            ? const PulsingDot(color: Colors.redAccent, size: 8)
-                            : const SizedBox(
-                                width: 10,
-                                height: 10,
-                                child: Icon(Icons.circle,
-                                    color: Colors.grey, size: 10),
-                              ),
-                        const SizedBox(width: 6),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Text(
-                            _connected ? 'CANLI' : 'BAĞLANIYOR',
-                            key: ValueKey(_connected),
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold),
-                          ),
+              children: [
+                // ÜST BAR
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
-                      ],
-                    ),
-                  ),
-                  Flexible(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_hasPartner)
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      _partnerDisplayName ?? 'Misafir',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.75),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _connected
+                                ? const PulsingDot(
+                                    color: Colors.redAccent, size: 8)
+                                : const SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: Icon(Icons.circle,
+                                        color: Colors.grey, size: 10),
                                   ),
-                                  if (_partnerVerified) ...[
-                                    const SizedBox(width: 4),
-                                    Icon(Icons.verified_rounded,
-                                        color: AppColors.secondary, size: 14),
-                                  ],
-                                  if (_partnerVoiceOnly) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.mic_rounded,
-                                        color: Colors.white54, size: 14),
-                                  ],
-                                  if (_partnerTextOnly) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.chat_bubble_outline_rounded,
-                                        color: Colors.white54, size: 14),
-                                  ],
-                                ],
+                            const SizedBox(width: 6),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Text(
+                                _connected ? 'CANLI' : 'BAĞLANIYOR',
+                                key: ValueKey(_connected),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold),
                               ),
                             ),
-                          ),
-                        if (_speedRoundRemaining != null)
-                          Container(
-                            margin: const EdgeInsets.only(right: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.timer_outlined, color: AppColors.warning, size: 13),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '${(_speedRoundRemaining! ~/ 60).toString().padLeft(2, '0')}:${(_speedRoundRemaining! % 60).toString().padLeft(2, '0')}',
-                                  style: TextStyle(
-                                      color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w700),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_hasPartner)
+                              Flexible(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          _partnerDisplayName ?? 'Misafir',
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.75),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                      if (_partnerVerified) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(Icons.verified_rounded,
+                                            color: AppColors.secondary,
+                                            size: 14),
+                                      ],
+                                      if (_partnerVoiceOnly) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.mic_rounded,
+                                            color: Colors.white54, size: 14),
+                                      ],
+                                      if (_partnerTextOnly) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                            Icons.chat_bubble_outline_rounded,
+                                            color: Colors.white54,
+                                            size: 14),
+                                      ],
+                                    ],
+                                  ),
                                 ),
-                              ],
+                              ),
+                            if (_speedRoundRemaining != null)
+                              Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color:
+                                      AppColors.warning.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.timer_outlined,
+                                        color: AppColors.warning, size: 13),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${(_speedRoundRemaining! ~/ 60).toString().padLeft(2, '0')}:${(_speedRoundRemaining! % 60).toString().padLeft(2, '0')}',
+                                      style: TextStyle(
+                                          color: AppColors.warning,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            _buildFriendButton(),
+                            IconButton(
+                              onPressed: _hasPartner && !_reportSending
+                                  ? _showReportDialog
+                                  : null,
+                              icon: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    shape: BoxShape.circle),
+                                child: _reportSending
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white),
+                                      )
+                                    : const Icon(Icons.flag_outlined,
+                                        color: Colors.white, size: 18),
+                              ),
                             ),
-                          ),
-                        _buildFriendButton(),
-                        IconButton(
-                          onPressed: _hasPartner && !_reportSending
-                              ? _showReportDialog
-                              : null,
-                          icon: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.08),
-                                shape: BoxShape.circle),
-                            child: _reportSending
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Icon(Icons.flag_outlined,
-                                    color: Colors.white, size: 18),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ORTA ALAN: büyük ekran + küçük ekran (dokununca yer değiştirir)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // BÜYÜK EKRAN: _showLocalAsMain'e göre kendi görüntün ya da karşı tarafın görüntüsü
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onTap: () => setState(
+                                () => _showLocalAsMain = !_showLocalAsMain),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: AppColors.surface,
+                              ),
+                              clipBehavior: Clip.hardEdge,
+                              child: _showLocalAsMain
+                                  ? ((_camOn && _hasCamera)
+                                      ? RTCVideoView(
+                                          _localRenderer,
+                                          mirror: true,
+                                          objectFit: RTCVideoViewObjectFit
+                                              .RTCVideoViewObjectFitCover,
+                                        )
+                                      : Center(
+                                          child: _hasCamera
+                                              ? const Icon(
+                                                  Icons.videocam_off_rounded,
+                                                  color: Colors.white38,
+                                                  size: 40)
+                                              : _voiceOnlyIndicator(),
+                                        ))
+                                  : (_connected
+                                      ? (_partnerVoiceOnly
+                                          ? Center(child: _voiceOnlyIndicator())
+                                          : RTCVideoView(_remoteRenderer,
+                                              objectFit: RTCVideoViewObjectFit
+                                                  .RTCVideoViewObjectFitCover))
+                                      : Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              (_permissionError ||
+                                                      _searchTimedOut)
+                                                  ? const Icon(
+                                                      Icons
+                                                          .videocam_off_rounded,
+                                                      color: Colors.white38,
+                                                      size: 32)
+                                                  // Canva "radar" mockup'ındaki
+                                                  // konsantrik neon halka efekti -
+                                                  // yalnızca dekoratif, mevcut
+                                                  // arama mantığına dokunmuyor.
+                                                  : Stack(
+                                                      alignment:
+                                                          Alignment.center,
+                                                      children: [
+                                                        Container(
+                                                          width: 88,
+                                                          height: 88,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            border: Border.all(
+                                                              color: AppColors
+                                                                  .secondary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.25),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        Container(
+                                                          width: 60,
+                                                          height: 60,
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            shape:
+                                                                BoxShape.circle,
+                                                            border: Border.all(
+                                                              color: AppColors
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.35),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        SizedBox(
+                                                          width: 32,
+                                                          height: 32,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2.5,
+                                                                  color: AppColors
+                                                                      .primary),
+                                                        ),
+                                                      ],
+                                                    ),
+                                              const SizedBox(height: 16),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 24),
+                                                child: Text(
+                                                  _status,
+                                                  textAlign: TextAlign.center,
+                                                  style: TextStyle(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                              alpha: 0.7),
+                                                      fontSize: 14),
+                                                ),
+                                              ),
+                                              if (_permissionError) ...[
+                                                const SizedBox(height: 16),
+                                                OutlinedButton(
+                                                  onPressed: _retry,
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    side: const BorderSide(
+                                                        color: Colors.white38),
+                                                  ),
+                                                  child: Text(
+                                                    _permissionPermanentlyDenied
+                                                        ? 'Ayarlara Git'
+                                                        : 'Tekrar Dene',
+                                                  ),
+                                                ),
+                                              ] else if (_searchTimedOut) ...[
+                                                const SizedBox(height: 16),
+                                                OutlinedButton(
+                                                  onPressed: _retryAfterTimeout,
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    side: const BorderSide(
+                                                        color: Colors.white38),
+                                                  ),
+                                                  child:
+                                                      const Text('Tekrar Dene'),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        )),
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
-            // ORTA ALAN: büyük ekran + küçük ekran (dokununca yer değiştirir)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // BÜYÜK EKRAN: _showLocalAsMain'e göre kendi görüntün ya da karşı tarafın görüntüsü
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: () => setState(
-                            () => _showLocalAsMain = !_showLocalAsMain),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            color: AppColors.surface,
-                          ),
-                          clipBehavior: Clip.hardEdge,
-                          child: _showLocalAsMain
-                              ? ((_camOn && _hasCamera)
-                                  ? RTCVideoView(
+                        // KÜÇÜK EKRAN (sağ üstte): büyükte gösterilmeyen taraf. Dokununca yer değiştirir,
+                        // sadece sağ-alt köşedeki kamera-değiştir ikonuna dokununca kamera değişir.
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: GestureDetector(
+                            onTap: () => setState(
+                                () => _showLocalAsMain = !_showLocalAsMain),
+                            child: Container(
+                              width: 84,
+                              height: 112,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                color: AppColors.surfaceElevated,
+                                border:
+                                    Border.all(color: Colors.white24, width: 1),
+                              ),
+                              clipBehavior: Clip.hardEdge,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  if (_showLocalAsMain)
+                                    (_connected
+                                        ? (_partnerVoiceOnly
+                                            ? const Icon(Icons.mic_rounded,
+                                                color: Colors.white38, size: 28)
+                                            : RTCVideoView(_remoteRenderer,
+                                                objectFit: RTCVideoViewObjectFit
+                                                    .RTCVideoViewObjectFitCover))
+                                        : const Icon(Icons.person,
+                                            color: Colors.white38, size: 28))
+                                  else if (_camOn && _hasCamera)
+                                    RTCVideoView(
                                       _localRenderer,
                                       mirror: true,
                                       objectFit: RTCVideoViewObjectFit
                                           .RTCVideoViewObjectFitCover,
                                     )
-                                  : Center(
-                                      child: _hasCamera
-                                          ? const Icon(
-                                              Icons.videocam_off_rounded,
-                                              color: Colors.white38,
-                                              size: 40)
-                                          : _voiceOnlyIndicator(),
-                                    ))
-                              : (_connected
-                                  ? (_partnerVoiceOnly
-                                      ? Center(child: _voiceOnlyIndicator())
-                                      : RTCVideoView(_remoteRenderer,
-                                          objectFit: RTCVideoViewObjectFit
-                                              .RTCVideoViewObjectFitCover))
-                                  : Center(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          (_permissionError || _searchTimedOut)
-                                              ? const Icon(
-                                                  Icons.videocam_off_rounded,
-                                                  color: Colors.white38,
-                                                  size: 32)
-                                              // Canva "radar" mockup'ındaki
-                                              // konsantrik neon halka efekti -
-                                              // yalnızca dekoratif, mevcut
-                                              // arama mantığına dokunmuyor.
-                                              : Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Container(
-                                                      width: 88,
-                                                      height: 88,
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        border: Border.all(
-                                                          color: AppColors
-                                                              .secondary
-                                                              .withValues(
-                                                                  alpha: 0.25),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Container(
-                                                      width: 60,
-                                                      height: 60,
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                        border: Border.all(
-                                                          color: AppColors
-                                                              .primary
-                                                              .withValues(
-                                                                  alpha: 0.35),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    SizedBox(
-                                                      width: 32,
-                                                      height: 32,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                              strokeWidth: 2.5,
-                                                              color: AppColors
-                                                                  .primary),
-                                                    ),
-                                                  ],
-                                                ),
-                                          const SizedBox(height: 16),
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 24),
-                                            child: Text(
-                                              _status,
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.7),
-                                                  fontSize: 14),
-                                            ),
+                                  else
+                                    Icon(
+                                        _hasCamera
+                                            ? Icons.videocam_off_rounded
+                                            : Icons.mic_rounded,
+                                        color: Colors.white38,
+                                        size: 24),
+
+                                  // Kamera değiştirme ikonu - sadece kendi görüntün küçük ekrandayken
+                                  // VE gerçekten bir kameramız varken gösterilir.
+                                  if (!_showLocalAsMain && _camOn && _hasCamera)
+                                    Positioned(
+                                      bottom: 4,
+                                      right: 4,
+                                      child: GestureDetector(
+                                        onTap: _switchCamera,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(5),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.55),
+                                            shape: BoxShape.circle,
                                           ),
-                                          if (_permissionError) ...[
-                                            const SizedBox(height: 16),
-                                            OutlinedButton(
-                                              onPressed: _retry,
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: Colors.white,
-                                                side: const BorderSide(
-                                                    color: Colors.white38),
-                                              ),
-                                              child: Text(
-                                                _permissionPermanentlyDenied
-                                                    ? 'Ayarlara Git'
-                                                    : 'Tekrar Dene',
-                                              ),
-                                            ),
-                                          ] else if (_searchTimedOut) ...[
-                                            const SizedBox(height: 16),
-                                            OutlinedButton(
-                                              onPressed: _retryAfterTimeout,
-                                              style: OutlinedButton.styleFrom(
-                                                foregroundColor: Colors.white,
-                                                side: const BorderSide(
-                                                    color: Colors.white38),
-                                              ),
-                                              child: const Text('Tekrar Dene'),
-                                            ),
-                                          ],
-                                        ],
+                                          child: _switchingCamera
+                                              ? const SizedBox(
+                                                  width: 12,
+                                                  height: 12,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white),
+                                                )
+                                              : const Icon(
+                                                  Icons.cameraswitch_rounded,
+                                                  color: Colors.white,
+                                                  size: 14),
+                                        ),
                                       ),
-                                    )),
-                        ),
-                      ),
-                    ),
-
-                    // KÜÇÜK EKRAN (sağ üstte): büyükte gösterilmeyen taraf. Dokununca yer değiştirir,
-                    // sadece sağ-alt köşedeki kamera-değiştir ikonuna dokununca kamera değişir.
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: GestureDetector(
-                        onTap: () => setState(
-                            () => _showLocalAsMain = !_showLocalAsMain),
-                        child: Container(
-                          width: 84,
-                          height: 112,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: AppColors.surfaceElevated,
-                            border: Border.all(color: Colors.white24, width: 1),
-                          ),
-                          clipBehavior: Clip.hardEdge,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (_showLocalAsMain)
-                                (_connected
-                                    ? (_partnerVoiceOnly
-                                        ? const Icon(Icons.mic_rounded,
-                                            color: Colors.white38, size: 28)
-                                        : RTCVideoView(_remoteRenderer,
-                                            objectFit: RTCVideoViewObjectFit
-                                                .RTCVideoViewObjectFitCover))
-                                    : const Icon(Icons.person,
-                                        color: Colors.white38, size: 28))
-                              else if (_camOn && _hasCamera)
-                                RTCVideoView(
-                                  _localRenderer,
-                                  mirror: true,
-                                  objectFit: RTCVideoViewObjectFit
-                                      .RTCVideoViewObjectFitCover,
-                                )
-                              else
-                                Icon(
-                                    _hasCamera
-                                        ? Icons.videocam_off_rounded
-                                        : Icons.mic_rounded,
-                                    color: Colors.white38,
-                                    size: 24),
-
-                              // Kamera değiştirme ikonu - sadece kendi görüntün küçük ekrandayken
-                              // VE gerçekten bir kameramız varken gösterilir.
-                              if (!_showLocalAsMain && _camOn && _hasCamera)
-                                Positioned(
-                                  bottom: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: _switchCamera,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(5),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.55),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: _switchingCamera
-                                          ? const SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white),
-                                            )
-                                          : const Icon(
-                                              Icons.cameraswitch_rounded,
-                                              color: Colors.white,
-                                              size: 14),
                                     ),
-                                  ),
-                                ),
-                            ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // SOHBET PANELİ
+                if (_chatOpen) _buildChatPanel(),
+                if (_connected && !_chatOpen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                    child: _buildConversationButton(),
+                  ),
+                if (_rematchPartnerName != null && !_chatOpen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                    child: _buildRematchBanner(_rematchPartnerName!),
+                  ),
+
+                // ALT KONTROL ÇUBUĞU
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _controlButton(
+                        icon:
+                            _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
+                        active: _micOn,
+                        label: _micOn ? 'Mikrofonu kapat' : 'Mikrofonu aç',
+                        onTap: () {
+                          setState(() => _micOn = !_micOn);
+                          _webrtc.toggleMic(_micOn);
+                        },
+                      ),
+                      _controlButton(
+                        icon: Icons.emoji_emotions_outlined,
+                        active: false,
+                        label: 'Hızlı tepki gönder',
+                        onTap: _showReactionPicker,
+                      ),
+                      Semantics(
+                        button: true,
+                        label: 'Sıradaki kişi',
+                        child: GestureDetector(
+                          onTap: _nextPerson,
+                          child: Container(
+                            width: 58,
+                            height: 58,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: AppGradients.warmSignal,
+                            ),
+                            child: const Icon(Icons.skip_next_rounded,
+                                color: Colors.white, size: 28),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // SOHBET PANELİ
-            if (_chatOpen) _buildChatPanel(),
-
-            // ALT KONTROL ÇUBUĞU
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _controlButton(
-                    icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
-                    active: _micOn,
-                    label: _micOn ? 'Mikrofonu kapat' : 'Mikrofonu aç',
-                    onTap: () {
-                      setState(() => _micOn = !_micOn);
-                      _webrtc.toggleMic(_micOn);
-                    },
-                  ),
-                  _controlButton(
-                    icon: Icons.chat_bubble_rounded,
-                    active: _chatOpen,
-                    label: _chatOpen ? 'Sohbeti kapat' : 'Sohbeti aç',
-                    onTap: () => setState(() => _chatOpen = !_chatOpen),
-                  ),
-                  _controlButton(
-                    icon: Icons.emoji_emotions_outlined,
-                    active: false,
-                    label: 'Hızlı tepki gönder',
-                    onTap: _showReactionPicker,
-                  ),
-                  Semantics(
-                    button: true,
-                    label: 'Sıradaki kişi',
-                    child: GestureDetector(
-                      onTap: _nextPerson,
-                      child: Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: AppGradients.liveAccent,
+                      if (_hasCamera)
+                        _controlButton(
+                          icon: _camOn
+                              ? Icons.videocam_rounded
+                              : Icons.videocam_off_rounded,
+                          active: _camOn,
+                          label: _camOn ? 'Kamerayı kapat' : 'Kamerayı aç',
+                          onTap: () {
+                            setState(() => _camOn = !_camOn);
+                            _webrtc.toggleCamera(_camOn);
+                          },
                         ),
-                        child: const Icon(Icons.skip_next_rounded,
-                            color: Colors.white, size: 28),
+                      _controlButton(
+                        icon: Icons.call_end_rounded,
+                        active: false,
+                        isDanger: true,
+                        label: 'Görüşmeyi bitir',
+                        onTap: _endCall,
                       ),
-                    ),
+                    ],
                   ),
-                  if (_hasCamera)
-                    _controlButton(
-                      icon: _camOn
-                          ? Icons.videocam_rounded
-                          : Icons.videocam_off_rounded,
-                      active: _camOn,
-                      label: _camOn ? 'Kamerayı kapat' : 'Kamerayı aç',
-                      onTap: () {
-                        setState(() => _camOn = !_camOn);
-                        _webrtc.toggleCamera(_camOn);
-                      },
-                    ),
-                  _controlButton(
-                    icon: Icons.call_end_rounded,
-                    active: false,
-                    isDanger: true,
-                    label: 'Görüşmeyi bitir',
-                    onTap: _endCall,
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
             ),
             // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - dokunuşları
             // ALTINDAKİ ekrana geçirmesi için IgnorePointer ile sarılı, yalnızca
@@ -1184,7 +1226,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
             IgnorePointer(
               child: Stack(
                 children: _floatingReactions
-                    .map((r) => _FloatingReactionWidget(key: ValueKey(r.id), reaction: r))
+                    .map((r) => _FloatingReactionWidget(
+                        key: ValueKey(r.id), reaction: r))
                     .toList(),
               ),
             ),
@@ -1207,12 +1250,12 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
             color: Colors.white.withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.mic_rounded,
-              color: Colors.white70, size: 32),
+          child: const Icon(Icons.mic_rounded, color: Colors.white70, size: 32),
         ),
         const SizedBox(height: 10),
         Text('Sesli-yalnız mod',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
+            style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
       ],
     );
   }
@@ -1268,6 +1311,189 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     }
   }
 
+  void _toggleChat() {
+    final openingChat = !_chatOpen;
+    setState(() {
+      _chatOpen = openingChat;
+      if (_chatOpen) _unreadMessageCount = 0;
+    });
+    if (openingChat) _scrollChatToLatest();
+  }
+
+  void _scrollChatToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_chatOpen || !_chatScrollController.hasClients) return;
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Widget _buildConversationButton() {
+    final unreadLabel =
+        _unreadMessageCount > 9 ? '9+' : _unreadMessageCount.toString();
+    final hasUnreadMessages = _unreadMessageCount > 0;
+
+    return Semantics(
+      button: true,
+      label: hasUnreadMessages
+          ? 'Mesajlaş, $_unreadMessageCount okunmamış mesaj'
+          : 'Mesajlaş',
+      child: Tooltip(
+        message: 'Görüşme içi mesajlaşmayı aç',
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: hasUnreadMessages
+                  ? AppColors.danger.withValues(alpha: 0.18)
+                  : AppColors.surfaceElevated.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: hasUnreadMessages
+                    ? AppColors.danger.withValues(alpha: 0.9)
+                    : AppColors.secondary.withValues(alpha: 0.52),
+              ),
+              boxShadow: neonGlow(
+                hasUnreadMessages ? AppColors.danger : AppColors.secondary,
+                opacity: hasUnreadMessages ? 0.26 : 0.12,
+                blurRadius: 22,
+                spreadRadius: 0,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                onTap: _toggleChat,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_rounded,
+                      color: hasUnreadMessages
+                          ? AppColors.danger
+                          : AppColors.secondary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      hasUnreadMessages ? 'Yeni mesaj' : 'Mesajlaş',
+                      style: AppText.button.copyWith(fontSize: 15),
+                    ),
+                    if (hasUnreadMessages) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 20),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.danger,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          unreadLabel,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRematchBanner(String partnerName) {
+    return Semantics(
+      liveRegion: true,
+      label: '$partnerName ayrıldı. Tekrar eşleşme seçeneği.',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.48)),
+          boxShadow: neonGlow(
+            AppColors.primary,
+            opacity: 0.1,
+            blurRadius: 18,
+            spreadRadius: 0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.replay_rounded, color: AppColors.primaryLight, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$partnerName ayrıldı',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tekrar eşleşmek ister misin?',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() => _rematchPartnerName = null);
+                CallUiController().requestRematch(partnerName);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.secondary,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: const Text('Tekrar'),
+            ),
+            IconButton(
+              tooltip: 'Tekrar eşleşme önerisini kapat',
+              onPressed: () => setState(() => _rematchPartnerName = null),
+              icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChatPanel() {
     return Container(
       height: 220,
@@ -1303,7 +1529,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => setState(() => _chatOpen = false),
+                      onTap: _toggleChat,
                       child: const Icon(Icons.close,
                           color: Colors.white54, size: 18),
                     ),
@@ -1314,6 +1540,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
           ),
           Expanded(
             child: ListView.builder(
+              controller: _chatScrollController,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
@@ -1367,8 +1594,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                   child: CircleAvatar(
                     radius: 16,
                     backgroundColor: AppColors.primary,
-                    child:
-                        Icon(Icons.send_rounded, color: Colors.white, size: 14),
+                    child: const Icon(Icons.send_rounded,
+                        color: Colors.white, size: 14),
                   ),
                 ),
               ],

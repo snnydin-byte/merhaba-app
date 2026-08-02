@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
+import '../widgets/warm_signal_mark.dart';
 import 'discover_screen.dart';
 import 'friends_screen.dart';
 import 'group_call_pre_screen.dart';
@@ -111,70 +112,68 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeroCard(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(32),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.surfaceElevated,
-                AppColors.backgroundDeep,
-              ],
-            ),
-            border: Border.all(color: AppColors.surfaceBorder),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxHeight < 520;
+        final logoSize = (constraints.maxWidth * 0.34)
+            .clamp(isCompact ? 112.0 : 124.0, 146.0)
+            .toDouble();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Align(
+                alignment: Alignment(0, isCompact ? -0.26 : -0.16),
+                child: Container(
+                  width: logoSize,
+                  height: logoSize,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppGradients.liveAccent,
-                    boxShadow: neonGlow(AppColors.primary,
-                        opacity: 0.35, blurRadius: 28, spreadRadius: 2),
+                    borderRadius: BorderRadius.circular(logoSize / 4),
+                    boxShadow: neonGlow(
+                      const Color(0xFFFFB26B),
+                      opacity: 0.22,
+                      blurRadius: 36,
+                      spreadRadius: 1,
+                    ),
                   ),
-                  child: const Icon(Icons.videocam_rounded,
-                      color: Colors.white, size: 30),
+                  child: WarmSignalMark(size: logoSize),
                 ),
-                const Spacer(),
-                Text('Yeni biriyle\ntanış',
-                    style: AppText.display.copyWith(fontSize: 32, height: 1.1)),
-                const SizedBox(height: 10),
-                Text(
-                  'Dünyanın her yerinden insanlarla rastgele görüntülü sohbet et.',
-                  style: AppText.body,
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Yeni biriyle tanış',
+                      textAlign: TextAlign.center,
+                      style: AppText.display.copyWith(
+                        fontSize: isCompact ? 30 : 32,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Dünyanın her yerinden insanlarla rastgele görüntülü sohbet et.',
+                      textAlign: TextAlign.center,
+                      style: AppText.body,
+                    ),
+                    const SizedBox(height: 18),
+                    _buildStartButton(context),
+                    const SizedBox(height: 12),
+                    _buildGroupCallEntry(context),
+                  ],
                 ),
-                const SizedBox(height: 22),
-                _buildStartButton(context),
-                const SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    'Devam ederek Topluluk Kurallarını kabul etmiş olursun.',
-                    textAlign: TextAlign.center,
-                    style: AppText.caption,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-        // Grup görüşmesi - önceki ayrı ikincil buton yerine, hero kartın
-        // sağ-üst köşesinde küçük bir rozet/chip.
-        Positioned(
-          top: 20,
-          right: 20,
-          child: _buildGroupCallEntry(context),
-        ),
-      ],
+        );
+      },
     );
   }
 
@@ -297,7 +296,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   AppPageRoute(builder: (_) => const SettingsScreen()),
                 );
               },
-              icon: Icon(Icons.settings_outlined, color: AppColors.textSecondary),
+              icon:
+                  Icon(Icons.settings_outlined, color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -307,6 +307,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStartButton(BuildContext context) {
     return GradientButton(
+      gradient: AppGradients.warmSignal,
       onPressed: () async {
         // Sadece metin modu (Batch C) - açıksa kamera/mikrofon izni HİÇ
         // istenmeden doğrudan metin sohbeti aramaya geçilir (bkz.
@@ -318,7 +319,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!context.mounted) return;
         if (textOnly) {
           Navigator.of(context).push(
-            AppPageRoute(builder: (_) => const VideoChatScreen(textOnlyMode: true)),
+            AppPageRoute(
+                builder: (_) => const VideoChatScreen(textOnlyMode: true)),
           );
         } else {
           Navigator.of(context).push(
@@ -326,47 +328,33 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
       },
-      child: Row(
+      child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.videocam_rounded, color: Colors.white),
-          const SizedBox(width: 10),
+          Icon(Icons.videocam_rounded, color: Colors.white),
+          SizedBox(width: 10),
           Text('Sohbete Başla', style: AppText.button),
         ],
       ),
     );
   }
 
-  // Küçük grup rastgele görüşmesi (mesh, 3-4 kişi, Batch C) - ana CTA'nın
-  // altında ikincil, göze daha az çarpan bir giriş. "(beta)" etiketi
-  // bilerek kalıcı: bu özellik gerçek çoklu-cihaz testinden geçmedi.
-  // Hero kartın köşesinde küçük bir chip - önceki tam genişlikte ikincil
-  // buton yerine.
+  // Birincil eşleşme eyleminin altında, aynı görsel dilde grup sohbeti girişi.
   Widget _buildGroupCallEntry(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
+    return GradientButton(
+      gradient: AppGradients.liveAccent,
+      onPressed: () {
         Navigator.of(context).push(
           AppPageRoute(builder: (_) => const GroupCallPreScreen()),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppColors.secondary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: AppColors.secondary.withValues(alpha: 0.5)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.groups_rounded, color: AppColors.secondary, size: 16),
-            const SizedBox(width: 6),
-            Text(
-              '3-4 kişi (beta)',
-              style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.groups_rounded, color: Colors.white, size: 21),
+          SizedBox(width: 10),
+          Text('3–8 kişiyle rastgele eşleş', style: AppText.button),
+        ],
       ),
     );
   }

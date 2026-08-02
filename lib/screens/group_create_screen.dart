@@ -80,7 +80,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       MessagingService().onGroupError = null;
       if (mounted) {
         setState(() => _creating = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       }
     };
     MessagingService().onGroupCreateAck = onAck;
@@ -99,7 +100,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     if (!_nameValid) return;
     setState(() => _step = 1);
     _pageController.nextPage(
-        duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic);
   }
 
   // Kompozisyon: tek sayfalık form yerine 2 adımlı bir akış (isim -> üye
@@ -113,13 +115,15 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(_step == 1 ? Icons.arrow_back_rounded : Icons.close_rounded,
+          icon: Icon(
+              _step == 1 ? Icons.arrow_back_rounded : Icons.close_rounded,
               color: AppColors.textSecondary),
           onPressed: () {
             if (_step == 1) {
               setState(() => _step = 0);
               _pageController.previousPage(
-                  duration: const Duration(milliseconds: 220), curve: Curves.easeOut);
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut);
             } else {
               Navigator.of(context).pop();
             }
@@ -184,7 +188,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Grubuna bir isim ver', style: AppText.heading.copyWith(fontSize: 22)),
+        Text('Grubuna bir isim ver',
+            style: AppText.heading.copyWith(fontSize: 22)),
         const SizedBox(height: 6),
         Text('Sonra üyelerini seçeceksin.', style: AppText.body),
         const SizedBox(height: 24),
@@ -223,9 +228,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 )
-              : Text('Grubu Oluştur (${_selected.length})', style: AppText.button),
+              : Text('Grubu Oluştur (${_selected.length})',
+                  style: AppText.button),
         ),
       ],
     );
@@ -238,7 +245,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
     if (_friends.isEmpty) {
       return Center(
         child: Text('Grup oluşturmak için önce arkadaş eklemelisin.',
-            style: TextStyle(color: AppColors.textMuted), textAlign: TextAlign.center),
+            style: TextStyle(color: AppColors.textMuted),
+            textAlign: TextAlign.center),
       );
     }
     return ListView.builder(
@@ -246,25 +254,36 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       itemBuilder: (context, index) {
         final friend = _friends[index];
         final selected = _selected.contains(friend.id);
-        return CheckboxListTile(
-          value: selected,
-          onChanged: (v) {
-            setState(() {
-              if (v == true) {
-                _selected.add(friend.id);
-              } else {
-                _selected.remove(friend.id);
-              }
-            });
-          },
-          activeColor: AppColors.primary,
-          title: Text(friend.displayName, style: TextStyle(color: AppColors.textPrimary)),
-          secondary: CircleAvatar(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-            backgroundImage: friend.photoUrl != null ? NetworkImage(friend.photoUrl!) : null,
-            child: friend.photoUrl == null
-                ? Text(friend.displayName.isNotEmpty ? friend.displayName[0].toUpperCase() : '?')
-                : null,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GlassCard(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: CheckboxListTile(
+              value: selected,
+              onChanged: (v) {
+                setState(() {
+                  if (v == true) {
+                    _selected.add(friend.id);
+                  } else {
+                    _selected.remove(friend.id);
+                  }
+                });
+              },
+              activeColor: AppColors.primary,
+              title: Text(friend.displayName,
+                  style: TextStyle(color: AppColors.textPrimary)),
+              secondary: CircleAvatar(
+                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
+                backgroundImage: friend.photoUrl != null
+                    ? NetworkImage(friend.photoUrl!)
+                    : null,
+                child: friend.photoUrl == null
+                    ? Text(friend.displayName.isNotEmpty
+                        ? friend.displayName[0].toUpperCase()
+                        : '?')
+                    : null,
+              ),
+            ),
           ),
         );
       },

@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import 'achievements_screen.dart';
 import 'leaderboard_screen.dart';
 import 'login_screen.dart';
+import 'settings_screen.dart';
 
 /// Giriş yapmış kullanıcı için profil bilgileri (isim, biyografi, cinsiyet,
 /// yaş, ilgi alanları, ülke/dil - hepsi düzenlenebilir; e-posta salt-okunur)
@@ -49,18 +50,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // discoverStore.js PROFILE_BADGE_CATALOG ile BİREBİR aynı id'ler - sunucu
   // bunun dışındaki bir değeri reddediyor (bkz. isValidProfileBadges).
   static const Map<String, String> _badgeCatalog = {
-    'kahve-tutkunu': '☕ Kahve tutkunu',
-    'erken-kalkan': '🌅 Erken kalkan',
-    'gece-kusu': '🌙 Gece kuşu',
-    'sporcu': '🏃 Sporcu',
-    'kitap-kurdu': '📚 Kitap kurdu',
-    'gezgin': '✈️ Gezgin',
-    'evcil-hayvan-sever': '🐾 Evcil hayvan sever',
-    'yemek-tutkunu': '🍳 Yemek tutkunu',
-    'muzisyen': '🎵 Müzisyen',
-    'sanatci': '🎨 Sanatçı',
-    'oyuncu': '🎮 Oyuncu',
-    'doga-sever': '🌿 Doğa sever',
+    'kahve-tutkunu': 'Kahve tutkunu',
+    'erken-kalkan': 'Erken kalkan',
+    'gece-kusu': 'Gece kuşu',
+    'sporcu': 'Sporcu',
+    'kitap-kurdu': 'Kitap kurdu',
+    'gezgin': 'Gezgin',
+    'evcil-hayvan-sever': 'Evcil hayvan sever',
+    'yemek-tutkunu': 'Yemek tutkunu',
+    'muzisyen': 'Müzisyen',
+    'sanatci': 'Sanatçı',
+    'oyuncu': 'Oyuncu',
+    'doga-sever': 'Doğa sever',
   };
 
   @override
@@ -82,7 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _languageController.text = user.language ?? '';
     _gender = user.gender;
     _interests = List.of(user.interests);
-    _birthDate = user.birthDate != null ? DateTime.tryParse(user.birthDate!) : null;
+    _birthDate =
+        user.birthDate != null ? DateTime.tryParse(user.birthDate!) : null;
     _selectedBadges = List.of(user.profileBadges);
   }
 
@@ -127,20 +129,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onTap: () => Navigator.of(sheetContext).pop('pick'),
             ),
             ListTile(
-              leading: Icon(Icons.emoji_emotions_outlined, color: AppColors.textSecondary),
-              title: Text('Emoji Avatarı Kullan', style: TextStyle(color: AppColors.textPrimary)),
+              leading: Icon(Icons.emoji_emotions_outlined,
+                  color: AppColors.textSecondary),
+              title: Text('Emoji Avatarı Kullan',
+                  style: TextStyle(color: AppColors.textPrimary)),
               onTap: () => Navigator.of(sheetContext).pop('avatar'),
             ),
             if (user.avatarConfig != null)
               ListTile(
                 leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                title: Text('Emoji Avatarını Kaldır', style: TextStyle(color: AppColors.danger)),
+                title: Text('Emoji Avatarını Kaldır',
+                    style: TextStyle(color: AppColors.danger)),
                 onTap: () => Navigator.of(sheetContext).pop('remove-avatar'),
               ),
             if (user.photoUrl != null)
               ListTile(
-                leading: Icon(Icons.delete_outline,
-                    color: AppColors.danger),
+                leading: Icon(Icons.delete_outline, color: AppColors.danger),
                 title: Text('Fotoğrafı Kaldır',
                     style: TextStyle(color: AppColors.danger)),
                 onTap: () => Navigator.of(sheetContext).pop('remove'),
@@ -167,10 +171,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   static const List<String> _avatarColors = [
-    '#7C4DFF', '#00BFA5', '#FF5470', '#FFB74D', '#2E7D32', '#1976D2',
+    '#7C4DFF',
+    '#00BFA5',
+    '#FF5470',
+    '#FFB74D',
+    '#2E7D32',
+    '#1976D2',
   ];
   static const List<String> _avatarEmojis = [
-    '😀', '😎', '🥳', '🤓', '😺', '🦊', '🐼', '🌟', '🔥', '🌈', '🎧', '🚀',
+    '😀',
+    '😎',
+    '🥳',
+    '🤓',
+    '😺',
+    '🦊',
+    '🐼',
+    '🌟',
+    '🔥',
+    '🌈',
+    '🎧',
+    '🚀',
   ];
 
   /// Avatar oluşturucu (Batch G) - basit renk+emoji seçici, yeni bir
@@ -183,14 +203,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: Text('Emoji Avatarı', style: TextStyle(color: AppColors.textPrimary)),
+          title: Text('Emoji Avatarı',
+              style: TextStyle(color: AppColors.textPrimary)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
                 radius: 32,
                 backgroundColor: _parseHexColor(selectedColor),
-                child: Text(selectedEmoji, style: const TextStyle(fontSize: 28)),
+                child:
+                    Text(selectedEmoji, style: const TextStyle(fontSize: 28)),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -202,7 +224,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       radius: 14,
                       backgroundColor: _parseHexColor(hex),
                       child: selectedColor == hex
-                          ? const Icon(Icons.check, size: 14, color: Colors.white)
+                          ? const Icon(Icons.check,
+                              size: 14, color: Colors.white)
                           : null,
                     ),
                   );
@@ -218,7 +241,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: selected ? AppColors.primary.withValues(alpha: 0.3) : null,
+                        color: selected
+                            ? AppColors.primary.withValues(alpha: 0.3)
+                            : null,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(emoji, style: const TextStyle(fontSize: 22)),
@@ -230,9 +255,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Vazgeç')),
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Vazgeç')),
             TextButton(
-                onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Kaydet')),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Kaydet')),
           ],
         ),
       ),
@@ -240,7 +267,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != true || !mounted) return;
     try {
       await _authService.updateProfile(
-        avatarConfig: AvatarConfig(backgroundColor: selectedColor, emoji: selectedEmoji),
+        avatarConfig:
+            AvatarConfig(backgroundColor: selectedColor, emoji: selectedEmoji),
       );
       if (mounted) setState(() {});
     } on AuthException catch (e) {
@@ -349,7 +377,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picker = ImagePicker();
     final XFile? picked;
     try {
-      picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      picked =
+          await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
     } catch (_) {
       _showSnack('Fotoğraf çekilemedi, tekrar dene.');
       return;
@@ -385,7 +414,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _playIntroVideo(String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       _showSnack('Video açılamadı.');
     }
   }
@@ -466,9 +496,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      extendBodyBehindAppBar: !_editing,
       appBar: AppBar(
-        title: const Text('Profil'),
+        title: Text(_editing ? 'Profilini düzenle' : 'Profil'),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -523,6 +553,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _avatarHeader(AppUser user) {
+    final metadata = <Widget>[
+      if (user.country?.isNotEmpty == true)
+        PillBadge(
+          label: user.country!,
+          color: AppColors.textSecondary,
+          icon: Icons.public_rounded,
+        ),
+      if (user.language?.isNotEmpty == true)
+        PillBadge(
+          label: user.language!,
+          color: AppColors.textSecondary,
+          icon: Icons.translate_rounded,
+        ),
+    ];
+
     return Center(
       child: Column(
         children: [
@@ -557,20 +602,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(user.email, style: AppText.caption),
-          if (user.verified) ...[
+          if (metadata.isNotEmpty || user.loginStreak > 1) ...[
             const SizedBox(height: AppSpacing.xs),
-            PillBadge(label: 'Onaylı hesap', color: AppColors.secondary),
-          ],
-          // Günlük giriş serisi (GECE_GELISTIRME madde 7) - saf görsel bir
-          // rozet, HİÇBİR parasal ödül YOK. 1 günlük seri gösterilmiyor
-          // (henüz "seri" sayılmaz, yalnızca bugün giriş yapılmış demek).
-          if (user.loginStreak > 1) ...[
-            const SizedBox(height: AppSpacing.xs),
-            PillBadge(
-              label: '${user.loginStreak} günlük seri 🔥',
-              color: AppColors.primary,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                ...metadata,
+                if (user.loginStreak > 1)
+                  PillBadge(
+                    label: '${user.loginStreak} günlük seri',
+                    color: AppColors.primary,
+                    icon: Icons.local_fire_department_rounded,
+                  ),
+              ],
             ),
           ],
         ],
@@ -580,119 +626,119 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildAvatarCircle(AppUser user) {
     return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                CircleAvatar(
-                  radius: 44,
-                  backgroundColor: user.photoUrl == null && user.avatarConfig != null
-                      ? _parseHexColor(user.avatarConfig!.backgroundColor)
-                      : AppColors.primary.withValues(alpha: 0.25),
-                  backgroundImage: user.photoUrl != null
-                      ? NetworkImage(user.photoUrl!)
-                      : null,
-                  child: user.photoUrl != null
-                      ? null
-                      // Avatar oluşturucu (Batch G) - fotoğraf yoksa, emoji
-                      // avatarı ayarlanmışsa isim baş harfi yerine ONU göster.
-                      : Text(
-                          user.avatarConfig?.emoji ??
-                              (user.displayName.isNotEmpty
-                                  ? user.displayName[0].toUpperCase()
-                                  : '?'),
-                          style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold),
-                        ),
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: 44,
+          backgroundColor: user.photoUrl == null && user.avatarConfig != null
+              ? _parseHexColor(user.avatarConfig!.backgroundColor)
+              : AppColors.primary.withValues(alpha: 0.25),
+          backgroundImage:
+              user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+          child: user.photoUrl != null
+              ? null
+              // Avatar oluşturucu (Batch G) - fotoğraf yoksa, emoji
+              // avatarı ayarlanmışsa isim baş harfi yerine ONU göster.
+              : Text(
+                  user.avatarConfig?.emoji ??
+                      (user.displayName.isNotEmpty
+                          ? user.displayName[0].toUpperCase()
+                          : '?'),
+                  style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold),
                 ),
-                // Sağ-altta küçük bir kamera rozeti - foto değiştirilebilir
-                // olduğunu gösteren tanıdık bir işaret (WhatsApp/Instagram
-                // profil düzenleme deseniyle aynı).
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: _uploadingPhoto
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.camera_alt_rounded,
-                            color: Colors.white, size: 14),
-                  ),
-                ),
-              ],
-            );
-  }
-
-  Widget _infoCard({required String label, required String value}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: GlassCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: AppText.caption),
-            const SizedBox(height: AppSpacing.xs),
-            Text(value, style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
-          ],
         ),
-      ),
+        // Sağ-altta küçük bir kamera rozeti - foto değiştirilebilir
+        // olduğunu gösteren tanıdık bir işaret (WhatsApp/Instagram
+        // profil düzenleme deseniyle aynı).
+        Positioned(
+          right: -2,
+          bottom: -2,
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: _uploadingPhoto
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.camera_alt_rounded,
+                    color: Colors.white, size: 14),
+          ),
+        ),
+      ],
     );
   }
 
-  /// Premium katman DATA MODELİ (Batch C) - gerçek bir ödeme akışı henüz
-  /// YOK, bu yüzden [user.isPremium] şu an her zaman false. Kart, ileride
-  /// gerçek bir ödeme sağlayıcısı eklenene kadar yalnızca "Yakında" bilgisi
-  /// veriyor - kilitli özellik vaadi vermiyor ki gerçekleşmeyen bir söz
-  /// olmasın.
-  Widget _premiumBanner(AppUser user) {
-    if (user.isPremium) {
-      return GlassCard(
-        child: Row(
-          children: [
-            Icon(Icons.workspace_premium_rounded, color: AppColors.warning),
-            const SizedBox(width: 10),
-            Text('Premium üyesin', style: AppText.subheading.copyWith(fontSize: 14)),
-          ],
-        ),
-      );
-    }
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: AppColors.surfaceElevated,
-          title: Text('Premium', style: TextStyle(color: AppColors.textPrimary)),
-          content: Text(
-            'Premium üyelik yakında geliyor: sınırsız hızlı tur, gelişmiş filtreler ve daha fazlası.',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Tamam')),
-          ],
-        ),
-      ),
-      child: GlassCard(
-        child: Row(
-          children: [
-            Icon(Icons.workspace_premium_outlined, color: AppColors.textMuted),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text('Premium - Yakında',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
+  Widget _profileCompletionCard(AppUser user) {
+    final completedFields = [
+      user.photoUrl != null || user.avatarConfig != null,
+      user.bio.trim().isNotEmpty,
+      user.country?.trim().isNotEmpty == true,
+      user.language?.trim().isNotEmpty == true,
+      user.interests.isNotEmpty,
+    ].where((value) => value).length;
+    final progress = completedFields / 5;
+
+    return GlassCard(
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            Icon(Icons.chevron_right, color: AppColors.textFaint),
+            child: Icon(Icons.auto_awesome_rounded, color: AppColors.secondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  progress == 1
+                      ? 'Profilin tanışmaya hazır'
+                      : 'Profilini tamamla',
+                  style: AppText.subheading.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  progress == 1
+                      ? 'İnsanlar seni daha kolay tanıyabilir.'
+                      : '$completedFields/5 bilgi eklendi',
+                  style: AppText.caption,
+                ),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    backgroundColor:
+                        AppColors.textPrimary.withValues(alpha: 0.08),
+                    valueColor: AlwaysStoppedAnimation(AppColors.secondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (progress < 1) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => _startEditing(user),
+              child: const Text('Tamamla'),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -707,7 +753,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primary),
           ),
         ),
       );
@@ -749,7 +796,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text('Video tanıtımın', style: AppText.subheading.copyWith(fontSize: 14)),
+            child: Text('Video tanıtımın',
+                style: AppText.subheading.copyWith(fontSize: 14)),
           ),
           IconButton(
             icon: Icon(Icons.delete_outline, color: AppColors.danger, size: 20),
@@ -769,8 +817,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+            child: CircularProgressIndicator(
+                strokeWidth: 2, color: AppColors.primary),
           ),
+        ),
+      );
+    }
+    if (user.verified) {
+      return GlassCard(
+        child: Row(
+          children: [
+            Icon(Icons.verified_user_rounded, color: AppColors.secondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Doğrulanmış hesap',
+                      style: AppText.subheading.copyWith(fontSize: 14)),
+                  const SizedBox(height: 2),
+                  Text('Güven sinyalin eşleşmelerde görünür.',
+                      style: AppText.caption),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -783,7 +854,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text('Selfie doğrulaman inceleniyor',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 14)),
               ),
             ],
           ),
@@ -792,11 +864,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return GlassCard(
           child: Row(
             children: [
-              Icon(Icons.face_retouching_natural_rounded, color: AppColors.secondary),
+              Icon(Icons.face_retouching_natural_rounded,
+                  color: AppColors.secondary),
               SizedBox(width: 10),
               Expanded(
                 child: Text('Selfie doğrulaman onaylandı ✓',
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 14)),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 14)),
               ),
             ],
           ),
@@ -809,7 +883,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: GlassCard(
             child: Row(
               children: [
-                Icon(Icons.face_retouching_natural_outlined, color: AppColors.textMuted),
+                Icon(Icons.face_retouching_natural_outlined,
+                    color: AppColors.textMuted),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -828,75 +903,103 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileBody(AppUser user) {
-    final genderLabel = user.gender == 'erkek'
-        ? 'Erkek'
-        : (user.gender == 'kadın' ? 'Kadın' : 'Belirtilmemiş');
+    final identityPills = <Widget>[
+      if (user.age != null)
+        PillBadge(
+          label: '${user.age} yaşında',
+          color: AppColors.textSecondary,
+          icon: Icons.cake_outlined,
+        ),
+      if (user.gender == 'erkek')
+        PillBadge(label: 'Erkek', color: AppColors.textSecondary),
+      if (user.gender == 'kadın')
+        PillBadge(label: 'Kadın', color: AppColors.textSecondary),
+    ];
     return ListView(
       padding: EdgeInsets.fromLTRB(
         20,
-        // `extendBodyBehindAppBar: true` gövdeyi (bu ListView'i) şeffaf
-        // AppBar'ın ARKASINA/ALTINA kadar uzatıyor (gradyan arka planın
-        // durum çubuğunun altına kadar sürmesi için, bkz. build()). Ama bu,
-        // AppBar'ın kendi (görünmez olsa da hâlâ dokunuşları yakalayan)
-        // dikdörtgen alanının ListView'in en üstündeki içerikle ÇAKIŞMASINA
-        // yol açıyor - avatar tam bu bölgede olduğu için `onTap` HİÇ
-        // tetiklenmiyordu (AppBar dokunuşu sessizce yutuyordu, ne hata ne
-        // görsel bir belirti vardı). Avatarı AppBar'ın gerçek yüksekliğinin
-        // (durum çubuğu + araç çubuğu) altına itiyoruz.
         MediaQuery.of(context).padding.top + kToolbarHeight + 20,
         20,
         20,
       ),
       children: [
         _avatarHeader(user),
-        const SizedBox(height: AppSpacing.xl),
-        _infoCard(
-            label: 'Hakkımda',
-            value: user.bio.isEmpty ? 'Henüz bir şey yazılmamış.' : user.bio),
-        _infoCard(label: 'Cinsiyet', value: genderLabel),
-        _infoCard(label: 'Yaş', value: user.age?.toString() ?? 'Belirtilmemiş'),
-        if (user.zodiac != null)
-          _infoCard(label: 'Burç', value: user.zodiac!),
-        _infoCard(
-          label: 'İlgi Alanları',
-          value: user.interests.isEmpty
-              ? 'Henüz eklenmemiş.'
-              : user.interests.join(', '),
-        ),
-        _infoCard(
-            label: 'Ülke',
-            value: user.country?.isNotEmpty == true
-                ? user.country!
-                : 'Belirtilmemiş'),
-        _infoCard(
-            label: 'Dil',
-            value: user.language?.isNotEmpty == true
-                ? user.language!
-                : 'Belirtilmemiş'),
-        if (user.profileBadges.isNotEmpty)
-          _infoCard(
-            label: 'Rozetler',
-            value: user.profileBadges
-                .map((b) => _badgeCatalog[b] ?? b)
-                .join(', '),
-          ),
+        const SizedBox(height: AppSpacing.lg),
+        _profileCompletionCard(user),
         const SizedBox(height: AppSpacing.md),
-        // Canva mockup'ındaki bento-istatistik kartı dili - ama mockup'taki
-        // uydurma oyun istatistikleri (maç sayısı, kazanma oranı vb.) YERİNE
-        // gerçekten var olan tek iki veri: seviye ve XP (bkz.
-        // gamification_service.dart).
+        if (user.bio.trim().isNotEmpty || identityPills.isNotEmpty) ...[
+          Text('Seni tanıyalım', style: AppText.subheading),
+          const SizedBox(height: AppSpacing.sm),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (user.bio.trim().isNotEmpty) ...[
+                  Text(user.bio, style: AppText.body),
+                  if (identityPills.isNotEmpty)
+                    const SizedBox(height: AppSpacing.md),
+                ],
+                if (identityPills.isNotEmpty)
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: identityPills,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (user.interests.isNotEmpty) ...[
+          Text('İlgi alanların', style: AppText.subheading),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: user.interests
+                .map((interest) => PillBadge(
+                      label: interest,
+                      color: AppColors.primaryLight,
+                      icon: Icons.interests_outlined,
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        if (user.profileBadges.isNotEmpty) ...[
+          Text('Sana uyan şeyler', style: AppText.subheading),
+          const SizedBox(height: AppSpacing.sm),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: user.profileBadges
+                .map((badge) => PillBadge(
+                      label: _badgeCatalog[badge] ?? badge,
+                      color: AppColors.warning,
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Text('Güven', style: AppText.subheading),
+        const SizedBox(height: AppSpacing.sm),
+        _selfieVerificationCard(user),
+        const SizedBox(height: AppSpacing.md),
+        Text('Merhaba’da', style: AppText.subheading),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
             Expanded(
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () => Navigator.of(context)
-                    .push(AppPageRoute(builder: (_) => const AchievementsScreen())),
+                onTap: () => Navigator.of(context).push(
+                    AppPageRoute(builder: (_) => const AchievementsScreen())),
                 child: GlassCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 20),
+                      const Icon(Icons.emoji_events_rounded,
+                          color: Colors.amber, size: 20),
                       const SizedBox(height: 8),
                       Text('${user.level}',
                           style: TextStyle(
@@ -913,13 +1016,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: InkWell(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                onTap: () => Navigator.of(context)
-                    .push(AppPageRoute(builder: (_) => const LeaderboardScreen())),
+                onTap: () => Navigator.of(context).push(
+                    AppPageRoute(builder: (_) => const LeaderboardScreen())),
                 child: GlassCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.bolt_rounded, color: AppColors.secondary, size: 20),
+                      Icon(Icons.bolt_rounded,
+                          color: AppColors.secondary, size: 20),
                       const SizedBox(height: 8),
                       Text('${user.xp}',
                           style: TextStyle(
@@ -935,24 +1039,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        _introVideoCard(user),
-        const SizedBox(height: AppSpacing.md),
-        _selfieVerificationCard(user),
-        const SizedBox(height: AppSpacing.md),
-        _premiumBanner(user),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: OutlinedButton(
-            onPressed: _logout,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.danger,
-              side: BorderSide(color: AppColors.danger),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md)),
+        if (user.introVideoUrl != null) ...[
+          _introVideoCard(user),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Text('Hesap', style: AppText.subheading),
+        const SizedBox(height: AppSpacing.sm),
+        InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          onTap: () => Navigator.of(context)
+              .push(AppPageRoute(builder: (_) => const SettingsScreen())),
+          child: GlassCard(
+            child: Row(
+              children: [
+                Icon(Icons.tune_rounded, color: AppColors.secondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Eşleşme ve gizlilik',
+                          style: AppText.subheading.copyWith(fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text('Kimlerle eşleşeceğini ve görünürlüğünü yönet.',
+                          style: AppText.caption),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+              ],
             ),
-            child: const Text('Çıkış Yap'),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Center(
+          child: TextButton.icon(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Çıkış yap'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
           ),
         ),
       ],
@@ -972,9 +1097,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildEditBody() {
+    final user = _authService.currentUser;
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
+        Text('Profilin karşı tarafa daha iyi bir ilk izlenim versin.',
+            style: AppText.body),
+        const SizedBox(height: AppSpacing.lg),
         TextField(
           controller: _nameController,
           style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
@@ -1013,7 +1142,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final now = DateTime.now();
             final picked = await showDatePicker(
               context: context,
-              initialDate: _birthDate ?? DateTime(now.year - 20, now.month, now.day),
+              initialDate:
+                  _birthDate ?? DateTime(now.year - 20, now.month, now.day),
               firstDate: DateTime(now.year - 100),
               lastDate: DateTime(now.year - 13, now.month, now.day),
             );
@@ -1053,7 +1183,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             for (final tag in _interests)
               Chip(
                 label: Text(tag,
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 12)),
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 12)),
                 backgroundColor: AppColors.primary.withValues(alpha: 0.3),
                 deleteIcon:
                     Icon(Icons.close, size: 14, color: AppColors.textSecondary),
@@ -1092,11 +1223,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               selected: selected,
               selectedColor: AppColors.primary.withValues(alpha: 0.4),
               backgroundColor: AppColors.textPrimary.withValues(alpha: 0.05),
-              labelStyle: TextStyle(color: selected ? AppColors.textPrimary : AppColors.textSecondary),
+              labelStyle: TextStyle(
+                  color: selected
+                      ? AppColors.textPrimary
+                      : AppColors.textSecondary),
               onSelected: (value) {
                 setState(() {
                   if (value) {
-                    if (_selectedBadges.length < 3) _selectedBadges.add(entry.key);
+                    if (_selectedBadges.length < 3)
+                      _selectedBadges.add(entry.key);
                   } else {
                     _selectedBadges.remove(entry.key);
                   }
@@ -1105,6 +1240,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }).toList(),
         ),
+        if (user != null) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text('Tanıtım videosu', style: AppText.subheading),
+          const SizedBox(height: AppSpacing.sm),
+          _introVideoCard(user),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!,
@@ -1150,7 +1291,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return ChoiceChip(
       label: Text(label,
           style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary, fontSize: 12)),
+              color: selected ? Colors.white : AppColors.textSecondary,
+              fontSize: 12)),
       selected: selected,
       selectedColor: AppColors.primary,
       backgroundColor: AppColors.textPrimary.withValues(alpha: 0.05),

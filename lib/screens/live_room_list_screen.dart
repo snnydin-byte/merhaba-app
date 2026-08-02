@@ -40,7 +40,8 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
         Uri.parse('$signalingServerUrl/live-rooms'),
         headers: {'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode != 200) throw Exception('HTTP ${response.statusCode}');
+      if (response.statusCode != 200)
+        throw Exception('HTTP ${response.statusCode}');
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final rooms = (data['rooms'] as List<dynamic>? ?? [])
           .map((r) => Map<String, dynamic>.from(r as Map))
@@ -65,11 +66,13 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Canlı Yayın Başlat', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Canlı Yayın Başlat',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: titleController,
           style: TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Yayın başlığı (isteğe bağlı)'),
+          decoration:
+              const InputDecoration(hintText: 'Yayın başlığı (isteğe bağlı)'),
         ),
         actions: [
           TextButton(
@@ -95,7 +98,12 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Canlı Yayınlar', style: AppText.subheading),
+        toolbarHeight: 72,
+        titleSpacing: 20,
+        title: Text(
+          'Canlı',
+          style: AppText.display.copyWith(fontSize: 26, height: 1),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -105,9 +113,15 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
       // token'larına (GlassCard/GradientButton) da uydurduk.
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _startHosting,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.videocam_rounded, color: Colors.white),
-        label: Text('Yayın Aç', style: AppText.button.copyWith(fontSize: 14)),
+        backgroundColor: AppColors.surfaceElevated,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.42)),
+        ),
+        icon: Icon(Icons.add_rounded, color: AppColors.secondary),
+        label: Text('Yayın aç', style: AppText.button.copyWith(fontSize: 14)),
       ),
       body: AppBackground(
         child: SafeArea(
@@ -131,13 +145,9 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
         child: Text(_error!, style: TextStyle(color: AppColors.textSecondary)),
       );
     }
-    if (_rooms.isEmpty) {
-      return Center(
-        child: Text('Şu an aktif canlı yayın yok.', style: TextStyle(color: AppColors.textSecondary)),
-      );
-    }
+    if (_rooms.isEmpty) return _buildEmptyState();
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 90),
+      padding: const EdgeInsets.fromLTRB(16, 84, 16, 100),
       itemCount: _rooms.length,
       itemBuilder: (context, index) {
         final room = _rooms[index];
@@ -145,69 +155,142 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
         final viewerCount = room['viewerCount'] as int? ?? 0;
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: GlassCard(
-            padding: EdgeInsets.zero,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.surfaceBorder),
+              boxShadow: neonGlow(
+                AppColors.primary,
+                opacity: 0.08,
+                blurRadius: 20,
+                spreadRadius: 0,
+              ),
+            ),
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               onTap: () async {
                 await Navigator.of(context).push(
-                  AppPageRoute(builder: (_) => LiveRoomScreen.viewer(roomId: room['id'] as String)),
+                  AppPageRoute(
+                      builder: (_) =>
+                          LiveRoomScreen.viewer(roomId: room['id'] as String)),
                 );
                 if (mounted) _load();
               },
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                          child: Icon(Icons.live_tv_rounded, color: AppColors.primary),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: AppColors.danger,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: const Text('CANLI',
-                              style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppRadius.lg),
+                      ),
+                      child: Stack(
                         children: [
-                          Text(
-                            title == null || title.isEmpty ? 'Canlı Yayın' : title,
-                            style: AppText.subheading.copyWith(fontSize: 15),
-                            overflow: TextOverflow.ellipsis,
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  AppColors.primary.withValues(alpha: 0.7),
+                                  AppColors.backgroundDeep,
+                                  AppColors.secondary.withValues(alpha: 0.48),
+                                ],
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(Icons.live_tv_rounded,
+                                color: Colors.white.withValues(alpha: 0.72),
+                                size: 48),
                           ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.visibility_rounded, color: AppColors.textMuted, size: 14),
-                              const SizedBox(width: 4),
-                              Text('$viewerCount izleyici',
-                                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                            ],
+                          const Positioned(
+                            top: 12,
+                            left: 12,
+                            child: PillBadge(
+                                label: 'CANLI', color: Color(0xFFFF5A79)),
+                          ),
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: PillBadge(
+                              label: '$viewerCount izliyor',
+                              color: Colors.white,
+                              icon: Icons.visibility_rounded,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
-                  ],
-                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 12, 14),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: AppGradients.warmSignal,
+                          ),
+                          child: const Icon(Icons.person_rounded,
+                              color: Colors.white, size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            title == null || title.isEmpty
+                                ? 'Canlı yayın'
+                                : title,
+                            style: AppText.subheading.copyWith(fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Icon(Icons.arrow_forward_rounded,
+                            color: AppColors.secondary, size: 20),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppGradients.warmSignal,
+                boxShadow: neonGlow(AppColors.primary, opacity: 0.26),
+              ),
+              child: const Icon(Icons.live_tv_rounded,
+                  color: Colors.white, size: 34),
+            ),
+            const SizedBox(height: 18),
+            Text('İlk yayını sen başlat', style: AppText.subheading),
+            const SizedBox(height: 8),
+            Text(
+              'Şu an açık yayın yok. Kameranı açıp topluluğa merhaba de.',
+              textAlign: TextAlign.center,
+              style: AppText.body,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

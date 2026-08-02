@@ -33,6 +33,12 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
   bool _micOn = true;
   bool _camOn = true;
   bool _reporting = false;
+  bool _chatOpen = false;
+  bool _sendingMessage = false;
+  int _unreadMessageCount = 0;
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _chatScrollController = ScrollController();
+  final List<GroupCallChatMessage> _messages = [];
 
   @override
   void initState() {
@@ -51,9 +57,18 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
       if (!mounted) return;
       setState(() {});
     };
+    _groupCall.onChatMessage = (message) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(message);
+        if (!_chatOpen) _unreadMessageCount++;
+      });
+      _scrollChatToLatest();
+    };
     _groupCall.onError = (message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     };
     _groupCall.onCallEnded = () {
       if (!mounted) return;
@@ -68,7 +83,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Hesap kısıtlandı', style: TextStyle(color: Colors.white)),
+          title: const Text('Hesap kısıtlandı',
+              style: TextStyle(color: Colors.white)),
           content: Text(message, style: const TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
@@ -92,14 +108,21 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
     _groupCall.onReportError = (message) {
       if (!mounted) return;
       setState(() => _reporting = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     };
 
-    _groupCall.connectAndFind(size: widget.groupSize, authToken: AuthService().token);
+    _groupCall.connectAndFind(
+        size: widget.groupSize, authToken: AuthService().token);
   }
 
   void _skipToNextGroup() {
-    setState(() => _status = 'Yeni grup aranıyor...');
+    setState(() {
+      _status = 'Yeni grup aranıyor...';
+      _messages.clear();
+      _unreadMessageCount = 0;
+      _chatOpen = false;
+    });
     _groupCall.findNewGroup(widget.groupSize);
   }
 
@@ -133,6 +156,59 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
     );
   }
 
+  void _toggleChat() {
+    final openingChat = !_chatOpen;
+    setState(() {
+      _chatOpen = openingChat;
+      if (_chatOpen) _unreadMessageCount = 0;
+    });
+    if (openingChat) _scrollChatToLatest();
+  }
+
+  void _scrollChatToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_chatOpen || !_chatScrollController.hasClients) return;
+      _chatScrollController.animateTo(
+        _chatScrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _sendingMessage) return;
+
+    setState(() => _sendingMessage = true);
+    final sent = await _groupCall.sendChatMessage(text);
+    if (!mounted) return;
+
+    if (!sent) {
+      setState(() => _sendingMessage = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Grup mesajı hazırlanıyor, birkaç saniye sonra tekrar dene.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _messages.add(
+        GroupCallChatMessage(
+          text: text,
+          senderName: _groupCall.localParticipantName,
+          isMe: true,
+        ),
+      );
+      _messageController.clear();
+      _sendingMessage = false;
+    });
+    _scrollChatToLatest();
+  }
+
   void _showReportSheet() {
     final participants = _groupCall.remoteParticipants.toList();
     if (participants.isEmpty) return;
@@ -146,7 +222,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text('Kimi bildirmek istiyorsun?',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600)),
             ),
             ...participants.map(
               (p) => ListTile(
@@ -184,14 +261,17 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: const Text('Kullanıcıyı bildir', style: TextStyle(color: Colors.white)),
+        title: const Text('Kullanıcıyı bildir',
+            style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: reasons
               .map((r) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(r.$2, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    title: Text(r.$2,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 14)),
                     onTap: () {
                       Navigator.pop(context);
                       setState(() => _reporting = true);
@@ -201,7 +281,9 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
               .toList(),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Vazgeç')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Vazgeç')),
         ],
       ),
     );
@@ -209,6 +291,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
 
   @override
   void dispose() {
+    _messageController.dispose();
+    _chatScrollController.dispose();
     _groupCall.dispose();
     super.dispose();
   }
@@ -225,7 +309,25 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
           child: Column(
             children: [
               _buildStatusBar(),
-              Expanded(child: _buildGrid()),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: _chatOpen
+                      ? KeyedSubtree(
+                          key: const ValueKey('group-chat'),
+                          child: _buildChatView(),
+                        )
+                      : KeyedSubtree(
+                          key: const ValueKey('group-video-grid'),
+                          child: _buildGrid(),
+                        ),
+                ),
+              ),
+              if (_groupCall.room != null && !_chatOpen)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: _buildConversationButton(),
+                ),
               _buildControls(),
             ],
           ),
@@ -255,7 +357,9 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
             ),
           ),
           IconButton(
-            onPressed: (_reporting || _groupCall.remoteParticipants.isEmpty) ? null : _showReportSheet,
+            onPressed: (_reporting || _groupCall.remoteParticipants.isEmpty)
+                ? null
+                : _showReportSheet,
             icon: const Icon(Icons.flag_outlined, color: Colors.white70),
           ),
         ],
@@ -264,24 +368,48 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
   }
 
   Widget _buildGrid() {
-    final localVideoTrack = _groupCall.room?.localParticipant?.videoTrackPublications
+    final localVideoTrack = _groupCall
+        .room?.localParticipant?.videoTrackPublications
         .map((p) => p.track)
         .whereType<livekit.LocalVideoTrack>()
         .firstOrNull;
 
     final tiles = <Widget>[
       _localVideoTile(localVideoTrack),
-      for (final participant in _groupCall.remoteParticipants) _remoteVideoTile(participant),
+      for (final participant in _groupCall.remoteParticipants)
+        _remoteVideoTile(participant),
     ];
+
+    if (tiles.length == 1) {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: tiles.first,
+      );
+    }
+
+    final crossAxisCount = tiles.length <= 2
+        ? 1
+        : tiles.length <= 4
+            ? 2
+            : 3;
+    final childAspectRatio = tiles.length <= 2
+        ? 1.36
+        : tiles.length <= 4
+            ? 0.76
+            : 0.70;
 
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: GridView.count(
-        crossAxisCount: 2,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.75,
-        children: tiles,
+      child: GridView.builder(
+        itemCount: tiles.length,
+        padding: EdgeInsets.zero,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: childAspectRatio,
+        ),
+        itemBuilder: (_, index) => tiles[index],
       ),
     );
   }
@@ -289,7 +417,13 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
   Widget _localVideoTile(livekit.LocalVideoTrack? track) {
     return _tileFrame(
       label: 'Sen',
-      video: (_camOn && track != null) ? livekit.VideoTrackRenderer(track, mirrorMode: livekit.VideoViewMirrorMode.mirror) : null,
+      video: (_camOn && track != null)
+          ? livekit.VideoTrackRenderer(
+              track,
+              fit: livekit.VideoViewFit.cover,
+              mirrorMode: livekit.VideoViewMirrorMode.mirror,
+            )
+          : null,
     );
   }
 
@@ -300,7 +434,12 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
         .firstOrNull;
     return _tileFrame(
       label: participant.name.isNotEmpty ? participant.name : 'Kullanıcı',
-      video: videoTrack != null ? livekit.VideoTrackRenderer(videoTrack) : null,
+      video: videoTrack != null
+          ? livekit.VideoTrackRenderer(
+              videoTrack,
+              fit: livekit.VideoViewFit.cover,
+            )
+          : null,
     );
   }
 
@@ -316,7 +455,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
               video
             else
               const Center(
-                child: Icon(Icons.person_rounded, color: Colors.white24, size: 48),
+                child:
+                    Icon(Icons.person_rounded, color: Colors.white24, size: 48),
               ),
             Positioned(
               left: 8,
@@ -327,10 +467,256 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
                   color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+                child: Text(label,
+                    style: const TextStyle(color: Colors.white, fontSize: 12)),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConversationButton() {
+    final hasUnreadMessages = _unreadMessageCount > 0;
+    final unreadLabel =
+        _unreadMessageCount > 9 ? '9+' : _unreadMessageCount.toString();
+
+    return Semantics(
+      button: true,
+      label: hasUnreadMessages
+          ? 'Grup sohbeti, $_unreadMessageCount okunmamış mesaj'
+          : 'Grup sohbeti',
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: hasUnreadMessages
+                ? AppColors.danger.withValues(alpha: 0.18)
+                : AppColors.surfaceElevated.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: hasUnreadMessages
+                  ? AppColors.danger.withValues(alpha: 0.9)
+                  : AppColors.secondary.withValues(alpha: 0.52),
+            ),
+            boxShadow: neonGlow(
+              hasUnreadMessages ? AppColors.danger : AppColors.secondary,
+              opacity: hasUnreadMessages ? 0.26 : 0.12,
+              blurRadius: 22,
+              spreadRadius: 0,
+            ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              onTap: _toggleChat,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.forum_rounded,
+                    color: hasUnreadMessages
+                        ? AppColors.danger
+                        : AppColors.secondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    hasUnreadMessages ? 'Yeni mesaj' : 'Grup sohbeti',
+                    style: AppText.button.copyWith(fontSize: 15),
+                  ),
+                  if (hasUnreadMessages) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 20),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.danger,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        unreadLabel,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatView() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: SizedBox.expand(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.forum_rounded,
+                            color: AppColors.secondary, size: 17),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Grup sohbeti',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Grup sohbetini kapat',
+                          onPressed: _toggleChat,
+                          icon: const Icon(Icons.close,
+                              color: Colors.white54, size: 19),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _messages.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Gruptaki herkese buradan mesaj yazabilirsin.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.48),
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _chatScrollController,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final message = _messages[index];
+                              return Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  width: double.infinity,
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 3),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: message.isMe
+                                        ? AppColors.primary
+                                            .withValues(alpha: 0.22)
+                                        : Colors.white.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        message.senderName,
+                                        style: TextStyle(
+                                          color: message.isMe
+                                              ? AppColors.primary
+                                              : AppColors.secondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        message.text,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            enabled: !_sendingMessage,
+                            textInputAction: TextInputAction.send,
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Gruba mesaj yaz...',
+                              hintStyle: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.4)),
+                              filled: true,
+                              fillColor: Colors.white.withValues(alpha: 0.06),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.pill),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          tooltip: 'Gruba mesaj gönder',
+                          onPressed: _sendingMessage ? null : _sendMessage,
+                          icon: _sendingMessage
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.send_rounded,
+                                  color: AppColors.secondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -392,7 +778,9 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
           shape: BoxShape.circle,
           color: danger
               ? Colors.redAccent
-              : (active ? Colors.white.withValues(alpha: 0.15) : Colors.redAccent.withValues(alpha: 0.85)),
+              : (active
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : Colors.redAccent.withValues(alpha: 0.85)),
         ),
         child: Icon(icon, color: Colors.white, size: 22),
       ),

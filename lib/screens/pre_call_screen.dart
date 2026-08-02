@@ -215,145 +215,261 @@ class _PreCallScreenState extends State<PreCallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Hazır mısın?'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: AppBackground(
         child: SafeArea(
-          child: _loading
-              ? Center(
-                  child: CircularProgressIndicator(color: AppColors.primary))
-              : Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      Expanded(child: _buildPreview()),
-                      const SizedBox(height: 14),
-                      if (!_permissionError) _buildVoiceOnlyToggle(),
-                      const SizedBox(height: 14),
-                      if (!_rulesAcceptedBefore) _buildRulesChecklist(),
-                      const SizedBox(height: 16),
-                      _buildStartButton(),
-                    ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxHeight < 700;
+              final previewHeight =
+                  (constraints.maxHeight * (isCompact ? 0.36 : 0.43))
+                      .clamp(236.0, 390.0)
+                      .toDouble();
+
+              if (_loading) {
+                return Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                );
+              }
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                    child: Column(
+                      children: [
+                        _buildHeader(context),
+                        const SizedBox(height: 18),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            physics: const ClampingScrollPhysics(),
+                            child: Column(
+                              children: [
+                                _buildPreview(height: previewHeight),
+                                const SizedBox(height: 14),
+                                if (!_permissionError) _buildVoiceOnlyToggle(),
+                                if (!_rulesAcceptedBefore) ...[
+                                  const SizedBox(height: 14),
+                                  _buildRulesChecklist(),
+                                ],
+                                const SizedBox(height: 16),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildStartButton(),
+                      ],
+                    ),
                   ),
                 ),
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  // Dairesel ("porthole") önizleme - Canva mockup'ındaki gibi, dikdörtgen
-  // tam-ekran önizleme yerine. Grup görüşmesi hazırlık ekranından (kare/
-  // yuvarlak-köşeli, gelecek 2x2 grid'i çağrıştıran) KASITLI farklı - 1:1
-  // görüşme daha "samimi/yakın" hissettiren bir çerçeveyle ayrışıyor.
-  Widget _buildPreview() {
-    return Center(
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: ClipOval(
-          child: Container(
-        color: AppColors.surface,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (_permissionError)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.videocam_off_rounded,
-                        color: Colors.white38, size: 40),
-                    const SizedBox(height: 12),
-                    Text(
-                      _permissionPermanentlyDenied
-                          ? 'Kamera/mikrofon izni reddedildi. Ayarlardan izin vermen gerekiyor.'
-                          : 'Devam etmek için kamera ve mikrofon iznine ihtiyacımız var.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.7),
-                          fontSize: 14),
-                    ),
-                    const SizedBox(height: 16),
-                    OutlinedButton(
-                      onPressed: _retry,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white38),
-                      ),
-                      child: Text(_permissionPermanentlyDenied
-                          ? 'Ayarlara Git'
-                          : 'Tekrar Dene'),
-                    ),
-                  ],
-                ),
-              )
-            else if (!_webrtc.hasCamera)
-              // Sesli-yalnız mod aktif - hiç kamera akışı yok, bunu
-              // "kamera kapalı" ile karıştırmamak için ayrı bir gösterge.
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.mic_rounded,
-                      color: Colors.white38, size: 48),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Sesli-yalnız mod',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 13),
-                  ),
-                ],
-              )
-            else if (_camOn)
-              RTCVideoView(
-                _previewRenderer,
-                mirror: true,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-              )
-            else
-              const Icon(Icons.videocam_off_rounded,
-                  color: Colors.white38, size: 48),
-
-            // Mikrofon/kamera açma-kapama düğmeleri. Kamera hiç yoksa
-            // (sesli-yalnız mod) kamera düğmesi hiç gösterilmez - toggle
-            // edilecek bir track olmadığı için yanıltıcı olurdu.
-            if (!_permissionError)
-              Positioned(
-                bottom: 16,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _previewToggle(
-                      icon: _micOn ? Icons.mic_rounded : Icons.mic_off_rounded,
-                      active: _micOn,
-                      onTap: () {
-                        setState(() => _micOn = !_micOn);
-                        _webrtc.toggleMic(_micOn);
-                      },
-                    ),
-                    if (_webrtc.hasCamera) ...[
-                      const SizedBox(width: 14),
-                      _previewToggle(
-                        icon: _camOn
-                            ? Icons.videocam_rounded
-                            : Icons.videocam_off_rounded,
-                        active: _camOn,
-                        onTap: () {
-                          setState(() => _camOn = !_camOn);
-                          _webrtc.toggleCamera(_camOn);
-                        },
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-          ],
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.surface.withValues(alpha: 0.76),
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: IconButton(
+            tooltip: 'Geri',
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          ),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Kameranı kontrol et', style: AppText.heading),
+              const SizedBox(height: 2),
+              Text(
+                'Eşleşmeden önce görünümünü ayarla',
+                style: AppText.caption,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreview({required double height}) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: SizedBox(
+          width: double.infinity,
+          height: height,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              border: Border.all(color: AppColors.surfaceBorder),
+              boxShadow: neonGlow(
+                AppColors.primary,
+                opacity: 0.16,
+                blurRadius: 30,
+                spreadRadius: 0,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (_permissionError)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.videocam_off_rounded,
+                              color: Colors.white38, size: 40),
+                          const SizedBox(height: 12),
+                          Text(
+                            _permissionPermanentlyDenied
+                                ? 'Kamera/mikrofon izni reddedildi. Ayarlardan izin vermen gerekiyor.'
+                                : 'Devam etmek için kamera ve mikrofon iznine ihtiyacımız var.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 14),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton(
+                            onPressed: _retry,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white38),
+                            ),
+                            child: Text(_permissionPermanentlyDenied
+                                ? 'Ayarlara Git'
+                                : 'Tekrar Dene'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (!_webrtc.hasCamera)
+                    // Sesli-yalnız mod aktif - hiç kamera akışı yok, bunu
+                    // "kamera kapalı" ile karıştırmamak için ayrı bir gösterge.
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.mic_rounded,
+                            color: Colors.white38, size: 48),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Sesli-yalnız mod',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 13),
+                        ),
+                      ],
+                    )
+                  else if (_camOn)
+                    RTCVideoView(
+                      _previewRenderer,
+                      mirror: true,
+                      objectFit:
+                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                    )
+                  else
+                    const Icon(Icons.videocam_off_rounded,
+                        color: Colors.white38, size: 48),
+
+                  if (!_permissionError && _webrtc.hasCamera)
+                    Positioned(
+                      top: 14,
+                      left: 14,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.background.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(
+                            color:
+                                AppColors.textPrimary.withValues(alpha: 0.12),
+                          ),
+                        ),
+                        child: Text(
+                          _camOn ? 'Kamera açık' : 'Kamera kapalı',
+                          style: AppText.caption.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // Mikrofon/kamera açma-kapama düğmeleri. Kamera hiç yoksa
+                  // (sesli-yalnız mod) kamera düğmesi hiç gösterilmez - toggle
+                  // edilecek bir track olmadığı için yanıltıcı olurdu.
+                  if (!_permissionError)
+                    Positioned(
+                      bottom: 16,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.background.withValues(alpha: 0.74),
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          border: Border.all(
+                            color:
+                                AppColors.textPrimary.withValues(alpha: 0.14),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _previewToggle(
+                              label:
+                                  _micOn ? 'Mikrofonu kapat' : 'Mikrofonu aç',
+                              icon: _micOn
+                                  ? Icons.mic_rounded
+                                  : Icons.mic_off_rounded,
+                              active: _micOn,
+                              onTap: () {
+                                setState(() => _micOn = !_micOn);
+                                _webrtc.toggleMic(_micOn);
+                              },
+                            ),
+                            if (_webrtc.hasCamera) ...[
+                              const SizedBox(width: 10),
+                              _previewToggle(
+                                label:
+                                    _camOn ? 'Kamerayı kapat' : 'Kamerayı aç',
+                                icon: _camOn
+                                    ? Icons.videocam_rounded
+                                    : Icons.videocam_off_rounded,
+                                active: _camOn,
+                                onTap: () {
+                                  setState(() => _camOn = !_camOn);
+                                  _webrtc.toggleCamera(_camOn);
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -361,21 +477,33 @@ class _PreCallScreenState extends State<PreCallScreen> {
   }
 
   Widget _previewToggle(
-      {required IconData icon,
+      {required String label,
+      required IconData icon,
       required bool active,
       required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: active
-              ? Colors.white.withValues(alpha: 0.15)
-              : Colors.redAccent.withValues(alpha: 0.85),
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: active
+                    ? AppColors.textPrimary.withValues(alpha: 0.16)
+                    : AppColors.danger.withValues(alpha: 0.9),
+              ),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
   }
@@ -390,8 +518,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(Icons.mic_rounded,
-              color: AppColors.primaryLight, size: 20),
+          Icon(Icons.mic_rounded, color: AppColors.primaryLight, size: 20),
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
@@ -401,7 +528,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
           ),
           Switch(
             value: _voiceOnlySwitch,
-            activeColor: AppColors.primary,
+            activeThumbColor: AppColors.primary,
             onChanged: _loading ? null : _toggleVoiceOnly,
           ),
         ],
@@ -464,6 +591,7 @@ class _PreCallScreenState extends State<PreCallScreen> {
   Widget _buildStartButton() {
     return GradientButton(
       height: 54,
+      gradient: AppGradients.warmSignal,
       onPressed: _canStart && !_starting ? _start : null,
       child: _starting
           ? const SizedBox(

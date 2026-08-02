@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:socket_io_client/socket_io_client.dart' as io;
@@ -14,6 +15,8 @@ import 'webrtc_service.dart' show signalingServerUrl;
 /// mesh'teki gibi TÜM mevcut katılımcılarla yeniden el sıkışma gerektirmiyor
 /// - yalnızca aynı LiveKit odasına bağlanmak yeterli.
 class GroupCallService {
+  static const _chatTopic = 'group-call-chat';
+
   io.Socket? _socket;
   livekit.Room? _room;
   livekit.EventsListener<livekit.RoomEvent>? _roomListener;
@@ -34,6 +37,12 @@ class GroupCallService {
   void Function(String message)? onAccountRestricted;
   void Function(String reportId)? onReportSent;
   void Function(String message)? onReportError;
+  void Function(GroupCallChatMessage message)? onChatMessage;
+
+  String get localParticipantName {
+    final name = _room?.localParticipant?.name.trim() ?? '';
+    return name.isEmpty ? 'Sen' : name;
+  }
 
   void connectAndFind({required int size, String? authToken}) {
     _socket?.disconnect();
@@ -56,7 +65,8 @@ class GroupCallService {
     });
     _socket!.on('group-match-error', (data) {
       final map = data is Map ? Map<String, dynamic>.from(data) : const {};
-      onError?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
+      onError
+          ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
 
     _socket!.on('group-match-joined', (data) async {
@@ -80,7 +90,8 @@ class GroupCallService {
 
     _socket!.on('account-restricted', (data) {
       final map = data is Map ? Map<String, dynamic>.from(data) : const {};
-      onAccountRestricted?.call((map['message'] as String?) ?? 'Hesabın incelemeye alındı.');
+      onAccountRestricted
+          ?.call((map['message'] as String?) ?? 'Hesabın incelemeye alındı.');
     });
     _socket!.on('report-user-sent', (data) {
       final map = data is Map ? Map<String, dynamic>.from(data) : const {};
@@ -88,7 +99,8 @@ class GroupCallService {
     });
     _socket!.on('report-user-error', (data) {
       final map = data is Map ? Map<String, dynamic>.from(data) : const {};
-      onReportError?.call((map['message'] as String?) ?? 'Şikayet gönderilemedi.');
+      onReportError
+          ?.call((map['message'] as String?) ?? 'Şikayet gönderilemedi.');
     });
 
     _socket!.connect();
@@ -102,6 +114,22 @@ class GroupCallService {
       ..on<livekit.TrackUnsubscribedEvent>((_) => onUpdate?.call())
       ..on<livekit.ParticipantConnectedEvent>((_) => onUpdate?.call())
       ..on<livekit.ParticipantDisconnectedEvent>((_) => onUpdate?.call())
+      ..on<livekit.DataReceivedEvent>((event) {
+        if (event.topic != _chatTopic) return;
+        final text = utf8.decode(event.data, allowMalformed: true).trim();
+        if (text.isEmpty) return;
+
+        final participant = event.participant;
+        final name = participant?.name.trim() ?? '';
+        onChatMessage?.call(
+          GroupCallChatMessage(
+            text: text,
+            senderName:
+                name.isEmpty ? (participant?.identity ?? 'Katılımcı') : name,
+            isMe: false,
+          ),
+        );
+      })
       ..on<livekit.RoomDisconnectedEvent>((_) => onCallEnded?.call());
 
     await _room!.connect(livekitUrl, token);
@@ -124,6 +152,27 @@ class GroupCallService {
       'reason': reason,
       'note': note,
     });
+  }
+
+  /// Bu odadaki tüm katılımcılara geçici ve güvenilir bir metin mesajı yollar.
+  /// LiveKit veri kanalı kullanıldığı için ek sohbet sunucusu gerekmez.
+  Future<bool> sendChatMessage(String text) async {
+    final message = text.trim();
+    final participant = _room?.localParticipant;
+    if (message.isEmpty || participant == null) return false;
+
+    try {
+      await participant.publishData(
+        utf8.encode(message),
+        reliable: true,
+        topic: _chatTopic,
+      );
+      return true;
+    } catch (error) {
+      // ignore: avoid_print
+      print('Grup mesajÄ± gÃ¶nderilemedi: $error');
+      return false;
+    }
   }
 
   /// Odadan ayrılır ve YENİDEN kuyruğa girmez - ekran kapanırken kullanılır.
@@ -159,5 +208,18 @@ class GroupCallService {
     _teardown();
     _socket?.disconnect();
     _socket?.dispose();
+    onChatMessage = null;
   }
+}
+
+class GroupCallChatMessage {
+  const GroupCallChatMessage({
+    required this.text,
+    required this.senderName,
+    required this.isMe,
+  });
+
+  final String text;
+  final String senderName;
+  final bool isMe;
 }

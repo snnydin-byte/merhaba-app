@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -52,6 +53,8 @@ class CallService {
   // göstermesini istemiyoruz (bkz. reconnect() ve onDisconnect).
   bool _suppressNextDisconnectNotice = false;
   RTCPeerConnection? _peerConnection;
+  RTCDataChannel? _chatChannel;
+  bool _chatChannelOpen = false;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
   // _handleOffer() içinde eşzamanlı/art arda 'offer' sinyalleri gelirse
@@ -101,6 +104,7 @@ class CallService {
   OnLocalStream? onLocalStream;
   OnStatusChange? onStatusChange;
   void Function()? onPartnerLeft;
+  void Function(String message)? onChatMessage;
 
   // Arama daveti akışı - call_ui_controller.dart tarafından oturum
   // açıldığında bir kez bağlanır (bkz. orada), tıpkı bu servisin sinyal
@@ -199,7 +203,8 @@ class CallService {
       // sistemleri arka plandaki bir soketi kendi bilgisi dışında
       // koparabiliyor, uygulama öne döndüğünde main.dart'taki yaşam döngüsü
       // gözlemcisi zaten (gerekiyorsa) bir reconnect() tetikliyor.
-      onStatusChange?.call('Bağlantı kesildi ($reason), yeniden bağlanılıyor...');
+      onStatusChange
+          ?.call('Bağlantı kesildi ($reason), yeniden bağlanılıyor...');
     });
 
     _socket!.on('matched', (data) {
@@ -255,7 +260,8 @@ class CallService {
       try {
         final map = Map<String, dynamic>.from(data as Map);
         // ignore: avoid_print
-        print('CallService: call-invite-received alındı -> $map (onCallInviteReceived ${onCallInviteReceived == null ? "BAĞLI DEĞİL" : "bağlı"})');
+        print(
+            'CallService: call-invite-received alındı -> $map (onCallInviteReceived ${onCallInviteReceived == null ? "BAĞLI DEĞİL" : "bağlı"})');
         onCallInviteReceived?.call(
           map['fromSocketId'] as String,
           map['fromDisplayName'] as String? ?? 'Biri',
@@ -318,7 +324,8 @@ class CallService {
         '(socket=${_socket == null ? "YOK" : "var"}, connected=$connected, connecting=$_connecting)');
     if (_socket == null || (!connected && !_connecting)) {
       // ignore: avoid_print
-      print('CallService: inviteToCall SESSİZCE BAŞARISIZ OLACAKTI - soket bağlı değil, davet gönderilmedi. Yeniden bağlanılıyor.');
+      print(
+          'CallService: inviteToCall SESSİZCE BAŞARISIZ OLACAKTI - soket bağlı değil, davet gönderilmedi. Yeniden bağlanılıyor.');
       onCallInviteError?.call('Sunucu bağlantısı kopmuş, tekrar dene.');
       final token = _lastAuthToken;
       if (token != null) reconnect(token);
@@ -412,6 +419,10 @@ class CallService {
       return;
     }
     if (_isInitiator && _peerConnection != null) {
+      await _createChatChannel(_peerConnection!);
+      if (expectedGeneration != null && expectedGeneration != _callGeneration) {
+        return;
+      }
       await _createOffer(expectedGeneration: expectedGeneration);
     }
   }
@@ -445,6 +456,11 @@ class CallService {
       }
     };
 
+    // Mesajlar, çağrı için zaten kurulmuş olan WebRTC bağlantısının veri
+    // kanalından gider. Böylece arama içi yazışma için ayrı sunucu, veritabanı
+    // ya da kalıcı sohbet altyapısı gerekmez.
+    _peerConnection!.onDataChannel = _configureChatChannel;
+
     _peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
       if (_partnerId == null) return;
       _socket?.emit('signal', {
@@ -457,6 +473,51 @@ class CallService {
         },
       });
     };
+  }
+
+  Future<void> _createChatChannel(RTCPeerConnection peerConnection) async {
+    try {
+      final channel = await peerConnection.createDataChannel(
+        'call-chat',
+        RTCDataChannelInit(),
+      );
+      _configureChatChannel(channel);
+    } catch (e) {
+      // Mesajlaşma kurulamazsa görüntülü/sesli görüşmeyi engellemeyiz.
+      // ignore: avoid_print
+      print('Arama içi mesaj kanalı açılamadı: $e');
+    }
+  }
+
+  void _configureChatChannel(RTCDataChannel channel) {
+    _chatChannel = channel;
+    _chatChannelOpen = channel.state == RTCDataChannelState.RTCDataChannelOpen;
+
+    channel.onDataChannelState = (state) {
+      if (!identical(_chatChannel, channel)) return;
+      _chatChannelOpen = state == RTCDataChannelState.RTCDataChannelOpen;
+    };
+    channel.onMessage = (message) {
+      if (message.isBinary || message.text.trim().isEmpty) return;
+      onChatMessage?.call(message.text);
+    };
+  }
+
+  /// Sadece aktif görüşmedeki iki cihaz arasında iletilen geçici mesajı yollar.
+  /// Arama bağlantısı henüz hazır değilse [false] döner; arama akışı etkilenmez.
+  Future<bool> sendChatMessage(String text) async {
+    final message = text.trim();
+    final channel = _chatChannel;
+    if (message.isEmpty || channel == null || !_chatChannelOpen) return false;
+
+    try {
+      await channel.send(RTCDataChannelMessage(message));
+      return true;
+    } catch (e) {
+      // ignore: avoid_print
+      print('Arama içi mesaj gönderilemedi: $e');
+      return false;
+    }
   }
 
   Future<void> _createOffer({int? expectedGeneration}) async {
@@ -496,8 +557,10 @@ class CallService {
       // event tarafından kapatılmış/durumu değişmiş olabilir -
       // createAnswer() yalnızca have-remote-offer ya da have-local-pranswer
       // durumundayken geçerlidir (bkz. WEBRTC_CREATE_ANSWER_ERROR).
-      if (pc.signalingState != RTCSignalingState.RTCSignalingStateHaveRemoteOffer &&
-          pc.signalingState != RTCSignalingState.RTCSignalingStateHaveLocalPrAnswer) {
+      if (pc.signalingState !=
+              RTCSignalingState.RTCSignalingStateHaveRemoteOffer &&
+          pc.signalingState !=
+              RTCSignalingState.RTCSignalingStateHaveLocalPrAnswer) {
         return;
       }
       final answer = await pc.createAnswer();
@@ -572,6 +635,14 @@ class CallService {
   }
 
   void _cleanupPeerConnection() {
+    final chatChannel = _chatChannel;
+    _chatChannel = null;
+    _chatChannelOpen = false;
+    if (chatChannel != null) {
+      chatChannel.onDataChannelState = null;
+      chatChannel.onMessage = null;
+      unawaited(chatChannel.close());
+    }
     _peerConnection?.close();
     _peerConnection = null;
     _remoteStream = null;
@@ -616,6 +687,7 @@ class CallService {
     onLocalStream = null;
     onStatusChange = null;
     onPartnerLeft = null;
+    onChatMessage = null;
   }
 
   /// Yalnızca çıkış yapılırken (bkz. profile_screen.dart _logout()) çağrılır

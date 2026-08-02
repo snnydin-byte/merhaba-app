@@ -185,7 +185,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
       if (mounted) setState(() {});
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
@@ -302,26 +303,54 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text('Arkadaşlar', style: AppText.subheading),
+        toolbarHeight: 72,
+        titleSpacing: 20,
+        title: Text(
+          'Arkadaşlar',
+          style: AppText.display.copyWith(fontSize: 26, height: 1),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.groups_rounded, color: AppColors.textSecondary),
+          _buildHeaderAction(
+            icon: Icons.groups_rounded,
             tooltip: 'Gruplar',
             onPressed: () => Navigator.of(context).push(
               AppPageRoute(builder: (_) => const GroupsScreen()),
             ),
           ),
           if (_friends.isNotEmpty)
-            IconButton(
-              icon: Icon(Icons.campaign_outlined, color: AppColors.textSecondary),
+            _buildHeaderAction(
+              icon: Icons.campaign_outlined,
               tooltip: 'Toplu mesaj gönder',
               onPressed: _openBroadcastComposer,
             ),
+          const SizedBox(width: 12),
         ],
       ),
       body: AppBackground(child: SafeArea(child: _buildBody())),
+    );
+  }
+
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 38,
+      height: 38,
+      margin: const EdgeInsets.only(left: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: AppColors.surfaceBorder),
+      ),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, color: AppColors.textSecondary, size: 19),
+      ),
     );
   }
 
@@ -334,23 +363,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
     }
     if (_error != null) return _buildErrorState();
 
-    // "Kendime Not" (#42 anket maddesi) - arkadaş listesi boş olsa bile
-    // her zaman görünür, kendi kullanıcı id'sine giden özel bir sohbet.
     if (_friends.isEmpty) {
       return Column(
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(0, 16 + kToolbarHeight, 0, 0),
-            child: Column(
-              children: [
-                _buildStoryRing(),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child:
-                      Column(children: [_buildNoteToSelfTile(), _buildBotTile()]),
-                ),
-              ],
-            ),
+            padding: const EdgeInsets.fromLTRB(0, 88, 0, 0),
+            child: _buildStoryRing(),
           ),
           Expanded(child: _buildEmptyState()),
         ],
@@ -361,27 +379,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
       onRefresh: _load,
       color: AppColors.primary,
       backgroundColor: AppColors.surfaceElevated,
-      child: ListView.builder(
-        // bkz. profile_screen.dart'taki aynı düzeltme - extendBodyBehindAppBar:
-        // true yüzünden gövde şeffaf AppBar'ın arkasına kadar uzuyor. Bu ekran
-        // ayrıca SafeArea kullanıyor ama SafeArea yalnızca durum çubuğunu
-        // hesaba katıyor, AppBar'ın kendi (kToolbarHeight) yüksekliğini değil
-        // - o yüzden listenin ilk öğesi (ilk arkadaş satırı) hâlâ AppBar'ın
-        // dokunuş yakalayan bölgesiyle çakışıyordu.
-        padding: EdgeInsets.fromLTRB(0, 16 + kToolbarHeight, 0, 16),
-        itemCount: _filteredFriends.length + 4,
-        itemBuilder: (context, index) {
-          if (index == 0) return _buildStoryRing();
-          if (index == 1) return _buildFilterChips();
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: index == 2
-                ? _buildNoteToSelfTile()
-                : index == 3
-                    ? _buildBotTile()
-                    : _buildFriendTile(_filteredFriends[index - 4]),
-          );
-        },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 84, 16, 24),
+        children: [
+          _buildFilterChips(),
+          const SizedBox(height: 18),
+          _buildListMeta(),
+          if (_stories.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildStoryRing(),
+          ],
+          const SizedBox(height: 12),
+          ..._filteredFriends.map(_buildFriendTile),
+        ],
       ),
     );
   }
@@ -453,44 +463,80 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ('all', 'Tümü'),
       ('online', 'Çevrimiçi'),
       ('offline', 'Çevrimdışı'),
-      ('favorites', 'Favoriler'),
+      ('favorites', 'Yakın'),
     ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: SizedBox(
-        height: 32,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          itemCount: options.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (context, i) {
-            final (value, label) = options[i];
-            final selected = _filter == value;
-            return GestureDetector(
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.surfaceBorder),
+      ),
+      child: Row(
+        children: options.map((option) {
+          final (value, label) = option;
+          final selected = _filter == value;
+          return Expanded(
+            child: GestureDetector(
               onTap: () => setState(() => _filter = value),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(
-                    color: selected ? AppColors.primary : AppColors.surfaceBorder,
-                  ),
+                  gradient: selected ? AppGradients.warmSignal : null,
+                  color: selected ? null : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: selected
+                      ? neonGlow(
+                          AppColors.primary,
+                          opacity: 0.24,
+                          blurRadius: 12,
+                          spreadRadius: 0,
+                        )
+                      : null,
                 ),
                 child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: selected ? Colors.white : AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? Colors.white : AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        }).toList(),
       ),
+    );
+  }
+
+  Widget _buildListMeta() {
+    return Row(
+      children: [
+        Text(
+          '${_filteredFriends.length} kişi',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const Spacer(),
+        Icon(Icons.sort_rounded, color: AppColors.textFaint, size: 17),
+        const SizedBox(width: 5),
+        Text(
+          'Son etkinlik',
+          style: TextStyle(
+            color: AppColors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -528,7 +574,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 children: [
                   CircleAvatar(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                    backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                    backgroundImage:
+                        photoUrl != null ? NetworkImage(photoUrl) : null,
                     child: photoUrl == null
                         ? Text(label.isNotEmpty ? label[0].toUpperCase() : '?')
                         : null,
@@ -543,7 +590,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.add, color: Colors.white, size: 12),
+                        child: const Icon(Icons.add,
+                            color: Colors.white, size: 12),
                       ),
                     ),
                 ],
@@ -555,102 +603,6 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// "Kendime Not" girişi - AppUser.id'yi bilerek kendi kullanıcı id'mizle
-  /// dolduruyoruz, böylece ChatScreen bunu normal bir arkadaş sohbeti gibi
-  /// açar ama sunucu (persistent-message-send'deki self-mesaj istisnası)
-  /// ve ChatScreen (_isNoteToSelf) bunun özel olduğunu anlar.
-  Widget _buildNoteToSelfTile() {
-    final me = AuthService().currentUser;
-    if (me == null) return const SizedBox.shrink();
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () => Navigator.of(context).push(
-            AppPageRoute(builder: (_) => ChatScreen(friend: me)),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.secondary.withValues(alpha: 0.25),
-                child: Icon(Icons.sticky_note_2_outlined,
-                    color: AppColors.secondary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Kendime Not',
-                        style: AppText.subheading.copyWith(fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text('Kişisel notların, kimseyle paylaşılmaz',
-                        style: TextStyle(
-                            color: AppColors.textMuted, fontSize: 11)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: AppColors.textFaint),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Basit kurallı yardımcı bot girişi - sunucudaki sabit BOT_USER_ID
-  /// ('merhaba-bot') ile eşleşen sahte bir AppUser oluşturup ChatScreen'i
-  /// normal bir arkadaş sohbeti gibi açıyoruz. Sunucu (persistent-message-send
-  /// ve GET /messages/:friendId) bu id için arkadaşlık şartını atlıyor ve
-  /// kullanıcı mesaj attığında botReplyFor() ile otomatik yanıt üretiyor.
-  Widget _buildBotTile() {
-    const bot = AppUser(
-      id: 'merhaba-bot',
-      email: '',
-      displayName: 'Merhaba Asistan',
-    );
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: GlassCard(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () => Navigator.of(context).push(
-            AppPageRoute(builder: (_) => const ChatScreen(friend: bot)),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.25),
-                child: Icon(Icons.smart_toy_outlined,
-                    color: AppColors.primary, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Merhaba Asistan',
-                        style: AppText.subheading.copyWith(fontSize: 15)),
-                    const SizedBox(height: 2),
-                    Text('Sorularını yanıtlayan basit yardımcı',
-                        style: TextStyle(
-                            color: AppColors.textMuted, fontSize: 11)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: AppColors.textFaint),
-            ],
-          ),
         ),
       ),
     );
@@ -757,7 +709,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               clipBehavior: Clip.none,
               children: [
                 CircleAvatar(
-                  radius: 22,
+                  radius: 24,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.25),
                   backgroundImage: friend.photoUrl != null
                       ? NetworkImage(friend.photoUrl!)
@@ -792,7 +744,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   ),
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 13),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -829,20 +781,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 );
               },
             ),
-            _friendActionIcon(
-              icon: Icons.call_outlined,
-              onTap: () => _startCall(friend, 'audio'),
-            ),
-            _friendActionIcon(
-              icon: Icons.videocam_outlined,
-              onTap: () => _startCall(friend, 'video'),
-            ),
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: AppColors.textFaint, size: 20),
               color: AppColors.surfaceElevated,
               tooltip: 'Diğer seçenekler',
               onSelected: (value) {
-                if (value == 'report') {
+                if (value == 'audio') {
+                  _startCall(friend, 'audio');
+                } else if (value == 'video') {
+                  _startCall(friend, 'video');
+                } else if (value == 'report') {
                   _showReportDialog(friend);
                 } else if (value == 'remove') {
                   _confirmRemove(friend);
@@ -851,6 +799,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 }
               },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'audio',
+                  child: Row(
+                    children: [
+                      Icon(Icons.call_outlined,
+                          color: AppColors.textSecondary, size: 18),
+                      const SizedBox(width: 10),
+                      Text('Sesli ara',
+                          style: TextStyle(color: AppColors.textPrimary)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'video',
+                  child: Row(
+                    children: [
+                      Icon(Icons.videocam_outlined,
+                          color: AppColors.textSecondary, size: 18),
+                      const SizedBox(width: 10),
+                      Text('Görüntülü ara',
+                          style: TextStyle(color: AppColors.textPrimary)),
+                    ],
+                  ),
+                ),
                 PopupMenuItem(
                   value: 'close-friend',
                   child: Row(
@@ -908,9 +880,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Widget _friendActionIcon(
       {required IconData icon, required VoidCallback onTap}) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(icon, color: AppColors.textSecondary, size: 20),
+    return Container(
+      width: 38,
+      height: 38,
+      margin: const EdgeInsets.only(left: 4),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: IconButton(
+        tooltip: 'Mesaj gönder',
+        onPressed: onTap,
+        icon: Icon(icon, color: AppColors.primaryLight, size: 18),
+      ),
     );
   }
 }
@@ -923,7 +906,8 @@ class _BroadcastComposerSheet extends StatefulWidget {
   const _BroadcastComposerSheet({required this.friends});
 
   @override
-  State<_BroadcastComposerSheet> createState() => _BroadcastComposerSheetState();
+  State<_BroadcastComposerSheet> createState() =>
+      _BroadcastComposerSheetState();
 }
 
 class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
@@ -962,7 +946,8 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+        constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.75),
         decoration: BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -977,7 +962,10 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
                 Icon(Icons.campaign_outlined, color: AppColors.primaryLight),
                 const SizedBox(width: 8),
                 Text('Toplu mesaj',
-                    style: TextStyle(color: AppColors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
                 const Spacer(),
                 Text('${_selected.length} seçili',
                     style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
@@ -1007,7 +995,8 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
                         _selected.remove(friend.id);
                       }
                     }),
-                    title: Text(friend.displayName, style: TextStyle(color: AppColors.textPrimary)),
+                    title: Text(friend.displayName,
+                        style: TextStyle(color: AppColors.textPrimary)),
                   );
                 },
               ),
@@ -1037,9 +1026,12 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text('Gönder', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                child: const Text('Gönder',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700)),
               ),
             ),
           ],
