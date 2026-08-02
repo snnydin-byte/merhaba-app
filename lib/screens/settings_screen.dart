@@ -63,6 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // eşleşmede otomatik çalışıyor, bu anahtar "yalnızca ortak ilgi alanım
   // olanlarla eşleş" gibi daha katı bir tercih).
   bool _requireCommonInterest = false;
+  bool _advancedMatchFiltersOpen = false;
 
   // Eşleşme (Dating) katmanı - Batch E. discoverInvisible SUNUCUDA hesaba
   // bağlı (SharedPreferences DEĞİL - hideOnlineStatus/hideLastSeen ile AYNI
@@ -385,12 +386,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: EdgeInsets.only(bottom: 16),
                     child: AppScreenIntro(
                       icon: Icons.tune_rounded,
-                      title: 'Kontrol sende',
+                      title: 'Eşleşmeni ayarla',
                       subtitle:
-                          'Eşleşme, güvenlik ve görünüm tercihlerini buradan yönet.',
+                          'Kimlerle tanışacağını, görünürlüğünü ve güvenliğini yönet.',
                     ),
                   ),
-                  _sectionTitle('Eşleşme Tercihleri'),
+                  _matchSummaryCard(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _sectionTitle('Temel eşleşme tercihleri'),
                   _dropdownTile(
                     title: 'Kiminle eşleşmek istersin?',
                     value: _genderFilter,
@@ -410,85 +413,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _requireCommonInterest,
                     onChanged: _setRequireCommonInterest,
                   ),
-                  _switchTile(
-                    title: 'Yaş aralığı filtresi',
-                    subtitle: _ageRangeEnabled
-                        ? '${_ageRange.start.round()} - ${_ageRange.end.round()} yaş arası'
-                        : 'Kapalı - her yaştan biriyle eşleş',
-                    value: _ageRangeEnabled,
-                    onChanged: _setAgeRangeEnabled,
-                  ),
-                  if (_ageRangeEnabled)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14)),
-                      child: Column(
-                        children: [
-                          RangeSlider(
-                            values: _ageRange,
-                            min: 13,
-                            max: 90,
-                            divisions: 77,
-                            activeColor: AppColors.primary,
-                            inactiveColor:
-                                AppColors.textPrimary.withValues(alpha: 0.15),
-                            labels: RangeLabels(
-                              _ageRange.start.round().toString(),
-                              _ageRange.end.round().toString(),
-                            ),
-                            onChanged: (values) =>
-                                setState(() => _ageRange = values),
-                            onChangeEnd: _setAgeRange,
+                  _advancedFiltersTile(),
+                  if (_advancedMatchFiltersOpen) ...[
+                    _switchTile(
+                      title: 'Yaş aralığı filtresi',
+                      subtitle: _ageRangeEnabled
+                          ? '${_ageRange.start.round()} - ${_ageRange.end.round()} yaş arası'
+                          : 'Kapalı - her yaştan biriyle eşleş',
+                      value: _ageRangeEnabled,
+                      onChanged: _setAgeRangeEnabled,
+                    ),
+                    if (_ageRangeEnabled)
+                      _sliderSurface(
+                        child: RangeSlider(
+                          values: _ageRange,
+                          min: 13,
+                          max: 90,
+                          divisions: 77,
+                          activeColor: AppColors.primary,
+                          inactiveColor:
+                              AppColors.textPrimary.withValues(alpha: 0.15),
+                          labels: RangeLabels(
+                            _ageRange.start.round().toString(),
+                            _ageRange.end.round().toString(),
                           ),
-                        ],
+                          onChanged: (values) =>
+                              setState(() => _ageRange = values),
+                          onChangeEnd: _setAgeRange,
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        controller: _countryFilterController,
+                        style: TextStyle(color: AppColors.textPrimary),
+                        onChanged: _setCountryFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Ülke filtresi',
+                          hintText: 'Örn. Türkiye',
+                        ),
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: TextField(
-                      controller: _countryFilterController,
-                      style: TextStyle(color: AppColors.textPrimary),
-                      onChanged: _setCountryFilter,
-                      decoration: InputDecoration(
-                        labelText: 'Ülke filtresi (boş = herkes)',
-                        hintText: 'ör. Türkiye',
-                        labelStyle: TextStyle(color: AppColors.textMuted),
-                      ),
+                    _switchTile(
+                      title: 'Yakınlık bazlı eşleştirme',
+                      subtitle: _proximityEnabled
+                          ? '${_maxDistanceKm.round()} km içindekilerle eşleş'
+                          : 'Kapalı - konumun paylaşılmaz',
+                      value: _proximityEnabled,
+                      onChanged: _setProximityEnabled,
                     ),
-                  ),
-                  _switchTile(
-                    title: 'Yakınlık bazlı eşleştirme',
-                    subtitle: _proximityEnabled
-                        ? '${_maxDistanceKm.round()} km içindekilerle eşleş (konumun paylaşılır)'
-                        : 'Kapalı - mesafeye bakılmaksızın eşleş',
-                    value: _proximityEnabled,
-                    onChanged: _setProximityEnabled,
-                  ),
-                  if (_proximityEnabled)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(14)),
-                      child: Slider(
-                        value: _maxDistanceKm,
-                        min: 5,
-                        max: 500,
-                        divisions: 99,
-                        activeColor: AppColors.primary,
-                        inactiveColor:
-                            AppColors.textPrimary.withValues(alpha: 0.15),
-                        label: '${_maxDistanceKm.round()} km',
-                        onChanged: (v) => setState(() => _maxDistanceKm = v),
-                        onChangeEnd: _setMaxDistanceKm,
+                    if (_proximityEnabled)
+                      _sliderSurface(
+                        child: Slider(
+                          value: _maxDistanceKm,
+                          min: 5,
+                          max: 500,
+                          divisions: 99,
+                          activeColor: AppColors.primary,
+                          inactiveColor:
+                              AppColors.textPrimary.withValues(alpha: 0.15),
+                          label: '${_maxDistanceKm.round()} km',
+                          onChanged: (v) => setState(() => _maxDistanceKm = v),
+                          onChangeEnd: _setMaxDistanceKm,
+                        ),
                       ),
-                    ),
+                  ],
                   _switchTile(
                     title: 'Sadece metin modu',
                     subtitle:
@@ -504,7 +493,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: _setSpeedRoundMode,
                   ),
                   const SizedBox(height: 24),
-                  _sectionTitle('Gizlilik'),
+                  _sectionTitle('Görünürlük ve mesajlar'),
                   _switchTile(
                     title: 'Çevrimiçi durumumu gizle',
                     subtitle: 'Arkadaşların çevrimiçi olduğunu göremez',
@@ -542,7 +531,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : null,
                   ),
                   const SizedBox(height: 24),
-                  _sectionTitle('Güvenlik'),
+                  _sectionTitle('Güvenlik ve destek'),
                   InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     onTap: AuthService().isLoggedIn
@@ -567,7 +556,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  _sectionTitle('Görünüm'),
+                  _sectionTitle('Deneyim'),
                   GlassCard(
                     child: Row(
                       children: [
@@ -675,7 +664,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: _setNotifications,
                   ),
                   const SizedBox(height: 24),
-                  _sectionTitle('Hakkında'),
+                  _sectionTitle('Uygulama ve hesap'),
                   _navTile(
                     icon: Icons.description_outlined,
                     title: 'Topluluk Kuralları',
@@ -709,6 +698,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _matchSummaryCard() {
+    final activeFilters = [
+      _genderFilter != 'herkes',
+      _onlyVerified,
+      _requireCommonInterest,
+      _ageRangeEnabled,
+      _countryFilterController.text.trim().isNotEmpty,
+      _proximityEnabled,
+      _textOnlyMode,
+      _speedRoundMode,
+    ].where((value) => value).length;
+
+    return GlassCard(
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child:
+                Icon(Icons.travel_explore_rounded, color: AppColors.secondary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activeFilters == 0
+                      ? 'Dünyaya açıksın'
+                      : '$activeFilters tercih etkin',
+                  style: AppText.subheading.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  activeFilters == 0
+                      ? 'Yeni insanlarla rastgele tanışmaya hazırsın.'
+                      : 'Bu tercihler yeni eşleşmelerini yönlendirir.',
+                  style: AppText.caption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _advancedFiltersTile() {
+    final active = _ageRangeEnabled ||
+        _countryFilterController.text.trim().isNotEmpty ||
+        _proximityEnabled;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: () => setState(
+          () => _advancedMatchFiltersOpen = !_advancedMatchFiltersOpen,
+        ),
+        child: GlassCard(
+          child: Row(
+            children: [
+              Icon(Icons.tune_rounded,
+                  color: active ? AppColors.secondary : AppColors.textMuted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Gelişmiş filtreler',
+                        style: AppText.subheading.copyWith(fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      active
+                          ? 'Yaş, ülke veya yakınlık tercihlerin açık.'
+                          : 'Yaş, ülke ve yakınlık tercihlerini özelleştir.',
+                      style: AppText.caption,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                _advancedMatchFiltersOpen
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+                color: AppColors.textFaint,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sliderSurface({required Widget child}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: child,
       ),
     );
   }
@@ -748,29 +844,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool comingSoon = false,
   }) {
     final disabled = onChanged == null;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-          color: AppColors.textPrimary.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(AppRadius.md)),
-      child: Opacity(
-        opacity: disabled ? 0.5 : 1,
-        child: SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          activeThumbColor: AppColors.primary,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(title,
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
-              if (comingSoon) _comingSoonBadge(),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Opacity(
+          opacity: disabled ? 0.5 : 1,
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeThumbColor: AppColors.primary,
+            title: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [
+                Text(title,
+                    style:
+                        TextStyle(color: AppColors.textPrimary, fontSize: 15)),
+                if (comingSoon) _comingSoonBadge(),
+              ],
+            ),
+            subtitle: Text(subtitle,
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+            value: value,
+            onChanged: onChanged,
           ),
-          subtitle: Text(subtitle,
-              style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          value: value,
-          onChanged: onChanged,
         ),
       ),
     );
@@ -784,38 +881,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool comingSoon = false,
   }) {
     final disabled = onChanged == null;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-          color: AppColors.textPrimary.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(14)),
-      child: Opacity(
-        opacity: disabled ? 0.5 : 1,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style:
-                        TextStyle(color: AppColors.textPrimary, fontSize: 15)),
-                if (comingSoon) _comingSoonBadge(),
-              ],
-            ),
-            DropdownButton<String>(
-              value: value,
-              dropdownColor: AppColors.surfaceElevated,
-              underline: const SizedBox(),
-              style: TextStyle(color: AppColors.primaryLight),
-              items: optionLabels.entries
-                  .map((e) =>
-                      DropdownMenuItem(value: e.key, child: Text(e.value)))
-                  .toList(),
-              onChanged: onChanged,
-            ),
-          ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        child: Opacity(
+          opacity: disabled ? 0.5 : 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          color: AppColors.textPrimary, fontSize: 15)),
+                  if (comingSoon) _comingSoonBadge(),
+                ],
+              ),
+              const SizedBox(height: 4),
+              DropdownButton<String>(
+                value: value,
+                isExpanded: true,
+                dropdownColor: AppColors.surfaceElevated,
+                underline: const SizedBox(),
+                style: TextStyle(color: AppColors.primaryLight),
+                items: optionLabels.entries
+                    .map((e) =>
+                        DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: onChanged,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -827,21 +925,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? subtitle,
     VoidCallback? onTap,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-          color: AppColors.textPrimary.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(14)),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.textSecondary),
-        title: Text(title,
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
-        subtitle: subtitle != null
-            ? Text(subtitle,
-                style: TextStyle(color: AppColors.textFaint, fontSize: 12))
-            : null,
-        trailing: Icon(Icons.chevron_right, color: AppColors.textFaint),
-        onTap: onTap ?? () {},
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: GlassCard(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          leading: Icon(icon, color: AppColors.textSecondary),
+          title: Text(title,
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 15)),
+          subtitle: subtitle != null
+              ? Text(subtitle,
+                  style: TextStyle(color: AppColors.textFaint, fontSize: 12))
+              : null,
+          trailing:
+              Icon(Icons.chevron_right_rounded, color: AppColors.textFaint),
+          onTap: onTap ?? () {},
+        ),
       ),
     );
   }
