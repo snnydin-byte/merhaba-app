@@ -512,12 +512,32 @@ class LiveRoomService {
     _socket?.emit('live-room-friend-request-response', {'accepted': accepted});
   }
 
-  void leaveRoom() {
+  Future<bool> leaveRoom(
+      {Duration timeout = const Duration(seconds: 3)}) async {
     AppConnectionController().updateLiveRoom(
       SocketConnectionPhase.disconnected,
     );
-    _socket?.emit('live-room-leave');
+    final socket = _socket;
+    var acknowledged = false;
+    if (socket != null && socket.connected) {
+      final completer = Completer<bool>();
+      socket.emitWithAck(
+        'live-room-leave',
+        const <String, dynamic>{},
+        ack: (data) {
+          if (completer.isCompleted) return;
+          final map = socketEventMap(data);
+          completer.complete(map['ok'] == true);
+        },
+      );
+      try {
+        acknowledged = await completer.future.timeout(timeout);
+      } on TimeoutException {
+        acknowledged = false;
+      }
+    }
     _teardown();
+    return acknowledged;
   }
 
   void _teardown() {

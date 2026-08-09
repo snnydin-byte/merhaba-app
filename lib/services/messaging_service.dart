@@ -381,6 +381,8 @@ class MessagingService {
   // gibi alarm verici bir mesaj GÖSTERMİYORUZ, yalnızca logluyoruz - bkz.
   // reconnect() ve onDisconnect callback'i.
   bool _suppressNextDisconnectNotice = false;
+  final Map<String, Completer<PersistentMessage>> _pendingPersistentDeliveries =
+      {};
 
   /// O an ekranda açık olan sohbetin karşı taraf id'si (bkz.
   /// chat_screen.dart). Gelen bir kalıcı mesaj bu kişiden DEĞİLSE, ilgili
@@ -533,6 +535,9 @@ class MessagingService {
       onConnectError?.call(failure.message);
     });
     _socket!.onDisconnect((reason) {
+      _failPendingPersistentDeliveries(
+        'Mesajlasma baglantisi kesildi. Mesaj teslim edilmedi.',
+      );
       // socket.io kendi başına yeniden bağlanmayı DENER (varsayılan
       // davranış) - ama mobil işletim sistemleri (özellikle Android) arka
       // planda bu yeniden bağlanmayı engelleyebiliyor, bu yüzden ekranlara
@@ -673,7 +678,10 @@ class MessagingService {
         final map = socketEventMap(data);
         final message = PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
-        onPersistentMessageAck?.call(map['clientId'] as String, message);
+        final clientId = map['clientId'] as String;
+        final pending = _pendingPersistentDeliveries.remove(clientId);
+        if (pending != null && !pending.isCompleted) pending.complete(message);
+        onPersistentMessageAck?.call(clientId, message);
       } catch (e) {
         // ignore: avoid_print
         print('HATA (persistent-message-ack): $e');
@@ -683,10 +691,14 @@ class MessagingService {
     _socket!.on('persistent-message-error', (data) {
       try {
         final map = socketEventMap(data);
-        onPersistentMessageError?.call(
-          map['clientId'] as String? ?? '',
-          map['message'] as String? ?? 'Mesaj gönderilemedi.',
-        );
+        final clientId = map['clientId'] as String? ?? '';
+        final errorMessage =
+            map['message'] as String? ?? 'Mesaj gönderilemedi.';
+        final pending = _pendingPersistentDeliveries.remove(clientId);
+        if (pending != null && !pending.isCompleted) {
+          pending.completeError(StateError(errorMessage));
+        }
+        onPersistentMessageError?.call(clientId, errorMessage);
       } catch (e) {
         // ignore: avoid_print
         print('HATA (persistent-message-error): $e');
@@ -1108,6 +1120,56 @@ class MessagingService {
       'kind': kind,
       if (meta != null) 'meta': meta,
     });
+  }
+
+  Future<PersistentMessage> sendPersistentMessageAwaitingAck({
+    required String toId,
+    required String text,
+    required String clientId,
+    String? replyToId,
+    String kind = 'text',
+    Map<String, dynamic>? meta,
+    Duration timeout = const Duration(seconds: 12),
+  }) async {
+    final socket = _socket;
+    if (socket == null || !socket.connected) {
+      throw StateError(
+        'Mesajlaşma bağlantısı yok. Mesaj teslim edilmedi.',
+      );
+    }
+    if (_pendingPersistentDeliveries.containsKey(clientId)) {
+      throw StateError('Bu mesaj zaten gönderiliyor.');
+    }
+    final completer = Completer<PersistentMessage>();
+    _pendingPersistentDeliveries[clientId] = completer;
+    sendPersistentMessage(
+      toId: toId,
+      text: text,
+      clientId: clientId,
+      replyToId: replyToId,
+      kind: kind,
+      meta: meta,
+    );
+    try {
+      return await completer.future.timeout(
+        timeout,
+        onTimeout: () => throw TimeoutException(
+          'Sunucu mesajı zamanında onaylamadı. Teslim edildi sayılmadı.',
+        ),
+      );
+    } finally {
+      if (identical(_pendingPersistentDeliveries[clientId], completer)) {
+        _pendingPersistentDeliveries.remove(clientId);
+      }
+    }
+  }
+
+  void _failPendingPersistentDeliveries(String message) {
+    final pending = _pendingPersistentDeliveries.values.toList();
+    _pendingPersistentDeliveries.clear();
+    for (final completer in pending) {
+      if (!completer.isCompleted) completer.completeError(StateError(message));
+    }
   }
 
   /// Anket oyu (#39 anket maddesi) - aynı seçeneğe tekrar oy vermek oyu
@@ -1559,6 +1621,9 @@ class MessagingService {
   /// Yalnızca çıkış yapılırken (bkz. profile_screen.dart _logout()) çağrılır
   /// - kalıcı bağlantıyı tamamen kapatır.
   void disconnectSocket() {
+    _failPendingPersistentDeliveries(
+      'Oturum kapandı. Bekleyen mesajlar teslim edilmedi.',
+    );
     detachScreenCallbacks();
     SharedSocketTransport().disconnect();
     _socket = null;
