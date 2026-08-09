@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
 import 'video_chat_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Rastgele eşleşme aramaya başlamadan ÖNCE gösterilen önizleme + rıza
 /// ekranı. Kullanıcı kamerasının/mikrofonunun nasıl göründüğünü kontrol
@@ -113,12 +114,14 @@ class _PreCallScreenState extends State<PreCallScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _voiceOnlySwitch = !value);
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           SnackBar(
             content: Text(value
                 ? 'Sesli moda geçilemedi.'
                 : 'Kamera açılamadı, sesli modda devam ediliyor.'),
           ),
+          priority: SessionFeedbackPriority.high,
         );
       }
     } finally {

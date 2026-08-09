@@ -49,7 +49,8 @@ class LeaderboardEntry {
     required this.rank,
   });
 
-  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) => LeaderboardEntry(
+  factory LeaderboardEntry.fromJson(Map<String, dynamic> json) =>
+      LeaderboardEntry(
         id: json['id'] as String,
         displayName: json['displayName'] as String,
         photoUrl: json['photoUrl'] as String?,
@@ -77,7 +78,8 @@ class GamificationService {
 
   Future<void> claimAchievement(String id) async {
     final response = await http
-        .post(Uri.parse('$signalingServerUrl/achievements/$id/claim'), headers: _headers, body: '{}')
+        .post(Uri.parse('$signalingServerUrl/achievements/$id/claim'),
+            headers: _headers, body: '{}')
         .timeout(const Duration(seconds: 10));
     _decodeOrThrow(response);
   }
@@ -88,10 +90,12 @@ class GamificationService {
         .timeout(const Duration(seconds: 10));
     final data = _decodeOrThrow(response);
     final list = (data['leaderboard'] as List<dynamic>)
-        .map((e) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+        .map((e) =>
+            LeaderboardEntry.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
     final myRank = data['myRank'] != null
-        ? LeaderboardEntry.fromJson(Map<String, dynamic>.from(data['myRank'] as Map))
+        ? LeaderboardEntry.fromJson(
+            Map<String, dynamic>.from(data['myRank'] as Map))
         : null;
     return (list, myRank);
   }

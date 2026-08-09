@@ -4,19 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/adult_age_policy.dart';
 import '../services/auth_service.dart';
-import '../services/call_service.dart';
-import '../services/messaging_service.dart';
-import '../services/push_notification_service.dart';
+import '../services/session_navigation_coordinator.dart';
+import '../widgets/auth_session_builder.dart';
+import '../widgets/session_end_progress_dialog.dart';
 import '../theme/app_theme.dart';
 import 'achievements_screen.dart';
 import 'leaderboard_screen.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Giriş yapmış kullanıcı için profil bilgileri (isim, biyografi, cinsiyet,
 /// yaş, ilgi alanları, ülke/dil - hepsi düzenlenebilir; e-posta salt-okunur)
-/// ve çıkış yap; misafirse giriş/kayda yönlendirir.
+/// ve çıkış yap; oturum yoksa giriş/kayda yönlendirir.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -28,7 +30,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _authService = AuthService();
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
-  final _ageController = TextEditingController();
   final _countryController = TextEditingController();
   final _languageController = TextEditingController();
   final _interestController = TextEditingController();
@@ -68,7 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _bioController.dispose();
-    _ageController.dispose();
     _countryController.dispose();
     _languageController.dispose();
     _interestController.dispose();
@@ -78,7 +78,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _loadFieldsFromUser(AppUser user) {
     _nameController.text = user.displayName;
     _bioController.text = user.bio;
-    _ageController.text = user.age?.toString() ?? '';
     _countryController.text = user.country ?? '';
     _languageController.text = user.language ?? '';
     _gender = user.gender;
@@ -111,7 +110,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// karışmasın diye şimdilik eklenmedi, istenirse ayrı bir görev olur.
   Future<void> _showPhotoOptions(AppUser user) async {
     if (_uploadingPhoto) return;
-    final choice = await showModalBottomSheet<String>(
+    final choice = await showSessionModalBottomSheet<String>(
+      deduplicationKey: 'profile_screen.sheet.1',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       shape: const RoundedRectangleBorder(
@@ -198,7 +198,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _showAvatarBuilderDialog() async {
     String selectedColor = _avatarColors.first;
     String selectedEmoji = _avatarEmojis.first;
-    final result = await showDialog<bool>(
+    final result = await showSessionDialog<bool>(
+      deduplicationKey: 'profile_screen.dialog.1',
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -287,8 +288,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // gösteriyoruz.
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSessionSnackBar(
+      context,
+      SnackBar(content: Text(message)),
+      priority: SessionFeedbackPriority.normal,
+    );
   }
 
   Future<void> _pickAndUploadPhoto() async {
@@ -427,14 +431,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    int? age;
-    final ageText = _ageController.text.trim();
-    if (ageText.isNotEmpty) {
-      age = int.tryParse(ageText);
-      if (age == null || age < 13 || age > 120) {
-        setState(() => _error = 'Yaş 13 ile 120 arasında olmalı.');
-        return;
-      }
+    final birthDate = _birthDate;
+    if (birthDate == null || !AdultAgePolicy.isAdult(birthDate)) {
+      setState(() =>
+          _error = 'Doğum tarihi zorunludur ve 18 yaşını doldurmuş olmalısın.');
+      return;
     }
 
     setState(() {
@@ -454,66 +455,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
         language: _languageController.text.trim().isEmpty
             ? null
             : _languageController.text.trim(),
-        age: age,
-        birthDate: _birthDate == null
-            ? null
-            : '${_birthDate!.year.toString().padLeft(4, '0')}-'
-                '${_birthDate!.month.toString().padLeft(2, '0')}-'
-                '${_birthDate!.day.toString().padLeft(2, '0')}',
+        birthDate: AdultAgePolicy.toApiDate(birthDate),
         profileBadges: _selectedBadges,
       );
       if (mounted) setState(() => _editing = false);
     } on AuthException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() => _error = 'Beklenmeyen bir hata oluştu, tekrar dene.');
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   Future<void> _logout() async {
-    // Bu cihazın push token'ını hesaptan ayırıyoruz - AuthService.logout()
-    // öncesi çağrılmalı, çünkü unregisterCurrentToken() hâlâ geçerli bir
-    // auth token'a ihtiyaç duyuyor (sunucuya "kimim" demesi için).
-    await PushNotificationService().unregisterCurrentToken();
-    // Mesajlaşma/arama sinyal bağlantıları artık uygulama boyunca kalıcı
-    // (bkz. messaging_service.dart, call_service.dart) - çıkış yapılırken
-    // bunları da gerçekten kapatmamız gerekiyor, aksi halde eski hesabın
-    // token'ıyla açık bir bağlantı arkada kalır.
-    MessagingService().disconnectSocket();
-    CallService().disconnectSocket();
-    await _authService.logout();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      AppPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    showSessionEndProgressDialog(context);
+    try {
+      await _authService.logout();
+      if (!mounted) return;
+      closeSessionEndProgressDialog(context);
+      await SessionNavigationCoordinator().resetToLogin();
+    } catch (_) {
+      if (!mounted) return;
+      closeSessionEndProgressDialog(context);
+      showSessionSnackBar(
+        context,
+        const SnackBar(content: Text('Çıkış tamamlanamadı, tekrar dene.')),
+        priority: SessionFeedbackPriority.normal,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = _authService.currentUser;
-    return Scaffold(
-      extendBodyBehindAppBar: !_editing,
-      appBar: AppBar(
-        title: Text(_editing ? 'Profilini düzenle' : 'Profil'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          if (user != null && !_editing)
-            IconButton(
-              onPressed: () => _startEditing(user),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Profili Düzenle',
-            ),
-        ],
-      ),
-      body: AppBackground(
-        child: user == null
-            ? _buildGuestBody()
-            : (_editing ? _buildEditBody() : _buildProfileBody(user)),
+    return AuthSessionBuilder(
+      builder: (context, _, user) => Scaffold(
+        extendBodyBehindAppBar: !_editing,
+        appBar: AppBar(
+          title: Text(_editing ? 'Profilini düzenle' : 'Profil'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
+            if (user != null && !_editing)
+              IconButton(
+                onPressed: () => _startEditing(user),
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Profili Düzenle',
+              ),
+          ],
+        ),
+        body: AppBackground(
+          child: user == null
+              ? _buildGuestBody()
+              : (_editing ? _buildEditBody() : _buildProfileBody(user)),
+        ),
       ),
     );
   }
@@ -528,7 +525,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(Icons.person_outline, color: AppColors.textFaint, size: 56),
             const SizedBox(height: AppSpacing.md),
             Text(
-              'Misafir olarak geziniyorsun',
+              'Oturumun açık değil',
               style: AppText.subheading.copyWith(fontSize: 17),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -544,7 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.of(context)
                     .push(AppPageRoute(builder: (_) => const LoginScreen()));
               },
-              child: Text('Giriş Yap / Hesap Oluştur', style: AppText.button),
+              child: const Text('Giriş Yap / Hesap Oluştur',
+                  style: AppText.button),
             ),
           ],
         ),
@@ -866,7 +864,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Icon(Icons.face_retouching_natural_rounded,
                   color: AppColors.secondary),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text('Selfie doğrulaman onaylandı ✓',
                     style:
@@ -1130,33 +1128,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: 14),
-        TextField(
-          controller: _ageController,
-          keyboardType: TextInputType.number,
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
-          decoration: _fieldDecoration('Yaş'),
-        ),
-        const SizedBox(height: 14),
         InkWell(
           onTap: () async {
             final now = DateTime.now();
             final picked = await showDatePicker(
               context: context,
               initialDate:
-                  _birthDate ?? DateTime(now.year - 20, now.month, now.day),
-              firstDate: DateTime(now.year - 100),
-              lastDate: DateTime(now.year - 13, now.month, now.day),
+                  _birthDate ?? DateTime(now.year - 25, now.month, now.day),
+              firstDate: AdultAgePolicy.earliestEligibleBirthDate(now),
+              lastDate: AdultAgePolicy.latestEligibleBirthDate(now),
             );
             if (picked != null) setState(() => _birthDate = picked);
           },
           child: InputDecorator(
-            decoration: _fieldDecoration('Doğum tarihi (burcun için)'),
+            decoration: _fieldDecoration('Doğum tarihi (18+ doğrulaması)'),
             child: Text(
               _birthDate == null
-                  ? 'Seçilmedi'
-                  : '${_birthDate!.day.toString().padLeft(2, '0')}.'
-                      '${_birthDate!.month.toString().padLeft(2, '0')}.'
-                      '${_birthDate!.year}',
+                  ? 'Doğum tarihi zorunlu'
+                  : AdultAgePolicy.displayDate(_birthDate!),
               style: TextStyle(color: AppColors.textPrimary, fontSize: 15),
             ),
           ),
@@ -1230,8 +1219,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onSelected: (value) {
                 setState(() {
                   if (value) {
-                    if (_selectedBadges.length < 3)
+                    if (_selectedBadges.length < 3) {
                       _selectedBadges.add(entry.key);
+                    }
                   } else {
                     _selectedBadges.remove(entry.key);
                   }
@@ -1277,7 +1267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : Text('Kaydet', style: AppText.button),
+                    : const Text('Kaydet', style: AppText.button),
               ),
             ),
           ],

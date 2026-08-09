@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Yeni grup oluşturma ekranı (Batch B) - isim + üye olarak eklenecek
 /// arkadaşların çoklu seçimi. Sunucu yalnızca oluşturanın ARKADAŞI olan
@@ -80,8 +81,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       MessagingService().onGroupError = null;
       if (mounted) {
         setState(() => _creating = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     };
     MessagingService().onGroupCreateAck = onAck;
@@ -136,7 +140,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       body: AppBackground(
         child: SafeArea(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 12 + kToolbarHeight, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 12 + kToolbarHeight, 20, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -206,7 +210,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
         GradientButton(
           height: 52,
           onPressed: _nameValid ? _goToStep2 : null,
-          child: Text('İleri', style: AppText.button),
+          child: const Text('İleri', style: AppText.button),
         ),
       ],
     );

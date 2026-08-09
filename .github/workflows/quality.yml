@@ -1,0 +1,72 @@
+name: quality
+
+on:
+  push:
+    branches: [main, production-hardening-10k]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    defaults:
+      run:
+        working-directory: merhaba-signaling-fixed-v108
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Syntax
+        run: npm run check
+      - name: Unit and static regression tests
+        run: npm test
+      - name: Two-instance Redis/Socket.IO integration
+        env:
+          REDIS_TEST_URL: redis://127.0.0.1:6379/15
+        run: npm run test:redis
+
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Project static regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r test_file; do
+            case "$test_file" in
+              *.js) node "$test_file" ;;
+              *.py) python "$test_file" ;;
+            esac
+          done < <(find test -type f \( -name '*.js' -o -name '*.py' \) | sort)
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Flutter dependencies
+        run: flutter pub get
+      - name: Flutter analyze
+        run: flutter analyze
+      - name: Flutter tests
+        run: flutter test

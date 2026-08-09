@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,7 +7,12 @@ import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'auth_service.dart';
+import 'app_connection_state.dart';
+import 'connection_error_classifier.dart';
+import 'orphan_media_cleanup_queue.dart';
+import 'session_expiration_coordinator.dart';
 import 'push_notification_service.dart';
+import 'socket_client_options.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
 /// Kalıcı bir sohbet mesajı (sunucuda saklanır - bkz.
@@ -193,9 +199,11 @@ class GroupMemberProfile {
   final String displayName;
   final String? photoUrl;
 
-  const GroupMemberProfile({required this.id, required this.displayName, this.photoUrl});
+  const GroupMemberProfile(
+      {required this.id, required this.displayName, this.photoUrl});
 
-  factory GroupMemberProfile.fromJson(Map<String, dynamic> json) => GroupMemberProfile(
+  factory GroupMemberProfile.fromJson(Map<String, dynamic> json) =>
+      GroupMemberProfile(
         id: json['id'] as String,
         displayName: json['displayName'] as String? ?? 'Bilinmeyen',
         photoUrl: json['photoUrl'] as String?,
@@ -256,7 +264,8 @@ class Group {
         memberProfiles: json['memberProfiles'] == null
             ? const []
             : (json['memberProfiles'] as List)
-                .map((e) => GroupMemberProfile.fromJson(Map<String, dynamic>.from(e as Map)))
+                .map((e) => GroupMemberProfile.fromJson(
+                    Map<String, dynamic>.from(e as Map)))
                 .toList(),
         announcementOnly: json['announcementOnly'] as bool? ?? false,
         createdAt: DateTime.parse(json['createdAt'] as String),
@@ -303,6 +312,18 @@ class GroupMessage {
         createdAt: DateTime.parse(json['createdAt'] as String),
         deleted: json['deleted'] as bool? ?? false,
       );
+}
+
+class GroupMessagePage {
+  const GroupMessagePage({
+    required this.messages,
+    required this.hasMore,
+    this.nextBefore,
+  });
+
+  final List<GroupMessage> messages;
+  final bool hasMore;
+  final String? nextBefore;
 }
 
 /// Kaybolan (ephemeral) bir mesaj - sunucuda hiç saklanmaz, yalnızca anlık
@@ -398,12 +419,17 @@ class MessagingService {
   void Function(String fromId)? onTypingStart;
   void Function(String fromId)? onTypingStop;
 
+  /// Açık birebir sohbetin erişimi arkadaşlık kaldırma veya engelleme
+  /// nedeniyle sonlandığında tetiklenir.
+  void Function(String userId, String reason)? onFriendAccessRevoked;
+
   // Eşleşme (Dating) katmanı - Batch E. onDiscoverMatched, BİZ swipe
   // ATMADAN karşı taraf tetiklediğinde gelir (biz zaten önceden beğenmiştik,
   // karşı taraf da az önce bizi beğenip eşleşme oluştu) - kendi ATTIĞIMIZ
   // swipe'ın sonucu doğrudan DiscoverService.swipe()'ın dönüş değerinden
   // gelir, bu event'e ihtiyaç duymaz.
-  void Function(String matchId, AppUser user, bool firstMessageIsYours)? onDiscoverMatched;
+  void Function(String matchId, AppUser user, bool firstMessageIsYours)?
+      onDiscoverMatched;
   void Function(String matchId)? onDiscoverMatchExpired;
   void Function(bool approved)? onSelfieVerificationReviewed;
 
@@ -470,24 +496,36 @@ class MessagingService {
     _socket?.disconnect();
     _socket?.dispose();
     _connecting = true;
+    AppConnectionController().updateMessaging(
+      SocketConnectionPhase.connecting,
+      message: 'Mesajlaşma sunucusuna bağlanılıyor…',
+    );
 
     _socket = io.io(
       signalingServerUrl,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .enableForceNew()
-          .setAuth({'token': authToken})
-          .build(),
+      buildSocketClientOptions(authToken: authToken),
     );
 
     _socket!.onConnect((_) {
       _connecting = false;
+      AppConnectionController().updateMessaging(
+        SocketConnectionPhase.connected,
+      );
       onConnected?.call();
     });
     _socket!.onConnectError((err) {
       _connecting = false;
-      onConnectError?.call(err.toString());
+      final failure = classifyConnectionError(err);
+      if (failure.kind == ConnectionFailureKind.sessionExpired) {
+        unawaited(SessionExpirationCoordinator().handleExpiredSession());
+      }
+      AppConnectionController().updateMessaging(
+        SocketConnectionPhase.error,
+        message: failure.message,
+        failureKind: failure.kind,
+        retryable: failure.retryable,
+      );
+      onConnectError?.call(failure.message);
     });
     _socket!.onDisconnect((reason) {
       // socket.io kendi başına yeniden bağlanmayı DENER (varsayılan
@@ -505,13 +543,22 @@ class MessagingService {
       // logluyoruz.
       // ignore: avoid_print
       print('MessagingService bağlantı koptu, sebep: $reason');
+      AppConnectionController().updateMessaging(
+        _suppressNextDisconnectNotice
+            ? SocketConnectionPhase.reconnecting
+            : SocketConnectionPhase.disconnected,
+        message: _suppressNextDisconnectNotice
+            ? 'Mesajlaşma bağlantısı yenileniyor…'
+            : 'Mesajlaşma bağlantısı kesildi.',
+      );
       if (_suppressNextDisconnectNotice) {
         // Bu, reconnect()'in KENDİ tetiklediği planlı bir kopma - kullanıcıya
         // yanlış alarm göstermiyoruz (bkz. sınıf üstündeki alan notu).
         _suppressNextDisconnectNotice = false;
         return;
       }
-      onConnectError?.call('Bağlantı kesildi ($reason), yeniden bağlanılıyor...');
+      onConnectError
+          ?.call('Bağlantı kesildi ($reason), yeniden bağlanılıyor...');
     });
 
     // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
@@ -570,6 +617,21 @@ class MessagingService {
       } catch (e) {
         // ignore: avoid_print
         print('HATA (selfie-verification-reviewed): $e');
+      }
+    });
+
+    _socket!.on('friend-access-revoked', (data) {
+      try {
+        final map = Map<String, dynamic>.from(data as Map);
+        final userId = map['userId'] as String?;
+        if (userId == null || userId.isEmpty) return;
+        onFriendAccessRevoked?.call(
+          userId,
+          map['reason'] as String? ?? 'access-revoked',
+        );
+      } catch (e) {
+        // ignore: avoid_print
+        print('HATA (friend-access-revoked): $e');
       }
     });
 
@@ -681,7 +743,8 @@ class MessagingService {
     _socket!.on('conversation-read', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final ids = (map['messageIds'] as List).map((e) => e as String).toList();
+        final ids =
+            (map['messageIds'] as List).map((e) => e as String).toList();
         onConversationRead?.call(ids, DateTime.parse(map['readAt'] as String));
       } catch (e) {
         // ignore: avoid_print
@@ -753,7 +816,8 @@ class MessagingService {
     _socket!.on('story-create-ack', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final story = Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
+        final story =
+            Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
         onStoryCreateAck?.call(map['clientId'] as String, story);
       } catch (e) {
         // ignore: avoid_print
@@ -777,7 +841,8 @@ class MessagingService {
     _socket!.on('story-new', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final story = Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
+        final story =
+            Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
         onNewStory?.call(story, map['fromDisplayName'] as String? ?? 'Biri');
       } catch (e) {
         // ignore: avoid_print
@@ -823,7 +888,8 @@ class MessagingService {
     _socket!.on('group-create-ack', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final group = Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+        final group =
+            Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
         onGroupCreateAck?.call(map['clientId'] as String, group);
       } catch (e) {
         // ignore: avoid_print
@@ -847,8 +913,10 @@ class MessagingService {
     _socket!.on('group-created', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final group = Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
-        onGroupCreated?.call(group, map['fromDisplayName'] as String? ?? 'Biri');
+        final group =
+            Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
+        onGroupCreated?.call(
+            group, map['fromDisplayName'] as String? ?? 'Biri');
       } catch (e) {
         // ignore: avoid_print
         print('HATA (group-created): $e');
@@ -858,7 +926,8 @@ class MessagingService {
     _socket!.on('group-updated', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        onGroupUpdated?.call(Group.fromJson(Map<String, dynamic>.from(map['group'] as Map)));
+        onGroupUpdated?.call(
+            Group.fromJson(Map<String, dynamic>.from(map['group'] as Map)));
       } catch (e) {
         // ignore: avoid_print
         print('HATA (group-updated): $e');
@@ -888,8 +957,8 @@ class MessagingService {
     _socket!.on('group-message-ack', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final message =
-            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map));
+        final message = GroupMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map));
         onGroupMessageAck?.call(map['clientId'] as String, message);
       } catch (e) {
         // ignore: avoid_print
@@ -913,9 +982,10 @@ class MessagingService {
     _socket!.on('group-message-received', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        final message =
-            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map));
-        onGroupMessageReceived?.call(message, map['fromDisplayName'] as String? ?? 'Biri');
+        final message = GroupMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map));
+        onGroupMessageReceived?.call(
+            message, map['fromDisplayName'] as String? ?? 'Biri');
       } catch (e) {
         // ignore: avoid_print
         print('HATA (group-message-received): $e');
@@ -925,8 +995,8 @@ class MessagingService {
     _socket!.on('group-message-deleted', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
-        onGroupMessageDeleted?.call(
-            GroupMessage.fromJson(Map<String, dynamic>.from(map['message'] as Map)));
+        onGroupMessageDeleted?.call(GroupMessage.fromJson(
+            Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
         // ignore: avoid_print
         print('HATA (group-message-deleted): $e');
@@ -993,6 +1063,10 @@ class MessagingService {
     // hemen ardından yeni bağlantı kuruluyor zaten. Bkz. onDisconnect
     // callback'indeki _suppressNextDisconnectNotice kontrolü.
     _suppressNextDisconnectNotice = true;
+    AppConnectionController().updateMessaging(
+      SocketConnectionPhase.reconnecting,
+      message: 'Mesajlaşma bağlantısı yenileniyor…',
+    );
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
@@ -1082,12 +1156,10 @@ class MessagingService {
 
     final http.Response response;
     try {
-      response = await http
-          .get(
-            Uri.parse('$signalingServerUrl/messages/scheduled'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 8));
+      response = await http.get(
+        Uri.parse('$signalingServerUrl/messages/scheduled'),
+        headers: {'Authorization': 'Bearer $token'},
+      ).timeout(const Duration(seconds: 8));
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
@@ -1140,10 +1212,10 @@ class MessagingService {
     if (token == null) return [];
     final http.Response response;
     try {
-      response = await http
-          .get(Uri.parse('$signalingServerUrl/stories'),
-              headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 8));
+      response = await http.get(Uri.parse('$signalingServerUrl/stories'),
+          headers: {
+            'Authorization': 'Bearer $token'
+          }).timeout(const Duration(seconds: 8));
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
@@ -1160,17 +1232,20 @@ class MessagingService {
     if (token == null) return [];
     final http.Response response;
     try {
-      response = await http
-          .get(Uri.parse('$signalingServerUrl/stories/$storyId/viewers'),
-              headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 8));
+      response = await http.get(
+          Uri.parse('$signalingServerUrl/stories/$storyId/viewers'),
+          headers: {
+            'Authorization': 'Bearer $token'
+          }).timeout(const Duration(seconds: 8));
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
     if (response.statusCode != 200) throw Exception('İzleyenler alınamadı.');
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final list = (data['viewers'] as List<dynamic>? ?? []);
-    return list.map((e) => StoryViewer.fromJson(e as Map<String, dynamic>)).toList();
+    return list
+        .map((e) => StoryViewer.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Yeni bir grup sohbeti oluşturur (Batch B) - [memberIds] yalnızca
@@ -1206,26 +1281,34 @@ class MessagingService {
   }
 
   /// Gönderen kendi mesajını, bir admin grupta HERHANGİ bir mesajı silebilir.
-  void deleteGroupMessage({required String groupId, required String messageId}) {
-    _socket?.emit('group-message-delete', {'groupId': groupId, 'messageId': messageId});
+  void deleteGroupMessage(
+      {required String groupId, required String messageId}) {
+    _socket?.emit(
+        'group-message-delete', {'groupId': groupId, 'messageId': messageId});
   }
 
   /// Yalnızca mevcut bir admin yeni üye ekleyebilir, eklenecek kişiler
   /// EKLEYENİN arkadaşı olmalı (bkz. server.js 'group-member-add').
-  void addGroupMembers({required String groupId, required List<String> memberIds}) {
-    _socket?.emit('group-member-add', {'groupId': groupId, 'memberIds': memberIds});
+  void addGroupMembers(
+      {required String groupId, required List<String> memberIds}) {
+    _socket?.emit(
+        'group-member-add', {'groupId': groupId, 'memberIds': memberIds});
   }
 
   /// [memberId] == kendi id'n ise gruptan ayrılma, aksi halde (admin
   /// olman gerekir) o kişiyi çıkarma.
   void removeGroupMember({required String groupId, required String memberId}) {
-    _socket?.emit('group-member-remove', {'groupId': groupId, 'memberId': memberId});
+    _socket?.emit(
+        'group-member-remove', {'groupId': groupId, 'memberId': memberId});
   }
 
   /// Yalnızca grup sahibi başka üyeleri admin yapabilir/admin'likten alabilir.
   void setGroupAdmin(
-      {required String groupId, required String memberId, required bool isAdmin}) {
-    _socket?.emit('group-set-admin', {'groupId': groupId, 'memberId': memberId, 'isAdmin': isAdmin});
+      {required String groupId,
+      required String memberId,
+      required bool isAdmin}) {
+    _socket?.emit('group-set-admin',
+        {'groupId': groupId, 'memberId': memberId, 'isAdmin': isAdmin});
   }
 
   void renameGroup({required String groupId, required String name}) {
@@ -1234,8 +1317,10 @@ class MessagingService {
 
   /// true ise grup tek yönlü duyuru kanalına döner - yalnızca adminler
   /// mesaj gönderebilir.
-  void setGroupAnnouncementOnly({required String groupId, required bool value}) {
-    _socket?.emit('group-set-announcement-only', {'groupId': groupId, 'value': value});
+  void setGroupAnnouncementOnly(
+      {required String groupId, required bool value}) {
+    _socket?.emit(
+        'group-set-announcement-only', {'groupId': groupId, 'value': value});
   }
 
   /// Yalnızca grup sahibi silebilir.
@@ -1249,10 +1334,10 @@ class MessagingService {
     if (token == null) return [];
     final http.Response response;
     try {
-      response = await http
-          .get(Uri.parse('$signalingServerUrl/groups'),
-              headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 8));
+      response = await http.get(Uri.parse('$signalingServerUrl/groups'),
+          headers: {
+            'Authorization': 'Bearer $token'
+          }).timeout(const Duration(seconds: 8));
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
@@ -1263,23 +1348,44 @@ class MessagingService {
   }
 
   /// Bir grubun mesaj geçmişini döner (bkz. server.js GET /groups/:id/messages).
-  Future<List<GroupMessage>> fetchGroupMessages(String groupId) async {
+  Future<GroupMessagePage> fetchGroupMessagePage(
+    String groupId, {
+    String? before,
+    int limit = 100,
+  }) async {
     final token = AuthService().token;
-    if (token == null) return [];
+    if (token == null) {
+      return const GroupMessagePage(messages: [], hasMore: false);
+    }
+    final uri =
+        Uri.parse('$signalingServerUrl/groups/$groupId/messages').replace(
+      queryParameters: {
+        'limit': limit.clamp(1, 200).toString(),
+        if (before != null && before.isNotEmpty) 'before': before,
+      },
+    );
     final http.Response response;
     try {
-      response = await http
-          .get(Uri.parse('$signalingServerUrl/groups/$groupId/messages'),
-              headers: {'Authorization': 'Bearer $token'})
-          .timeout(const Duration(seconds: 8));
+      response = await http.get(uri, headers: {
+        'Authorization': 'Bearer $token'
+      }).timeout(const Duration(seconds: 8));
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
     }
     if (response.statusCode != 200) throw Exception('Grup geçmişi alınamadı.');
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final list = (data['messages'] as List<dynamic>? ?? []);
-    return list.map((e) => GroupMessage.fromJson(e as Map<String, dynamic>)).toList();
+    return GroupMessagePage(
+      messages: list
+          .map((e) => GroupMessage.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      hasMore: data['hasMore'] as bool? ?? false,
+      nextBefore: data['nextBefore'] as String?,
+    );
   }
+
+  Future<List<GroupMessage>> fetchGroupMessages(String groupId) async =>
+      (await fetchGroupMessagePage(groupId)).messages;
 
   /// Sohbet içi medya (sesli mesaj / tek seferlik fotoğraf) dosyasını
   /// sunucuya yükler (bkz. server.js POST /chat/media, chatMediaStorage.js).
@@ -1291,23 +1397,25 @@ class MessagingService {
   /// dosyalarda uzantı her zaman güvenilir olmadığı için) sunucudaki
   /// multer fileFilter'ın "Desteklenmeyen dosya türü" diye reddetmesine
   /// yol açabiliyordu - bu yüzden çağıran taraf türü kesin olarak bilir.
-  Future<Map<String, dynamic>> uploadChatMedia(File file, {required String mimeType}) async {
+  Future<Map<String, dynamic>> uploadChatMedia(File file,
+      {required String mimeType}) async {
     final token = AuthService().token;
     if (token == null) {
       throw Exception('Bu işlem için giriş yapmış olman gerekiyor.');
     }
-    final request =
-        http.MultipartRequest('POST', Uri.parse('$signalingServerUrl/chat/media'))
-          ..headers['Authorization'] = 'Bearer $token'
-          ..files.add(await http.MultipartFile.fromPath(
-            'file',
-            file.path,
-            contentType: MediaType.parse(mimeType),
-          ));
+    final request = http.MultipartRequest(
+        'POST', Uri.parse('$signalingServerUrl/chat/media'))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(await http.MultipartFile.fromPath(
+        'file',
+        file.path,
+        contentType: MediaType.parse(mimeType),
+      ));
 
     final http.Response response;
     try {
-      final streamed = await request.send().timeout(const Duration(seconds: 30));
+      final streamed =
+          await request.send().timeout(const Duration(seconds: 30));
       response = await http.Response.fromStream(streamed);
     } catch (_) {
       throw Exception('Sunucuya ulaşılamıyor. Tekrar dene.');
@@ -1318,6 +1426,44 @@ class MessagingService {
       throw Exception(data['error'] as String? ?? 'Dosya yüklenemedi.');
     }
     return data;
+  }
+
+  /// Mesaja dönüştürülemeyen geçici sohbet medyasını sunucudan ve
+  /// Cloudinary'den temizler. Yalnızca yüklemeyi yapan kullanıcı silebilir.
+  Future<bool> discardUploadedChatMedia(
+    String url, {
+    bool enqueueOnFailure = true,
+  }) async {
+    final normalized = url.trim();
+    final token = AuthService().token;
+    if (normalized.isEmpty) return true;
+    if (token == null) {
+      if (enqueueOnFailure) {
+        await OrphanMediaCleanupQueue().enqueue(normalized);
+      }
+      return false;
+    }
+
+    final request = http.Request(
+      'DELETE',
+      Uri.parse('$signalingServerUrl/chat/media'),
+    )
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({'url': normalized});
+
+    try {
+      final streamed =
+          await request.send().timeout(const Duration(seconds: 10));
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode == 200 || response.statusCode == 404) return true;
+    } catch (_) {
+      // Aşağıdaki kalıcı kuyruk ağ geri geldiğinde yeniden deneyecek.
+    }
+    if (enqueueOnFailure) {
+      await OrphanMediaCleanupQueue().enqueue(normalized);
+    }
+    return false;
   }
 
   void editMessage({required String messageId, required String text}) {
@@ -1370,6 +1516,7 @@ class MessagingService {
     onConversationRead = null;
     onTypingStart = null;
     onTypingStop = null;
+    onFriendAccessRevoked = null;
     onDiscoverMatched = null;
     onDiscoverMatchExpired = null;
     onSelfieVerificationReviewed = null;
@@ -1408,5 +1555,8 @@ class MessagingService {
     _socket?.dispose();
     _socket = null;
     _connecting = false;
+    AppConnectionController().updateMessaging(
+      SocketConnectionPhase.disconnected,
+    );
   }
 }

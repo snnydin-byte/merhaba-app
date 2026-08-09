@@ -633,7 +633,7 @@ class _PulsingDotState extends State<PulsingDot>
 /// yumuşak/modern bir his, Azar/Omegle tarzı uygulamalarda yaygın).
 class AppPageRoute<T> extends PageRouteBuilder<T> {
   final WidgetBuilder builder;
-  AppPageRoute({required this.builder})
+  AppPageRoute({required this.builder, super.settings})
       : super(
           transitionDuration: const Duration(milliseconds: 260),
           reverseTransitionDuration: const Duration(milliseconds: 200),

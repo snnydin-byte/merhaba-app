@@ -1,0 +1,13 @@
+const fs = require('fs');
+const assert = require('assert');
+const queue = fs.readFileSync('lib/services/orphan_media_cleanup_queue.dart', 'utf8');
+const messaging = fs.readFileSync('lib/services/messaging_service.dart', 'utf8');
+const main = fs.readFileSync('lib/main.dart', 'utf8');
+assert(queue.includes('SharedPreferencesOrphanMediaCleanupStore'));
+assert(queue.includes('availabilityChanges.listen'));
+assert(queue.includes('AuthService().sessionState.addListener'));
+assert(queue.includes("const _maxAge = Duration(minutes: 32)"));
+assert(queue.includes('enqueueOnFailure: false'));
+assert(messaging.includes('OrphanMediaCleanupQueue().enqueue(normalized)'));
+assert(main.includes('OrphanMediaCleanupQueue().initialize'));
+console.log('flutter-v72-orphan-media-persistent-queue: ok');

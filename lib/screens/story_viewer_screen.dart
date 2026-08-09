@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Tek bir kullanıcının hikayelerini Instagram/WhatsApp tarzı tam ekran,
 /// otomatik ilerleyen bir gösterici ile sunar (#71 anket maddesi). Ekrana
@@ -37,12 +38,26 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
   final Set<String> _markedViewed = {};
   List<Story> _liveStories = [];
 
-  bool get _isMine => _current.userId == AuthService().currentUser?.id;
+  String _myId = '';
+  bool get _isMine => _current.userId == _myId;
+
+  void _syncSessionUser() {
+    final nextId = AuthService().sessionState.value.user?.id ?? '';
+    if (_myId == nextId) return;
+    if (mounted) {
+      setState(() => _myId = nextId);
+    } else {
+      _myId = nextId;
+    }
+  }
+
   Story get _current => _liveStories[_index];
 
   @override
   void initState() {
     super.initState();
+    _myId = AuthService().sessionState.value.user?.id ?? '';
+    AuthService().sessionState.addListener(_syncSessionUser);
     _liveStories = List.of(widget.stories);
     MessagingService().onStoryRemoved = _onRemoved;
     MessagingService().onStoryDeleted = _onRemoved;
@@ -54,6 +69,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_syncSessionUser);
     // Bu ekran açıkken üzerine yazdığımız callback'leri bırak - altta duran
     // (varsa) başka bir ekranın kendi callback'lerini bozmayalım.
     if (MessagingService().onStoryRemoved == _onRemoved) {
@@ -112,11 +128,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   Future<void> _confirmDelete() async {
     _progress.stop();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'story_viewer_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Hikayeyi sil', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Hikayeyi sil',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text('Bu hikaye herkes için kaldırılacak.',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
@@ -143,7 +161,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
 
   void _showViewers() {
     _progress.stop();
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'story_viewer_screen.sheet.1',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       isScrollControlled: true,
@@ -220,12 +239,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                     }),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 16,
-                          backgroundColor: AppColors.primary.withValues(alpha: 0.3),
+                          backgroundColor:
+                              AppColors.primary.withValues(alpha: 0.3),
                           backgroundImage: story.authorPhotoUrl != null
                               ? NetworkImage(story.authorPhotoUrl!)
                               : null,
@@ -245,11 +266,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                         ),
                         if (_isMine)
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                            icon: const Icon(Icons.delete_outline_rounded,
+                                color: Colors.white),
                             onPressed: _confirmDelete,
                           ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, color: Colors.white),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
@@ -267,7 +290,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                   child: GestureDetector(
                     onTap: _showViewers,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.black45,
                         borderRadius: BorderRadius.circular(20),
@@ -275,10 +299,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.visibility_outlined, color: Colors.white, size: 16),
+                          const Icon(Icons.visibility_outlined,
+                              color: Colors.white, size: 16),
                           const SizedBox(width: 6),
                           Text('${story.viewCount} görüntüleme',
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -297,7 +323,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         story.mediaUrl!,
         fit: BoxFit.contain,
         errorBuilder: (_, __, ___) => const Center(
-          child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 48),
+          child: Icon(Icons.broken_image_outlined,
+              color: Colors.white38, size: 48),
         ),
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -315,7 +342,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen>
         story.text ?? '',
         textAlign: TextAlign.center,
         style: const TextStyle(
-            color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700, height: 1.4),
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            height: 1.4),
       ),
     );
   }
@@ -349,7 +379,8 @@ class _ViewersSheetState extends State<_ViewersSheet> {
 
   Future<void> _load() async {
     try {
-      final viewers = await MessagingService().fetchStoryViewers(widget.storyId);
+      final viewers =
+          await MessagingService().fetchStoryViewers(widget.storyId);
       if (!mounted) return;
       setState(() => _viewers = viewers);
     } catch (e) {
@@ -368,14 +399,19 @@ class _ViewersSheetState extends State<_ViewersSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Görüntüleyenler',
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
             if (_error != null)
               Text(_error!, style: TextStyle(color: AppColors.textMuted))
             else if (_viewers == null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator(color: AppColors.primaryLight)),
+                child: Center(
+                    child: CircularProgressIndicator(
+                        color: AppColors.primaryLight)),
               )
             else if (_viewers!.isEmpty)
               Padding(
@@ -388,12 +424,16 @@ class _ViewersSheetState extends State<_ViewersSheet> {
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       backgroundColor: AppColors.primary.withValues(alpha: 0.3),
-                      backgroundImage: v.photoUrl != null ? NetworkImage(v.photoUrl!) : null,
+                      backgroundImage:
+                          v.photoUrl != null ? NetworkImage(v.photoUrl!) : null,
                       child: v.photoUrl == null
-                          ? Text(v.displayName.isNotEmpty ? v.displayName[0].toUpperCase() : '?')
+                          ? Text(v.displayName.isNotEmpty
+                              ? v.displayName[0].toUpperCase()
+                              : '?')
                           : null,
                     ),
-                    title: Text(v.displayName, style: TextStyle(color: AppColors.textPrimary)),
+                    title: Text(v.displayName,
+                        style: TextStyle(color: AppColors.textPrimary)),
                   )),
           ],
         ),

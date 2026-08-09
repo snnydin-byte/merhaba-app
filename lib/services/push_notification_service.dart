@@ -1,16 +1,13 @@
-import 'dart:convert';
-import 'dart:io';
-
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
 
 import '../firebase_options.dart';
-import 'auth_service.dart';
-import 'webrtc_service.dart' show signalingServerUrl;
-
-const String _messagesChannelId = 'merhaba_messages';
+import 'notification_preferences_repository.dart';
+import 'push_notification_dependencies.dart';
+import 'push_notification_platform.dart';
+import 'push_interaction_router.dart';
+import 'push_token_repository.dart';
 
 /// Uygulama arka plandayken/tamamen kapalıyken gelen FCM mesajlarını işler.
 /// Dart'ın izole (isolate) arka plan yürütme modeli gereği bu fonksiyon
@@ -26,7 +23,8 @@ const String _messagesChannelId = 'merhaba_messages';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (!isFirebaseConfigured) return;
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
   } catch (_) {
     // Zaten başlatılmış olabilir (aynı izole başka bir mesajı da işlemiş
     // olabilir) - bu durumda initializeApp ikinci kez çağrılınca hata
@@ -52,131 +50,301 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// düşülmesiyle aynı "zarif geri düşme" deseni, bkz. webrtc_service.dart).
 class PushNotificationService {
   PushNotificationService._internal();
-  static final PushNotificationService instance = PushNotificationService._internal();
+  static final PushNotificationService instance =
+      PushNotificationService._internal();
   factory PushNotificationService() => instance;
 
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  PushNotificationDependencies _dependencies =
+      PushNotificationDependencies.production();
+  StreamSubscription<PushNotificationPayload>? _foregroundSubscription;
+  StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<PushNotificationPayload>? _openedMessageSubscription;
+  Future<void> _tokenSyncTail = Future<void>.value();
   bool _initialized = false;
+  bool _enabled = true;
   String? _lastRegisteredToken;
+  String? _lastRegisteredUserId;
+  PushAuthSnapshot _observedAuth = const PushAuthSnapshot();
+  bool _authListenerAttached = false;
+
+  PushMessagingPlatform get _messagingPlatform =>
+      _dependencies.messagingPlatform;
+  LocalNotificationPlatform get _localNotifications =>
+      _dependencies.localNotifications;
+  NotificationPreferencesRepository get _preferences =>
+      _dependencies.preferences;
+  PushTokenRepository get _tokenRepository => _dependencies.tokenRepository;
+  PushAuthSession get _authSession => _dependencies.authSession;
+  bool get _isConfigured => _dependencies.isFirebaseConfigured();
+
+  bool get isEnabled => _enabled;
+
+  void setPreferencesForTesting(NotificationPreferencesRepository preferences) {
+    _dependencies = _dependencies.copyWith(preferences: preferences);
+  }
+
+  void setTokenRepositoryForTesting(PushTokenRepository repository) {
+    _dependencies = _dependencies.copyWith(tokenRepository: repository);
+  }
+
+  void setFirebaseConfiguredForTesting(bool Function() isConfigured) {
+    _dependencies = _dependencies.copyWith(
+      isFirebaseConfigured: isConfigured,
+    );
+  }
+
+  void setPlatformsForTesting({
+    required PushMessagingPlatform messaging,
+    required LocalNotificationPlatform localNotifications,
+  }) {
+    _dependencies = _dependencies.copyWith(
+      messagingPlatform: messaging,
+      localNotifications: localNotifications,
+    );
+  }
+
+  void setAuthSessionForTesting(PushAuthSession authSession) {
+    _detachAuthListener();
+    _dependencies = _dependencies.copyWith(authSession: authSession);
+    _observedAuth = authSession.snapshot;
+    if (_initialized) _attachAuthListener();
+  }
+
+  void setDependenciesForTesting(PushNotificationDependencies dependencies) {
+    _detachAuthListener();
+    _dependencies = dependencies;
+    _observedAuth = dependencies.authSession.snapshot;
+    if (_initialized) _attachAuthListener();
+  }
+
+  Future<void> resetForTesting() async {
+    await _foregroundSubscription?.cancel();
+    await _tokenRefreshSubscription?.cancel();
+    await _openedMessageSubscription?.cancel();
+    _foregroundSubscription = null;
+    _tokenRefreshSubscription = null;
+    _openedMessageSubscription = null;
+    _initialized = false;
+    _enabled = true;
+    _detachAuthListener();
+    _lastRegisteredToken = null;
+    _lastRegisteredUserId = null;
+    _observedAuth = const PushAuthSnapshot();
+    _tokenSyncTail = Future<void>.value();
+    _dependencies = PushNotificationDependencies.production();
+  }
 
   Future<void> init() async {
-    if (_initialized || !isFirebaseConfigured) {
-      if (!isFirebaseConfigured) {
+    if (_initialized || !_isConfigured) {
+      if (!_isConfigured) {
         // ignore: avoid_print
-        print('Firebase yapılandırılmadı (bkz. lib/firebase_options.dart) - push bildirimleri devre dışı.');
+        print(
+            'Firebase yapılandırılmadı (bkz. lib/firebase_options.dart) - push bildirimleri devre dışı.');
       }
       return;
     }
 
+    _observedAuth = _authSession.snapshot;
+    _attachAuthListener();
+
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      await _messagingPlatform.initialize();
+      _messagingPlatform.registerBackgroundHandler(
+        firebaseMessagingBackgroundHandler,
+      );
 
-      await _setupLocalNotifications();
+      await _localNotifications.initialize();
 
-      final messaging = FirebaseMessaging.instance;
-      // iOS'ta bu bir sistem izin diyaloğu açar; Android 13+'ta ise
-      // firebase_messaging otomatik olarak POST_NOTIFICATIONS çalışma
-      // zamanı iznini ister (manifest'te tanımlı olması yeterli, bkz.
-      // AndroidManifest.xml).
-      await messaging.requestPermission(alert: true, badge: true, sound: true);
+      _enabled = await _preferences.loadEnabled();
 
-      FirebaseMessaging.onMessage.listen(_showForegroundNotification);
-
-      messaging.onTokenRefresh.listen((newToken) {
-        _lastRegisteredToken = null; // token değişti, tekrar kaydedilmeli
-        _registerToken(newToken);
+      _foregroundSubscription ??= _messagingPlatform.foregroundMessages
+          .listen(_showForegroundNotification);
+      _tokenRefreshSubscription ??=
+          _messagingPlatform.tokenRefreshes.listen((newToken) {
+        if (_enabled) {
+          unawaited(_registerToken(newToken));
+        }
+      });
+      _openedMessageSubscription ??=
+          _messagingPlatform.openedMessages.listen((payload) {
+        unawaited(PushInteractionRouter().handle(payload));
       });
 
       _initialized = true;
 
-      final token = await messaging.getToken();
-      if (token != null) await _registerToken(token);
+      final initialMessage = await _messagingPlatform.getInitialMessage();
+      if (initialMessage != null) {
+        unawaited(PushInteractionRouter().handle(initialMessage));
+      }
+
+      if (_enabled) {
+        await _requestPermissionAndRegister();
+      } else {
+        await _localNotifications.cancelAll();
+      }
     } catch (e) {
       // ignore: avoid_print
       print('Firebase başlatılamadı, push bildirimleri devre dışı: $e');
     }
   }
 
-  Future<void> _setupLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    // flutter_local_notifications v21+ initialize()'ı isimli (named)
-    // parametreye çevirdi (eskiden ilk parametre pozisyoneldi) - bkz.
-    // https://pub.dev/documentation/flutter_local_notifications/latest/
-    await _localNotifications.initialize(
-      settings: const InitializationSettings(android: androidSettings, iOS: iosSettings),
-    );
-    if (Platform.isAndroid) {
-      const channel = AndroidNotificationChannel(
-        _messagesChannelId,
-        'Mesajlar ve bildirimler',
-        description: 'Yeni mesaj ve arkadaşlık bildirimleri',
-        importance: Importance.high,
-      );
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+  Future<void> _requestPermissionAndRegister() async {
+    await _messagingPlatform.requestPermission();
+    final token = await _messagingPlatform.getToken();
+    if (token != null) await _registerToken(token);
+  }
+
+  /// Bildirim tercihini kalıcı olarak günceller ve FCM sunucu kaydını aynı
+  /// işlemle senkronize eder. Devre dışı bırakıldığında mevcut token hesaptan
+  /// ayrılır ve bekleyen yerel bildirimler temizlenir. Yeniden açıldığında
+  /// izin durumu kontrol edilip token tekrar kaydedilir.
+  Future<void> setEnabled(bool enabled) async {
+    if (enabled == _enabled && _initialized) {
+      await _preferences.setEnabled(enabled);
+      return;
+    }
+
+    final previous = _enabled;
+    await _preferences.setEnabled(enabled);
+    _enabled = enabled;
+
+    try {
+      if (!_initialized) {
+        await init();
+        return;
+      }
+      if (enabled) {
+        await _requestPermissionAndRegister();
+      } else {
+        await unregisterCurrentToken();
+        await _localNotifications.cancelAll();
+      }
+    } catch (_) {
+      _enabled = previous;
+      await _preferences.setEnabled(previous);
+      rethrow;
     }
   }
 
-  void _showForegroundNotification(RemoteMessage message) {
-    final notification = message.notification;
-    if (notification == null) return;
+  void _showForegroundNotification(PushNotificationPayload notification) {
+    if (!_enabled ||
+        (notification.title == null && notification.body == null)) {
+      return;
+    }
     // flutter_local_notifications v21+ show()'ı da isimli parametreye
     // çevirdi (id hariç hepsi named) - bkz. yukarıdaki initialize() notu.
-    _localNotifications.show(
-      id: notification.hashCode,
+    unawaited(_localNotifications.show(
+      id: notification.id?.hashCode ?? notification.hashCode,
       title: notification.title,
       body: notification.body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _messagesChannelId,
-          'Mesajlar ve bildirimler',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
+    ));
   }
 
   /// Kullanıcı giriş yaptıktan sonra (bkz. login_screen.dart, splash_screen.dart)
   /// çağrılır - o an elimizde bir token varsa sunucuya kaydeder. Giriş
-  /// yapılmamışsa (misafir) sessizce hiçbir şey yapmaz; misafirlere push
+  /// yapılmamışsa sessizce hiçbir şey yapmaz; oturumsuz cihaza push
   /// bildirimi gönderilmiyor (kalıcı bir kimlikleri olmadığı için anlamsız).
   Future<void> registerTokenWithServer() async {
-    if (!isFirebaseConfigured || !_initialized) return;
-    final token = await FirebaseMessaging.instance.getToken();
+    if (!_isConfigured || !_initialized || !_enabled) return;
+    final token = await _messagingPlatform.getToken();
     if (token != null) await _registerToken(token);
   }
 
   Future<void> _registerToken(String token) async {
-    if (!AuthService().isLoggedIn) return;
-    if (_lastRegisteredToken == token) return; // zaten kayıtlı, tekrar istek atma
-    final authToken = AuthService().token;
-    if (authToken == null) return;
+    final normalizedToken = token.trim();
+    if (normalizedToken.isEmpty) return;
+    final auth = _authSession.snapshot;
+    return _serializeTokenSync(
+      () => _registerTokenForSession(normalizedToken, auth),
+    );
+  }
+
+  Future<void> _registerTokenForSession(
+    String normalizedToken,
+    PushAuthSnapshot auth,
+  ) async {
+    if (!_enabled || !auth.isLoggedIn) return;
+    if (_lastRegisteredToken == normalizedToken &&
+        _lastRegisteredUserId == auth.userId) {
+      return;
+    }
     try {
-      final response = await http
-          .post(
-            Uri.parse('$signalingServerUrl/push-token'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $authToken',
-            },
-            body: jsonEncode({'token': token, 'platform': Platform.isIOS ? 'ios' : 'android'}),
-          )
-          .timeout(const Duration(seconds: 8));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        _lastRegisteredToken = token;
-      }
+      await _tokenRepository.register(
+        authToken: auth.token!,
+        deviceToken: normalizedToken,
+        platform: _messagingPlatform.serverPlatform,
+      );
+      _lastRegisteredToken = normalizedToken;
+      _lastRegisteredUserId = auth.userId;
     } catch (e) {
       // Sunucuya ulaşılamıyor - önemli değil, bir sonraki fırsatta
-      // (uygulama yeniden açıldığında ya da token yenilendiğinde) tekrar
-      // denenecek.
+      // tekrar denenecek.
       // ignore: avoid_print
       print('Push token sunucuya kaydedilemedi: $e');
     }
+  }
+
+  void _attachAuthListener() {
+    if (_authListenerAttached) return;
+    _authSession.addListener(_handleAuthSessionChanged);
+    _authListenerAttached = true;
+  }
+
+  void _detachAuthListener() {
+    if (!_authListenerAttached) return;
+    _authSession.removeListener(_handleAuthSessionChanged);
+    _authListenerAttached = false;
+  }
+
+  void _handleAuthSessionChanged() {
+    final previous = _observedAuth;
+    final next = _authSession.snapshot;
+    if (previous == next) return;
+    _observedAuth = next;
+
+    if (!_initialized || !_isConfigured) return;
+    unawaited(_serializeTokenSync(() async {
+      final deviceToken = (await _messagingPlatform.getToken())?.trim();
+      if (deviceToken == null || deviceToken.isEmpty) return;
+
+      final accountChanged = previous.userId != next.userId;
+      final credentialChanged = previous.token != next.token;
+      if (previous.isLoggedIn && (accountChanged || credentialChanged)) {
+        await _unregisterTokenForSession(deviceToken, previous);
+      }
+      if (_enabled && next.isLoggedIn) {
+        await _registerTokenForSession(deviceToken, next);
+      }
+    }));
+  }
+
+  Future<void> _unregisterTokenForSession(
+    String deviceToken,
+    PushAuthSnapshot auth,
+  ) async {
+    if (!auth.isLoggedIn) return;
+    try {
+      await _tokenRepository.unregister(
+        authToken: auth.token!,
+        deviceToken: deviceToken,
+      );
+    } catch (_) {
+      // Çıkış ve hesap değişimi token temizliği ağ hatası yüzünden
+      // engellenmemeli. Sunucu tarafında geçersiz tokenlar ayrıca temizlenir.
+    } finally {
+      if (_lastRegisteredUserId == auth.userId) {
+        _lastRegisteredToken = null;
+        _lastRegisteredUserId = null;
+      }
+    }
+  }
+
+  Future<void> _serializeTokenSync(Future<void> Function() operation) {
+    final current = _tokenSyncTail.then((_) => operation());
+    _tokenSyncTail = current.catchError((_) {
+      // Bir kayıt/silme hatası sonraki token işlemlerini bloke etmemeli.
+    });
+    return current;
   }
 
   /// Anlık (ön plan) bir olay için yerel bildirim gösterir - FCM push'tan
@@ -191,22 +359,14 @@ class PushNotificationService {
   ///
   /// Firebase/yerel bildirimler hazır değilse (bkz. init()) sessizce hiçbir
   /// şey yapmaz - aynı "zarif geri düşme" deseni.
-  void showLocalMessageNotification({required String title, required String body}) {
-    if (!_initialized) return;
-    _localNotifications.show(
+  void showLocalMessageNotification(
+      {required String title, required String body}) {
+    if (!_initialized || !_enabled) return;
+    unawaited(_localNotifications.show(
       id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _messagesChannelId,
-          'Mesajlar ve bildirimler',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
-      ),
-    );
+    ));
   }
 
   /// Çıkış yapılırken çağrılır (bkz. profile_screen.dart _logout()) - bu
@@ -215,26 +375,12 @@ class PushNotificationService {
   /// (sunucuya ulaşılamıyor vb.) sessizce yok sayılır - çıkış işlemini
   /// engellememeli.
   Future<void> unregisterCurrentToken() async {
-    if (!isFirebaseConfigured || !_initialized) return;
-    final authToken = AuthService().token;
-    if (authToken == null) return;
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token == null) return;
-      await http
-          .delete(
-            Uri.parse('$signalingServerUrl/push-token'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $authToken',
-            },
-            body: jsonEncode({'token': token}),
-          )
-          .timeout(const Duration(seconds: 5));
-    } catch (_) {
-      // önemli değil, bkz. yukarıdaki not
-    } finally {
-      _lastRegisteredToken = null;
-    }
+    if (!_isConfigured || !_initialized) return;
+    final auth = _authSession.snapshot;
+    return _serializeTokenSync(() async {
+      final token = (await _messagingPlatform.getToken())?.trim();
+      if (token == null || token.isEmpty) return;
+      await _unregisterTokenForSession(token, auth);
+    });
   }
 }

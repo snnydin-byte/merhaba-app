@@ -3,7 +3,8 @@
 <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-<uses-permission android:name="android.permission.BLUETOOTH"/>
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
@@ -17,7 +18,7 @@
          kullanıcı paylaş butonuna bastığı anda tek bir konum okunur. -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<application android:label="merhaba" android:name="${applicationName}" android:icon="@mipmap/ic_launcher">
+<application android:label="Merhaba" android:name="${applicationName}" android:icon="@mipmap/ic_launcher">
 <!--  FCM'in varsayılan bildirim kanalı - push_notification_service.dart
              içinde oluşturduğumuz kanalla aynı id'yi kullanıyor, böylece
              uygulama arka plandayken/kapalıyken gelen bildirimler de doğru

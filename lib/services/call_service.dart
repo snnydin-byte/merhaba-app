@@ -7,6 +7,12 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'webrtc_service.dart' show signalingServerUrl;
 
+import 'active_media_session_coordinator.dart';
+import 'app_connection_state.dart';
+import 'connection_error_classifier.dart';
+import 'session_expiration_coordinator.dart';
+import 'socket_client_options.dart';
+
 typedef OnRemoteStream = void Function(MediaStream stream);
 typedef OnLocalStream = void Function(MediaStream stream);
 typedef OnStatusChange = void Function(String status);
@@ -81,6 +87,9 @@ class CallService {
   // kullanıldığı için (bkz. sınıf üstündeki not) her görüşme oturumunda
   // sıfırlanıp yeniden kuruluyor.
   bool _sessionActive = false;
+  bool _backgroundSuspended = false;
+  bool _resumeMic = false;
+  bool _resumeCamera = false;
 
   /// Şu an aktif (bağlanmış ya da kurulmakta olan) bir görüşme var mı - bkz.
   /// main.dart'taki yaşam döngüsü gözlemcisi: bir görüşme sürerken
@@ -121,6 +130,21 @@ class CallService {
   /// _tryBeginPeerConnection().
   void Function(String callType)? onCallStarted;
 
+  String? _pendingIncomingFromSocketId;
+  DateTime? _pendingIncomingExpiresAt;
+
+  bool isIncomingInvitePending(String fromSocketId) {
+    final expiresAt = _pendingIncomingExpiresAt;
+    return _pendingIncomingFromSocketId == fromSocketId &&
+        expiresAt != null &&
+        DateTime.now().isBefore(expiresAt);
+  }
+
+  void _clearPendingIncomingInvite() {
+    _pendingIncomingFromSocketId = null;
+    _pendingIncomingExpiresAt = null;
+  }
+
   // Varsayılan (yalnızca STUN) liste - webrtc_service.dart'taki
   // WebRTCService ile aynı mantık, bkz. oradaki açıklama. connectIfNeeded()
   // çağrıldığında _refreshIceServers() ile güncellenmeye çalışılır.
@@ -137,10 +161,13 @@ class CallService {
   /// birebir aynı davranış, TURN yapılandırılmamışsa ya da istek
   /// başarısız olursa sessizce STUN'a düşer.
   Future<void> _refreshIceServers() async {
+    final authToken = _lastAuthToken;
+    if (authToken == null || authToken.isEmpty) return;
     try {
-      final response = await http
-          .get(Uri.parse('$signalingServerUrl/turn-credentials'))
-          .timeout(const Duration(seconds: 20));
+      final response = await http.get(
+        Uri.parse('$signalingServerUrl/turn-credentials'),
+        headers: {'Authorization': 'Bearer $authToken'},
+      ).timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) return;
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final servers = data['iceServers'] as List<dynamic>?;
@@ -170,31 +197,57 @@ class CallService {
     _socket?.disconnect();
     _socket?.dispose();
     _connecting = true;
+    AppConnectionController().updateCall(
+      SocketConnectionPhase.connecting,
+      message: 'Arama sunucusuna bağlanılıyor…',
+    );
 
     // Soket bağlantısıyla paralel olarak TURN bilgisini almaya başlıyoruz -
     // bkz. webrtc_service.dart'taki aynı mantık.
     _iceServersFuture = _refreshIceServers();
     _socket = io.io(
       signalingServerUrl,
-      io.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .enableForceNew()
-          .setAuth({'token': authToken})
-          .build(),
+      buildSocketClientOptions(authToken: authToken),
     );
 
     _socket!.onConnect((_) {
       _connecting = false;
-      onStatusChange?.call('Bağlandı.');
+      AppConnectionController().updateCall(
+        SocketConnectionPhase.connected,
+      );
+      final partnerId = _partnerId;
+      if (_sessionActive && partnerId != null) {
+        onStatusChange?.call('Görüşme bağlantısı geri yükleniyor…');
+        _socket!.emit('match-resume', {'partnerId': partnerId});
+      } else {
+        onStatusChange?.call('Bağlandı.');
+      }
     });
     _socket!.onConnectError((err) {
       _connecting = false;
-      onStatusChange?.call('Bağlantı hatası: sunucuya ulaşılamıyor.');
+      final failure = classifyConnectionError(err);
+      if (failure.kind == ConnectionFailureKind.sessionExpired) {
+        unawaited(SessionExpirationCoordinator().handleExpiredSession());
+      }
+      AppConnectionController().updateCall(
+        SocketConnectionPhase.error,
+        message: failure.message,
+        failureKind: failure.kind,
+        retryable: failure.retryable,
+      );
+      onStatusChange?.call(failure.message);
     });
     _socket!.onDisconnect((reason) {
       // ignore: avoid_print
       print('CallService bağlantı koptu, sebep: $reason');
+      AppConnectionController().updateCall(
+        _suppressNextDisconnectNotice
+            ? SocketConnectionPhase.reconnecting
+            : SocketConnectionPhase.disconnected,
+        message: _suppressNextDisconnectNotice
+            ? 'Arama bağlantısı yenileniyor…'
+            : 'Arama bağlantısı kesildi.',
+      );
       if (_suppressNextDisconnectNotice) {
         _suppressNextDisconnectNotice = false;
         return;
@@ -218,7 +271,14 @@ class CallService {
         _peerConnectionStarted = false;
 
         final map = Map<String, dynamic>.from(data as Map);
+        _clearPendingIncomingInvite();
         _sessionActive = true;
+        ActiveMediaSessionCoordinator().register(
+          this,
+          endCallSession,
+          suspend: suspendMediaForBackground,
+          resume: resumeMediaAfterBackground,
+        );
         _partnerId = map['partnerId'] as String?;
         _isInitiator = map['isInitiator'] as bool? ?? false;
         final callType = map['callType'] as String? ?? 'video';
@@ -262,8 +322,12 @@ class CallService {
         // ignore: avoid_print
         print(
             'CallService: call-invite-received alındı -> $map (onCallInviteReceived ${onCallInviteReceived == null ? "BAĞLI DEĞİL" : "bağlı"})');
+        final fromSocketId = map['fromSocketId'] as String;
+        _pendingIncomingFromSocketId = fromSocketId;
+        _pendingIncomingExpiresAt =
+            DateTime.now().add(const Duration(seconds: 45));
         onCallInviteReceived?.call(
-          map['fromSocketId'] as String,
+          fromSocketId,
           map['fromDisplayName'] as String? ?? 'Biri',
           map['callType'] as String? ?? 'video',
           map['isRematch'] as bool? ?? false,
@@ -275,12 +339,19 @@ class CallService {
     });
 
     _socket!.on('call-invite-sent', (_) => onCallInviteSent?.call());
-    _socket!.on('call-invite-declined', (_) => onCallInviteDeclined?.call());
-    _socket!.on('call-invite-cancelled', (_) => onCallInviteCancelled?.call());
+    _socket!.on('call-invite-declined', (_) {
+      _clearPendingIncomingInvite();
+      onCallInviteDeclined?.call();
+    });
+    _socket!.on('call-invite-cancelled', (_) {
+      _clearPendingIncomingInvite();
+      onCallInviteCancelled?.call();
+    });
 
     _socket!.on('call-invite-error', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
+        _clearPendingIncomingInvite();
         onCallInviteError
             ?.call(map['message'] as String? ?? 'Arama başlatılamadı.');
       } catch (e) {
@@ -298,6 +369,10 @@ class CallService {
   /// metotun açıklaması.
   void reconnect(String authToken) {
     _suppressNextDisconnectNotice = true;
+    AppConnectionController().updateCall(
+      SocketConnectionPhase.reconnecting,
+      message: 'Arama bağlantısı yenileniyor…',
+    );
     _socket?.disconnect();
     _socket?.dispose();
     _socket = null;
@@ -352,6 +427,7 @@ class CallService {
   }
 
   void respondToCallInvite(bool accepted) {
+    _clearPendingIncomingInvite();
     _socket?.emit('call-invite-response', {'accepted': accepted});
   }
 
@@ -616,13 +692,43 @@ class CallService {
     );
   }
 
+  Future<void> suspendMediaForBackground() async {
+    if (_backgroundSuspended) return;
+    final audio = _localStream?.getAudioTracks() ?? <MediaStreamTrack>[];
+    final video = _localStream?.getVideoTracks() ?? <MediaStreamTrack>[];
+    _resumeMic = audio.any((track) => track.enabled);
+    _resumeCamera = video.any((track) => track.enabled);
+    for (final track in audio) {
+      track.enabled = false;
+    }
+    for (final track in video) {
+      track.enabled = false;
+    }
+    _backgroundSuspended = true;
+  }
+
+  Future<void> resumeMediaAfterBackground() async {
+    if (!_backgroundSuspended || !_sessionActive) return;
+    for (final track
+        in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = _resumeMic;
+    }
+    for (final track
+        in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = _resumeCamera;
+    }
+    _backgroundSuspended = false;
+  }
+
   void toggleMic(bool enabled) {
+    _resumeMic = enabled;
     _localStream?.getAudioTracks().forEach((track) {
       track.enabled = enabled;
     });
   }
 
   void toggleCamera(bool enabled) {
+    _resumeCamera = enabled;
     _localStream?.getVideoTracks().forEach((track) {
       track.enabled = enabled;
     });
@@ -667,6 +773,8 @@ class CallService {
   /// tarafından bağlanıyor, BUNLARA dokunmuyoruz - onlar görüşmeler arası
   /// kalıcı olmalı).
   void endCallSession() {
+    _backgroundSuspended = false;
+    ActiveMediaSessionCoordinator().unregister(this);
     // ÖNEMLİ DÜZELTME: bu servisin sinyal soketi kalıcı olduğu için (bkz.
     // sınıf üstündeki not) görüşme bitince socket HİÇ kapanmıyordu - bu
     // yüzden sunucu tarafında "bu ikisi hâlâ görüşmede" kaydı (partners
@@ -698,5 +806,8 @@ class CallService {
     _socket?.dispose();
     _socket = null;
     _connecting = false;
+    AppConnectionController().updateCall(
+      SocketConnectionPhase.disconnected,
+    );
   }
 }

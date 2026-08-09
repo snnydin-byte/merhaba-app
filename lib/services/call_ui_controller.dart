@@ -3,8 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../screens/call_screen.dart';
+import '../utils/session_transient_ui.dart';
+import 'app_connection_state.dart';
 import 'call_service.dart';
+import 'foreground_event_queue.dart';
+import 'event_deduplication_service.dart';
 import 'navigation_service.dart';
+import 'session_ui_lock.dart';
 
 /// CallService'in (bkz. call_service.dart) arama daveti/başlangıcı
 /// olaylarını uygulamanın HERHANGİ bir ekranından bağımsız şekilde
@@ -52,17 +57,40 @@ class CallUiController {
     _wired = true;
     final service = CallService();
 
-    service.onCallInviteReceived = (fromSocketId, fromDisplayName, callType, isRematch) {
+    service.onCallInviteReceived =
+        (fromSocketId, fromDisplayName, callType, isRematch) {
+      if (SessionUiLock().isLocked.value) {
+        service.respondToCallInvite(false);
+        return;
+      }
+      final dedupKey = 'call-invite:$fromSocketId';
+      if (!EventDeduplicationService()
+          .claim(dedupKey, ttl: const Duration(seconds: 45))) {
+        return;
+      }
       // ignore: avoid_print
-      print('CallUiController: davet geldi - $fromDisplayName ($callType, isRematch=$isRematch). '
+      print(
+          'CallUiController: davet geldi - $fromDisplayName ($callType, isRematch=$isRematch). '
           '_inCall=$_inCall _dialogShowing=$_dialogShowing currentAppContext=${currentAppContext == null ? "YOK" : "var"}');
       if (_inCall || _dialogShowing) {
         // Zaten bir görüşmedeyiz ya da başka bir diyalog açık - çakışan
-        // diyaloglar açılmasın diye sessizce reddediyoruz (sunucu tarafında
-        // da isUserBusy() ile ayrıca engelleniyor, bkz. server.js).
-        // ignore: avoid_print
-        print('CallUiController: davet SESSİZCE REDDEDİLDİ (zaten meşgul/diyalog açık)');
+        // diyaloglar açılmasın diye sessizce reddediyoruz.
         service.respondToCallInvite(false);
+        return;
+      }
+      final queue = ForegroundEventQueue();
+      if (!queue.isForeground.value || currentAppContext == null) {
+        queue.enqueue(PendingForegroundEvent(
+          key: 'incoming-call:$fromSocketId',
+          expiresAt: DateTime.now().add(const Duration(seconds: 45)),
+          isStillValid: () => service.isIncomingInvitePending(fromSocketId),
+          action: () => _showIncomingCallDialog(
+            fromDisplayName,
+            callType,
+            service,
+            isRematch,
+          ),
+        ));
         return;
       }
       _showIncomingCallDialog(fromDisplayName, callType, service, isRematch);
@@ -82,7 +110,7 @@ class CallUiController {
     service.onCallInviteError = (message) {
       _cancelOutgoingCallTimer();
       _dialogPop?.call();
-      _showSnack(message);
+      _showSnack(message, retryable: true);
       _outgoingTargetName = null;
     };
 
@@ -93,6 +121,11 @@ class CallUiController {
 
     service.onCallStarted = (callType) {
       _cancelOutgoingCallTimer();
+      if (SessionUiLock().isLocked.value) {
+        _dialogPop?.call();
+        _inCall = false;
+        return;
+      }
       _dialogPop?.call();
       _inCall = true;
       final peerName = _outgoingTargetName ?? 'Kullanıcı';
@@ -122,6 +155,7 @@ class CallUiController {
     required String friendDisplayName,
     required String callType,
   }) async {
+    if (SessionUiLock().isLocked.value) return;
     _outgoingTargetName = friendDisplayName;
     CallService().inviteToCall(friendId: friendId, callType: callType);
     _cancelOutgoingCallTimer();
@@ -146,6 +180,7 @@ class CallUiController {
   /// CallService.inviteToCall() yerine requestRematch() çağrılması (hedef
   /// sunucu tarafında zaten biliniyor, bkz. orada).
   Future<void> requestRematch(String partnerDisplayName) async {
+    if (SessionUiLock().isLocked.value) return;
     _outgoingTargetName = partnerDisplayName;
     CallService().requestRematch();
     _cancelOutgoingCallTimer();
@@ -159,13 +194,28 @@ class CallUiController {
     _cancelOutgoingCallTimer();
   }
 
-  void _showSnack(String message) {
+  void _showSnack(String message, {bool retryable = false}) {
+    if (SessionUiLock().isLocked.value) return;
     final context = currentAppContext;
     if (context == null) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    showSessionSnackBar(
+      context,
+      retryable
+          ? SessionFeedbackActions.connectionSnackBar(
+              message: message,
+              channel: AppConnectionChannel.call,
+            )
+          : SnackBar(content: Text(message)),
+      deduplicationKey: 'call-ui:$message',
+      priority: retryable
+          ? SessionFeedbackPriority.high
+          : SessionFeedbackPriority.normal,
+    );
   }
 
-  Future<void> _showOutgoingCallDialog(String friendName, String callType) async {
+  Future<void> _showOutgoingCallDialog(
+      String friendName, String callType) async {
+    if (SessionUiLock().isLocked.value) return;
     final context = currentAppContext;
     if (context == null) return;
     _dialogShowing = true;
@@ -178,7 +228,9 @@ class CallUiController {
       barrierDismissible: false,
       builder: (dialogContext) {
         _dialogPop = () {
-          if (Navigator.of(dialogContext).canPop()) Navigator.of(dialogContext).pop();
+          if (Navigator.of(dialogContext).canPop()) {
+            Navigator.of(dialogContext).pop();
+          }
         };
         return PopScope(
           canPop: false,
@@ -199,7 +251,8 @@ class CallUiController {
                   CallService().cancelOutgoingCall();
                   Navigator.pop(dialogContext);
                 },
-                child: const Text('İptal', style: TextStyle(color: Colors.redAccent)),
+                child: const Text('İptal',
+                    style: TextStyle(color: Colors.redAccent)),
               ),
             ],
           ),
@@ -212,6 +265,10 @@ class CallUiController {
 
   Future<void> _showIncomingCallDialog(String fromDisplayName, String callType,
       CallService service, bool isRematch) async {
+    if (SessionUiLock().isLocked.value) {
+      service.respondToCallInvite(false);
+      return;
+    }
     final context = currentAppContext;
     if (context == null) {
       // Gösterecek bir ekran yok (uygulama henüz hiç açılmadı) - sessizce
@@ -228,7 +285,9 @@ class CallUiController {
       barrierDismissible: false,
       builder: (dialogContext) {
         _dialogPop = () {
-          if (Navigator.of(dialogContext).canPop()) Navigator.of(dialogContext).pop();
+          if (Navigator.of(dialogContext).canPop()) {
+            Navigator.of(dialogContext).pop();
+          }
         };
         return PopScope(
           canPop: false,
@@ -259,7 +318,8 @@ class CallUiController {
                   service.respondToCallInvite(true);
                   Navigator.pop(dialogContext);
                 },
-                child: const Text('Kabul Et', style: TextStyle(color: Color(0xFF00BFA5))),
+                child: const Text('Kabul Et',
+                    style: TextStyle(color: Color(0xFF00BFA5))),
               ),
             ],
           ),

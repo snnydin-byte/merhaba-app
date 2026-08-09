@@ -1,5 +1,0 @@
-.graphify_python
-.graphify_root
-cache/
-# Dated pre-rebuild backup snapshots written by the post-commit hook.
-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/

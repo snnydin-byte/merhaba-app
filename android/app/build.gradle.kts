@@ -9,16 +9,23 @@ plugins {
 }
 
 // Play Store için gerçek (release) imzalama - şifreler/keystore yolu git'e
-// asla eklenmeyen android/key.properties dosyasından okunuyor (bkz.
-// KURULUM.md "Play Store Yayın Hazırlığı" bölümü). Bu dosya yoksa (ör.
-// henüz keystore oluşturulmadıysa) release build debug anahtarına geri
-// düşer - böylece `flutter run --release` yine de çalışmaya devam eder,
-// ama gerçek yayın için MUTLAKA key.properties oluşturulmuş olmalı.
+// asla eklenmeyen android/key.properties dosyasından okunuyor. Release
+// görevi istenip bu dosya yoksa build BİLEREK durur; debug anahtarıyla
+// yanlışlıkla mağaza paketi üretmek production'da kabul edilmez.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 val hasReleaseKeystore = keystorePropertiesFile.exists()
 if (hasReleaseKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
+val releaseTaskRequested = gradle.startParameter.taskNames.any { task ->
+    task.contains("Release", ignoreCase = true)
+}
+if (releaseTaskRequested && !hasReleaseKeystore) {
+    throw GradleException(
+        "Release imzalama yapılandırması eksik: android/key.properties ve gerçek keystore gerekli."
+    )
 }
 
 android {
@@ -73,15 +80,10 @@ android {
 
     buildTypes {
         release {
-            // Gerçek yayın anahtarı (key.properties) mevcutsa onunla imzala;
-            // yoksa (henüz oluşturulmadıysa) debug anahtarına geri düş - bkz.
-            // yukarıdaki hasReleaseKeystore notu. Play Store'a yüklemeden önce
-            // key.properties MUTLAKA oluşturulmuş olmalı, aksi halde bu debug
-            // imzasıyla derlenmiş bir .aab Play Console'da kabul edilmez.
-            signingConfig = if (hasReleaseKeystore) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            // Release görevi yukarıda gerçek keystore yoksa zaten fail-closed
+            // olur. Bu nedenle burada debug imzasına hiçbir zaman geri düşmeyiz.
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
             }
         }
     }

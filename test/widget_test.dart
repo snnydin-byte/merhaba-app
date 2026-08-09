@@ -19,7 +19,7 @@ void main() {
       await tester.pumpWidget(const MerhabaApp());
       await tester.pump();
 
-      expect(find.text('Merhaba'), findsOneWidget);
+      expect(find.text('MERHABA'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       // Açılış ekranındaki 1600ms'lik minimum gösterim süresi bir

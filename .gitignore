@@ -3,6 +3,7 @@
 *.log
 *.pyc
 *.swp
+*.tmp
 .DS_Store
 .atom/
 .build/
@@ -17,6 +18,8 @@ migrate_working_dir/
 *.ipr
 *.iws
 .idea/
+.vscode/
+.claude/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -32,6 +35,10 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+**/flutter/ephemeral/
+**/Flutter/ephemeral/
+/ios/Pods/
+/macos/Pods/
 
 # Symbolication related
 app.*.symbols
@@ -43,6 +50,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/local.properties
+/android/.gradle/
+/android/.kotlin/
 
 # Play Store release imzalama sırları - asla versiyon kontrolüne eklenmemeli.
 android/key.properties
@@ -55,6 +65,8 @@ android/key.properties
 # Sunucu tarafında değişiklik yapıp push'lamak için her zaman
 # `cd signaling_server` ile o depoya girilmeli (bkz. KURULUM.md).
 /signaling_server/
+/merhaba-signaling-fixed-v108/
+/graphify-out/
 
 # Geliştirme sırasında oluşan büyük log/debug dosyaları - uygulama
 # kaynağının bir parçası değiller, versiyon kontrolüne eklenmemeli.

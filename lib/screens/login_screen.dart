@@ -2,19 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/adult_age_policy.dart';
 import '../services/auth_service.dart';
-import '../services/call_service.dart';
-import '../services/call_ui_controller.dart';
-import '../services/messaging_service.dart';
-import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/warm_signal_mark.dart';
 import 'home_screen.dart';
 
 /// Giriş ve kayıt için tek bir ekran; ikisi arasında geçiş yapılabilir.
 /// Gerçek kimlik doğrulama sinyalleşme sunucusundaki /auth/* uçlarıyla
-/// yapılır (bkz. AuthService). Kullanıcı isterse hesap oluşturmadan
-/// "Misafir olarak devam et" diyerek doğrudan ana ekrana geçebilir.
+/// yapılır. Merhaba yalnızca doğum tarihiyle 18+ doğrulamasını tamamlamış
+/// hesaplara açıktır; v108 itibarıyla misafir modu bulunmaz.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -31,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _nameController = TextEditingController();
 
   bool _isRegisterMode = false;
+  bool _requiresAgeVerification = false;
+  bool _adultConfirmed = false;
+  DateTime? _birthDate;
   bool _loading = false;
   String? _errorText;
 
@@ -42,8 +42,48 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  bool get _showsAgeGate => _isRegisterMode || _requiresAgeVerification;
+
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthDate ?? DateTime(now.year - 25, now.month, now.day),
+      firstDate: AdultAgePolicy.earliestEligibleBirthDate(now),
+      lastDate: AdultAgePolicy.latestEligibleBirthDate(now),
+      helpText: 'Doğum tarihini seç',
+    );
+    if (picked != null && mounted) {
+      setState(() => _birthDate = picked);
+    }
+  }
+
+  bool _validateAgeGate() {
+    if (!_showsAgeGate) return true;
+    final birthDate = _birthDate;
+    if (birthDate == null) {
+      setState(() => _errorText = 'Devam etmek için doğum tarihini seç.');
+      return false;
+    }
+    if (!AdultAgePolicy.isAdult(birthDate)) {
+      setState(() => _errorText =
+          'Merhaba yalnızca 18 yaşını doldurmuş kullanıcılara açıktır.');
+      return false;
+    }
+    if (!_adultConfirmed) {
+      setState(() => _errorText =
+          '18 yaşını doldurduğunu ve kullanım koşullarını kabul ettiğini onayla.');
+      return false;
+    }
+    return true;
+  }
+
+  String? get _birthDateForRequest =>
+      _birthDate == null ? null : AdultAgePolicy.toApiDate(_birthDate!);
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!_validateAgeGate()) return;
 
     setState(() {
       _loading = true;
@@ -56,32 +96,28 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
           displayName: _nameController.text.trim(),
+          birthDate: _birthDateForRequest!,
+          adultConfirmed: _adultConfirmed,
         );
       } else {
         await _authService.login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
+          birthDate: _requiresAgeVerification ? _birthDateForRequest : null,
+          adultConfirmed: _requiresAgeVerification ? _adultConfirmed : false,
         );
-      }
-      // Giriş/kayıt başarılı - push token'ı bu hesaba bağlıyoruz (Firebase
-      // henüz yapılandırılmadıysa sessizce no-op, bkz.
-      // push_notification_service.dart).
-      unawaited(PushNotificationService().registerTokenWithServer());
-      // Mesajlaşma ve arama sinyal bağlantılarını da burada kuruyoruz -
-      // splash_screen.dart yalnızca uygulama açılışında ZATEN girişli olan
-      // oturumlar için bunu yapar; burada (yeni giriş/kayıt) da aynı kurulum
-      // gerekiyor. Artık ekran bazlı değil, uygulama boyunca kalıcılar
-      // (bkz. messaging_service.dart, call_service.dart).
-      final token = _authService.token;
-      if (token != null) {
-        MessagingService().connectIfNeeded(token);
-        CallService().connectIfNeeded(token);
-        CallUiController().wire();
       }
       if (!mounted) return;
       _goToHome();
     } on AuthException catch (e) {
-      if (mounted) setState(() => _errorText = e.message);
+      if (mounted) {
+        setState(() {
+          _errorText = e.message;
+          if (e.requiresAgeVerification) {
+            _requiresAgeVerification = true;
+          }
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -93,28 +129,32 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submitWithGoogle() async {
+    if (_showsAgeGate && !_validateAgeGate()) return;
     setState(() {
       _loading = true;
       _errorText = null;
     });
 
     try {
-      final user = await _authService.signInWithGoogle();
+      final user = await _authService.signInWithGoogle(
+        birthDate: _showsAgeGate ? _birthDateForRequest : null,
+        adultConfirmed: _showsAgeGate ? _adultConfirmed : false,
+      );
       if (user == null) {
         // Kullanıcı hesap seçiciyi iptal etti - sessizce dön, hata gösterme.
         return;
       }
-      unawaited(PushNotificationService().registerTokenWithServer());
-      final token = _authService.token;
-      if (token != null) {
-        MessagingService().connectIfNeeded(token);
-        CallService().connectIfNeeded(token);
-        CallUiController().wire();
-      }
       if (!mounted) return;
       _goToHome();
     } on AuthException catch (e) {
-      if (mounted) setState(() => _errorText = e.message);
+      if (mounted) {
+        setState(() {
+          _errorText = e.message;
+          if (e.requiresAgeVerification) {
+            _requiresAgeVerification = true;
+          }
+        });
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -124,8 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  void _continueAsGuest() => _goToHome();
 
   void _goToHome() {
     Navigator.of(context).pushReplacement(
@@ -208,7 +246,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 6),
                             Text(
                               _isRegisterMode
-                                  ? 'Sohbetlerine devam etmek için birkaç bilgi gir.'
+                                  ? 'Merhaba yalnızca 18 yaşını doldurmuş kullanıcılara açıktır.'
                                   : 'Devam etmek için giriş yap.',
                               style: AppText.body,
                             ),
@@ -218,6 +256,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               _buildNameField(),
                               const SizedBox(height: 14),
                             ],
+                            if (_showsAgeGate) ...[
+                              _buildBirthDateField(),
+                              const SizedBox(height: 8),
+                              _buildAdultConfirmation(),
+                              const SizedBox(height: 14),
+                            ],
                             _buildEmailField(),
                             const SizedBox(height: 14),
                             _buildPasswordField(),
@@ -225,14 +269,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             _buildSubmitButton(),
                             const SizedBox(height: 14),
                             _buildModeToggle(),
-                            const SizedBox(height: 20),
-                            _buildDivider(),
-                            const SizedBox(height: 16),
                             if (isGoogleSignInConfigured) ...[
+                              const SizedBox(height: 20),
+                              _buildDivider(),
+                              const SizedBox(height: 16),
                               _buildGoogleButton(),
-                              const SizedBox(height: 12),
                             ],
-                            _buildGuestButton(),
                           ],
                         ),
                       ),
@@ -329,6 +371,45 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildBirthDateField() {
+    return InkWell(
+      onTap: _loading ? null : _pickBirthDate,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: InputDecorator(
+        decoration: _fieldDecoration(
+          'Doğum tarihi',
+          Icons.cake_outlined,
+        ),
+        child: Text(
+          _birthDate == null
+              ? '18+ doğrulaması için seç'
+              : AdultAgePolicy.displayDate(_birthDate!),
+          style: TextStyle(
+            color: _birthDate == null
+                ? AppColors.textMuted
+                : AppColors.textPrimary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdultConfirmation() {
+    return CheckboxListTile(
+      value: _adultConfirmed,
+      onChanged: _loading
+          ? null
+          : (value) => setState(() => _adultConfirmed = value ?? false),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        '18 yaşını doldurdum ve kullanım koşullarını kabul ediyorum.',
+        style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+      ),
+    );
+  }
+
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -351,7 +432,7 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: _fieldDecoration('Şifre', Icons.lock_outline),
       validator: (v) {
         if (v == null || v.isEmpty) return 'Şifreni gir';
-        if (_isRegisterMode && v.length < 6) return 'En az 6 karakter olmalı';
+        if (_isRegisterMode && v.length < 8) return 'En az 8 karakter olmalı';
         return null;
       },
     );
@@ -394,6 +475,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ? null
             : () => setState(() {
                   _isRegisterMode = !_isRegisterMode;
+                  _requiresAgeVerification = false;
+                  _birthDate = null;
+                  _adultConfirmed = false;
                   _errorText = null;
                 }),
         child: Text(
@@ -439,22 +523,6 @@ class _LoginScreenState extends State<LoginScreen> {
             const Text('Google ile devam et'),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildGuestButton() {
-    return SizedBox(
-      height: 50,
-      child: OutlinedButton(
-        onPressed: _loading ? null : _continueAsGuest,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textSecondary,
-          side: BorderSide(color: AppColors.textPrimary.withValues(alpha: 0.2)),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.lg)),
-        ),
-        child: const Text('Misafir olarak devam et'),
       ),
     );
   }

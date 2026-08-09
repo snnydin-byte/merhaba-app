@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../services/app_connection_state.dart';
 import '../services/call_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/connection_status_banner.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Bir arkadaşla yapılan sesli ya da görüntülü arama ekranı.
 ///
@@ -247,11 +250,13 @@ class _CallScreenState extends State<CallScreen> {
 
     if (!sent) {
       setState(() => _sendingMessage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(
           content: Text(
               'Mesaj kanalı hazırlanıyor, birkaç saniye sonra tekrar dene.'),
         ),
+        priority: SessionFeedbackPriority.normal,
       );
       return;
     }
@@ -288,6 +293,11 @@ class _CallScreenState extends State<CallScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const ConnectionStatusBanner(
+              channel: AppConnectionChannel.call,
+              compact: true,
+              margin: EdgeInsets.fromLTRB(12, 8, 12, 0),
+            ),
             Expanded(
                 child: widget.isVideo ? _buildVideoArea() : _buildAudioArea()),
             if (_chatOpen) _buildChatPanel(),

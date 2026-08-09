@@ -9,6 +9,7 @@ import 'chat_screen.dart';
 import 'discover_likes_me_screen.dart';
 import 'discover_matches_screen.dart';
 import 'discover_quiz_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Eşleşme (Dating) katmanı ana ekranı - "Keşfet" (Batch E). Kaydırma
 /// kartları TAMAMEN bu projede yazıldı (yeni bir paket/native bağımlılık
@@ -21,7 +22,8 @@ class DiscoverScreen extends StatefulWidget {
   State<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProviderStateMixin {
+class _DiscoverScreenState extends State<DiscoverScreen>
+    with SingleTickerProviderStateMixin {
   final DiscoverService _discover = DiscoverService();
   List<DiscoverCandidate> _candidates = [];
   bool _loading = true;
@@ -40,7 +42,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
   }
 
   void _wireCallbacks() {
-    MessagingService().onDiscoverMatched = (matchId, user, firstMessageIsYours) {
+    MessagingService().onDiscoverMatched =
+        (matchId, user, firstMessageIsYours) {
       if (!mounted) return;
       _showMatchDialog(user, firstMessageIsYours);
     };
@@ -66,7 +69,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             permission != LocationPermission.deniedForever;
         if (granted && await Geolocator.isLocationServiceEnabled()) {
           final position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+            locationSettings:
+                const LocationSettings(accuracy: LocationAccuracy.low),
           ).timeout(const Duration(seconds: 8));
           lat = position.latitude;
           lng = position.longitude;
@@ -75,7 +79,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         // Konumsuz devam - bkz. yukarıdaki not.
       }
 
-      final candidates = await _discover.fetchCandidates(myLat: lat, myLng: lng);
+      final candidates =
+          await _discover.fetchCandidates(myLat: lat, myLng: lng);
       if (!mounted) return;
       setState(() {
         _candidates = candidates;
@@ -111,7 +116,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     final candidate = _candidates.first;
     final note = action == 'pass' ? null : _pendingNote;
     try {
-      final matchedUser = await _discover.swipe(toId: candidate.user.id, action: action, note: note);
+      final matchedUser = await _discover.swipe(
+          toId: candidate.user.id, action: action, note: note);
       if (!mounted) return;
       setState(() {
         _candidates.removeAt(0);
@@ -132,28 +138,39 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     } on AuthException catch (e) {
       if (!mounted) return;
       setState(() => _swiping = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(e.message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _swiping = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Bir şeyler ters gitti, tekrar dene.')));
+      showSessionSnackBar(
+        context,
+        const SnackBar(content: Text('Bir şeyler ters gitti, tekrar dene.')),
+        priority: SessionFeedbackPriority.normal,
+      );
     }
   }
 
   void _showMatchDialog(AppUser user, bool firstMessageIsYours) {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'discover_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Eşleştiniz! 🎉', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Eşleştiniz! 🎉',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: Text(
           '${user.displayName} ile karşılıklı beğendiniz.'
           '${firstMessageIsYours ? ' İlk mesajı sen atabilirsin.' : ''}',
           style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kapat')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Kapat')),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -172,11 +189,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       await _discover.rewind();
       if (mounted) _load();
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Geri alınamadı.')));
+        showSessionSnackBar(
+          context,
+          const SnackBar(content: Text('Geri alınamadı.')),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     }
   }
@@ -185,33 +211,48 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
     try {
       await _discover.activateBoost();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Boost aktif! 30 dakika boyunca öne çıkıyorsun.')),
+        showSessionSnackBar(
+          context,
+          const SnackBar(
+              content: Text('Boost aktif! 30 dakika boyunca öne çıkıyorsun.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
+      }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Boost aktifleştirilemedi.')));
+        showSessionSnackBar(
+          context,
+          const SnackBar(content: Text('Boost aktifleştirilemedi.')),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     }
   }
 
   void _showNoteDialog() {
     final controller = TextEditingController(text: _pendingNote ?? '');
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'discover_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text('Ön-mesaj ekle', style: TextStyle(color: AppColors.textPrimary)),
+        title: Text('Ön-mesaj ekle',
+            style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
           maxLength: 300,
           maxLines: 3,
           style: TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'Beğeninle birlikte bir not gönder...'),
+          decoration: const InputDecoration(
+              hintText: 'Beğeninle birlikte bir not gönder...'),
         ),
         actions: [
           TextButton(
@@ -223,7 +264,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           ),
           TextButton(
             onPressed: () {
-              setState(() => _pendingNote = controller.text.trim().isEmpty ? null : controller.text.trim());
+              setState(() => _pendingNote = controller.text.trim().isEmpty
+                  ? null
+                  : controller.text.trim());
               Navigator.pop(context);
             },
             child: const Text('Kaydet'),
@@ -242,7 +285,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             children: [
               _buildTopBar(),
               Expanded(child: _buildBody()),
-              if (!_loading && _error == null && _candidates.isNotEmpty) _buildActionBar(),
+              if (!_loading && _error == null && _candidates.isNotEmpty)
+                _buildActionBar(),
             ],
           ),
         ),
@@ -257,25 +301,28 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
+            icon:
+                Icon(Icons.arrow_back_rounded, color: AppColors.textSecondary),
           ),
           Expanded(
-            child: Text('Keşfet', style: AppText.heading, textAlign: TextAlign.center),
+            child: Text('Keşfet',
+                style: AppText.heading, textAlign: TextAlign.center),
           ),
           Stack(
             clipBehavior: Clip.none,
             children: [
               IconButton(
                 onPressed: () async {
-                  await Navigator.of(context)
-                      .push(AppPageRoute(builder: (_) => const DiscoverLikesMeScreen()));
+                  await Navigator.of(context).push(AppPageRoute(
+                      builder: (_) => const DiscoverLikesMeScreen()));
                   if (mounted) {
                     _wireCallbacks();
                     _load();
                     _loadLikesMeCount();
                   }
                 },
-                icon: const Icon(Icons.favorite_rounded, color: Colors.pinkAccent),
+                icon: const Icon(Icons.favorite_rounded,
+                    color: Colors.pinkAccent),
               ),
               if (_likesMeCount > 0)
                 Positioned(
@@ -283,20 +330,23 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   top: 4,
                   child: Container(
                     padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                        color: AppColors.primary, shape: BoxShape.circle),
                     child: Text('$_likesMeCount',
-                        style: const TextStyle(color: Colors.white, fontSize: 9)),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 9)),
                   ),
                 ),
             ],
           ),
           IconButton(
             onPressed: () async {
-              await Navigator.of(context)
-                  .push(AppPageRoute(builder: (_) => const DiscoverMatchesScreen()));
+              await Navigator.of(context).push(
+                  AppPageRoute(builder: (_) => const DiscoverMatchesScreen()));
               if (mounted) _wireCallbacks();
             },
-            icon: Icon(Icons.chat_bubble_rounded, color: AppColors.textSecondary),
+            icon:
+                Icon(Icons.chat_bubble_rounded, color: AppColors.textSecondary),
           ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
@@ -305,12 +355,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
               if (value == 'boost') {
                 _activateBoost();
               } else if (value == 'quiz') {
-                await Navigator.of(context)
-                    .push(AppPageRoute(builder: (_) => const DiscoverQuizScreen()));
+                await Navigator.of(context).push(
+                    AppPageRoute(builder: (_) => const DiscoverQuizScreen()));
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'boost', child: Text('Boost (30dk öne çık)')),
+              PopupMenuItem(
+                  value: 'boost', child: Text('Boost (30dk öne çık)')),
               PopupMenuItem(value: 'quiz', child: Text('Uyumluluk anketi')),
             ],
           ),
@@ -340,7 +391,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.explore_off_rounded, color: AppColors.textFaint, size: 56),
+            Icon(Icons.explore_off_rounded,
+                color: AppColors.textFaint, size: 56),
             const SizedBox(height: 12),
             Text('Şu an gösterilecek yeni kişi yok.',
                 style: TextStyle(color: AppColors.textSecondary)),
@@ -355,7 +407,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (_candidates.length > 1) _buildCard(_candidates[1], interactive: false),
+          if (_candidates.length > 1)
+            _buildCard(_candidates[1], interactive: false),
           _buildCard(_candidates[0], interactive: true),
         ],
       ),
@@ -434,7 +487,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
         decoration: BoxDecoration(
           color: AppColors.surface,
           image: user.photoUrl != null
-              ? DecorationImage(image: NetworkImage(user.photoUrl!), fit: BoxFit.cover)
+              ? DecorationImage(
+                  image: NetworkImage(user.photoUrl!), fit: BoxFit.cover)
               : null,
         ),
         child: Stack(
@@ -443,7 +497,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             if (user.photoUrl == null)
               Center(
                 child: Text(
-                  user.displayName.isNotEmpty ? user.displayName[0].toUpperCase() : '?',
+                  user.displayName.isNotEmpty
+                      ? user.displayName[0].toUpperCase()
+                      : '?',
                   style: TextStyle(color: AppColors.textFaint, fontSize: 96),
                 ),
               ),
@@ -457,7 +513,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.85)
+                    ],
                   ),
                 ),
                 child: Column(
@@ -469,11 +528,14 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                         Text(
                           '${user.displayName}${user.age != null ? ', ${user.age}' : ''}',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold),
                         ),
                         if (user.verified) ...[
                           const SizedBox(width: 6),
-                          Icon(Icons.verified_rounded, color: AppColors.secondary, size: 18),
+                          Icon(Icons.verified_rounded,
+                              color: AppColors.secondary, size: 18),
                         ],
                         if (user.selfieVerified) ...[
                           const SizedBox(width: 6),
@@ -482,16 +544,19 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                         ],
                       ],
                     ),
-                    if (candidate.compatibilityPercent != null || candidate.distanceKm != null)
+                    if (candidate.compatibilityPercent != null ||
+                        candidate.distanceKm != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           [
                             if (candidate.compatibilityPercent != null)
                               '%${candidate.compatibilityPercent} uyum',
-                            if (candidate.distanceKm != null) '${candidate.distanceKm} km uzakta',
+                            if (candidate.distanceKm != null)
+                              '${candidate.distanceKm} km uzakta',
                           ].join(' · '),
-                          style: TextStyle(color: AppColors.primaryLight, fontSize: 12),
+                          style: TextStyle(
+                              color: AppColors.primaryLight, fontSize: 12),
                         ),
                       ),
                     if (user.bio.isNotEmpty)
@@ -500,7 +565,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                         child: Text(user.bio,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 13)),
                       ),
                     if (user.profileBadges.isNotEmpty)
                       Padding(
@@ -508,7 +574,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
                         child: Wrap(
                           spacing: 6,
                           children: user.profileBadges
-                              .map((b) => PillBadge(label: b, color: AppColors.primary))
+                              .map((b) =>
+                                  PillBadge(label: b, color: AppColors.primary))
                               .toList(),
                         ),
                       ),
@@ -576,8 +643,12 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
           ),
           arcOffset(
             _roundButton(
-              icon: _pendingNote != null ? Icons.edit_note_rounded : Icons.message_outlined,
-              color: _pendingNote != null ? AppColors.primary : AppColors.textMuted,
+              icon: _pendingNote != null
+                  ? Icons.edit_note_rounded
+                  : Icons.message_outlined,
+              color: _pendingNote != null
+                  ? AppColors.primary
+                  : AppColors.textMuted,
               size: 40,
               label: 'Ön-mesaj ekle',
               onTap: _showNoteDialog,
@@ -611,8 +682,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> with SingleTickerProvid
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surfaceElevated,
-              border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
-              boxShadow: neonGlow(color, opacity: 0.35, blurRadius: 18, spreadRadius: 1),
+              border:
+                  Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
+              boxShadow: neonGlow(color,
+                  opacity: 0.35, blurRadius: 18, spreadRadius: 1),
             ),
             child: Icon(icon, color: color, size: size * 0.45),
           ),

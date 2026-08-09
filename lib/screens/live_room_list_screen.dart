@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/webrtc_service.dart' show signalingServerUrl;
 import '../theme/app_theme.dart';
 import 'live_room_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Aktif canlı odaların keşif listesi (Faz 1) - GET /live-rooms.
 /// leaderboard/achievements ekranlarıyla aynı basit REST-poll deseni;
@@ -40,8 +41,9 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
         Uri.parse('$signalingServerUrl/live-rooms'),
         headers: {'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode != 200)
+      if (response.statusCode != 200) {
         throw Exception('HTTP ${response.statusCode}');
+      }
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final rooms = (data['rooms'] as List<dynamic>? ?? [])
           .map((r) => Map<String, dynamic>.from(r as Map))
@@ -62,7 +64,8 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
 
   Future<void> _startHosting() async {
     final titleController = TextEditingController();
-    final title = await showDialog<String>(
+    final title = await showSessionDialog<String>(
+      deduplicationKey: 'live_room_list_screen.dialog.1',
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -231,7 +234,7 @@ class _LiveRoomListScreenState extends State<LiveRoomListScreen> {
                         Container(
                           width: 36,
                           height: 36,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: AppGradients.warmSignal,
                           ),

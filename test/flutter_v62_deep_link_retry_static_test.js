@@ -1,0 +1,13 @@
+const assert = require('assert');
+const fs = require('fs');
+const screen = fs.readFileSync('lib/screens/push_deep_link_transition_screen.dart', 'utf8');
+const router = fs.readFileSync('lib/services/push_interaction_router.dart', 'utf8');
+const coordinator = fs.readFileSync('lib/services/push_navigation_coordinator.dart', 'utf8');
+assert(screen.includes('int _resolveGeneration = 0'));
+assert(screen.includes('generation != _resolveGeneration'));
+assert(screen.includes('PushDeepLinkFailureReason.network'));
+assert(screen.includes("'Tekrar dene'"));
+assert(screen.includes('if (_retrying ||'));
+assert(router.includes('PushNavigationCoordinator().runOnce'));
+assert(coordinator.includes('_inFlight.containsKey(normalized)'));
+console.log('flutter-v62-deep-link-retry: başarılı');

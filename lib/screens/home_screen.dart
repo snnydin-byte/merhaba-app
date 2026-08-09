@@ -6,7 +6,11 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
+import '../services/match_preferences_repository.dart'
+    show matchTextOnlyPrefKey;
 import '../services/webrtc_service.dart';
+import '../widgets/auth_session_builder.dart';
+import '../widgets/connection_status_banner.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import '../widgets/warm_signal_mark.dart';
@@ -97,7 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
             child: Column(
               children: [
-                _buildTopBar(context),
+                AuthSessionBuilder(
+                  builder: (context, _, user) => _buildTopBar(context, user),
+                ),
+                const ConnectionStatusBanner(),
                 const SizedBox(height: 18),
                 Expanded(child: _buildHeroCard(context)),
                 const SizedBox(height: 16),
@@ -236,9 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTopBar(BuildContext context) {
-    final user = AuthService().currentUser;
-
+  Widget _buildTopBar(BuildContext context, AppUser? user) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

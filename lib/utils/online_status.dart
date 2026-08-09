@@ -20,7 +20,10 @@ String onlineCountLabel(int? count) {
 /// server.js isUserOnline()) - "son görülme" bu durumda anlamsız olduğu
 /// için gösterilmez. [lastSeen] hiç ayarlanmamışsa (ör. hesap hiç
 /// bağlanmadı, ya da eski bir kayıt) "Çevrimdışı" gösterilir.
-String lastSeenLabel({required bool online, required DateTime? lastSeen, required DateTime now}) {
+String lastSeenLabel(
+    {required bool online,
+    required DateTime? lastSeen,
+    required DateTime now}) {
   if (online) return 'Çevrimiçi';
   if (lastSeen == null) return 'Çevrimdışı';
 

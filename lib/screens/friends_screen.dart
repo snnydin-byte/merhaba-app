@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../services/call_ui_controller.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
+import '../widgets/auth_session_builder.dart';
 import '../theme/app_theme.dart';
 import '../utils/online_status.dart';
 import 'chat_screen.dart';
@@ -13,6 +14,7 @@ import 'groups_screen.dart';
 import 'login_screen.dart';
 import 'story_creator_sheet.dart';
 import 'story_viewer_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Arkadaşlar sayfası - ana ekrandaki çevrimiçi sayısının altındaki
 /// "Arkadaşlar" girişinden açılır. Arkadaş listesini gösterir/kaldırır,
@@ -43,14 +45,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
   // dayanıyor, sahte bir sayaç/durum EKLEMİYOR.
   String _filter = 'all';
 
-  List<AppUser> get _filteredFriends {
+  List<AppUser> _filteredFriends(AppUser? currentUser) {
     switch (_filter) {
       case 'online':
         return _friends.where((f) => f.online).toList();
       case 'offline':
         return _friends.where((f) => !f.online).toList();
       case 'favorites':
-        final closeIds = AuthService().currentUser?.closeFriendIds ?? [];
+        final closeIds = currentUser?.closeFriendIds ?? const <String>[];
         return _friends.where((f) => closeIds.contains(f.id)).toList();
       default:
         return _friends;
@@ -66,12 +68,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
   List<Story> _stories = [];
   bool _loadingStories = false;
 
-  bool get _isGuest => !AuthService().isLoggedIn;
-
   @override
   void initState() {
     super.initState();
-    if (!_isGuest) {
+    if (AuthService().isLoggedIn) {
       _load();
       _loadStories();
       // Çevrimiçi/son görülme durumu zamanla değiştiği (arkadaş çevrimiçi
@@ -88,7 +88,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Future<void> _loadStories() async {
-    if (_isGuest) return;
+    if (!AuthService().isLoggedIn) return;
     setState(() => _loadingStories = true);
     try {
       final stories = await MessagingService().fetchStories();
@@ -169,7 +169,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   /// görünür - grup sohbeti DEĞİL). Sunucu tarafında ek bir değişiklik
   /// gerekmiyor, zaten var olan persistent-message-send tek tek çağrılıyor.
   void _openBroadcastComposer() {
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'friends_screen.sheet.1',
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -185,14 +186,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
       if (mounted) setState(() {});
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     }
   }
 
   Future<void> _confirmRemove(AppUser friend) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'friends_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -222,13 +227,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
       setState(() => _friends.removeWhere((f) => f.id == friend.id));
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           const SnackBar(content: Text('Bir şeyler ters gitti, tekrar dene.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     }
@@ -250,7 +260,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
       ('diger', 'Diğer'),
     ];
 
-    final reason = await showDialog<String>(
+    final reason = await showSessionDialog<String>(
+      deduplicationKey: 'friends_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -281,18 +292,25 @@ class _FriendsScreenState extends State<FriendsScreen> {
     try {
       await AuthService().reportFriend(friend.id, reason);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Şikayetin alındı, teşekkürler.')),
+        priority: SessionFeedbackPriority.normal,
       );
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           const SnackBar(content: Text('Bir şeyler ters gitti, tekrar dene.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     }
@@ -300,35 +318,41 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        toolbarHeight: 72,
-        titleSpacing: 20,
-        title: Text(
-          'Arkadaşlar',
-          style: AppText.display.copyWith(fontSize: 26, height: 1),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          _buildHeaderAction(
-            icon: Icons.groups_rounded,
-            tooltip: 'Gruplar',
-            onPressed: () => Navigator.of(context).push(
-              AppPageRoute(builder: (_) => const GroupsScreen()),
-            ),
+    return AuthSessionBuilder(
+      builder: (context, session, currentUser) => Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          toolbarHeight: 72,
+          titleSpacing: 20,
+          title: Text(
+            'Arkadaşlar',
+            style: AppText.display.copyWith(fontSize: 26, height: 1),
           ),
-          if (_friends.isNotEmpty)
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          actions: [
             _buildHeaderAction(
-              icon: Icons.campaign_outlined,
-              tooltip: 'Toplu mesaj gönder',
-              onPressed: _openBroadcastComposer,
+              icon: Icons.groups_rounded,
+              tooltip: 'Gruplar',
+              onPressed: () => Navigator.of(context).push(
+                AppPageRoute(builder: (_) => const GroupsScreen()),
+              ),
             ),
-          const SizedBox(width: 12),
-        ],
+            if (_friends.isNotEmpty)
+              _buildHeaderAction(
+                icon: Icons.campaign_outlined,
+                tooltip: 'Toplu mesaj gönder',
+                onPressed: _openBroadcastComposer,
+              ),
+            const SizedBox(width: 12),
+          ],
+        ),
+        body: AppBackground(
+          child: SafeArea(
+            child: _buildBody(session.isAuthenticated, currentUser),
+          ),
+        ),
       ),
-      body: AppBackground(child: SafeArea(child: _buildBody())),
     );
   }
 
@@ -354,8 +378,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Widget _buildBody() {
-    if (_isGuest) return _buildGuestState();
+  Widget _buildBody(bool isAuthenticated, AppUser? currentUser) {
+    if (!isAuthenticated) return _buildGuestState();
     if (_loading) {
       return Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -368,7 +392,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 88, 0, 0),
-            child: _buildStoryRing(),
+            child: _buildStoryRing(currentUser),
           ),
           Expanded(child: _buildEmptyState()),
         ],
@@ -384,13 +408,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
         children: [
           _buildFilterChips(),
           const SizedBox(height: 18),
-          _buildListMeta(),
+          _buildListMeta(currentUser),
           if (_stories.isNotEmpty) ...[
             const SizedBox(height: 12),
-            _buildStoryRing(),
+            _buildStoryRing(currentUser),
           ],
           const SizedBox(height: 12),
-          ..._filteredFriends.map(_buildFriendTile),
+          ..._filteredFriends(currentUser)
+              .map((friend) => _buildFriendTile(friend, currentUser)),
         ],
       ),
     );
@@ -401,10 +426,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
   /// hikayen varsa görüntülemeye, yoksa oluşturmaya götürür), ardından
   /// aktif hikayesi olan arkadaşlar (izlenmemiş varsa parlak, hepsi
   /// izlenmişse soluk halka ile).
-  Widget _buildStoryRing() {
+  Widget _buildStoryRing(AppUser? currentUser) {
     if (_loadingStories && _stories.isEmpty) return const SizedBox.shrink();
 
-    final myId = AuthService().currentUser?.id;
+    final myId = currentUser?.id;
     final myStories = _stories.where((s) => s.userId == myId).toList();
     final Map<String, List<Story>> byFriend = {};
     for (final s in _stories) {
@@ -421,7 +446,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         children: [
           _storyRingTile(
             label: 'Hikayen',
-            photoUrl: AuthService().currentUser?.photoUrl,
+            photoUrl: currentUser?.photoUrl,
             hasUnviewed: false,
             hasAny: myStories.isNotEmpty,
             showAddBadge: true,
@@ -514,11 +539,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Widget _buildListMeta() {
+  Widget _buildListMeta(AppUser? currentUser) {
     return Row(
       children: [
         Text(
-          '${_filteredFriends.length} kişi',
+          '${_filteredFriends(currentUser).length} kişi',
           style: TextStyle(
             color: AppColors.textMuted,
             fontSize: 12,
@@ -624,7 +649,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Misafir olarak arkadaş listesi tutulamaz. Bir hesap oluştur '
+              'Arkadaş listesini görmek için hesabınla giriş yap '
               'ya da giriş yap.',
               textAlign: TextAlign.center,
               style: AppText.body,
@@ -637,7 +662,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   AppPageRoute(builder: (_) => const LoginScreen()),
                 );
               },
-              child: Text('Giriş Yap', style: AppText.button),
+              child: const Text('Giriş Yap', style: AppText.button),
             ),
           ],
         ),
@@ -698,7 +723,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     );
   }
 
-  Widget _buildFriendTile(AppUser friend) {
+  Widget _buildFriendTile(AppUser friend, AppUser? currentUser) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
@@ -828,7 +853,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   child: Row(
                     children: [
                       Icon(
-                        (AuthService().currentUser?.closeFriendIds ?? [])
+                        (currentUser?.closeFriendIds ?? const <String>[])
                                 .contains(friend.id)
                             ? Icons.star_rounded
                             : Icons.star_border_rounded,
@@ -837,7 +862,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       ),
                       const SizedBox(width: 10),
                       Text(
-                        (AuthService().currentUser?.closeFriendIds ?? [])
+                        (currentUser?.closeFriendIds ?? const <String>[])
                                 .contains(friend.id)
                             ? 'Yakın arkadaşlıktan çıkar'
                             : 'Yakın arkadaş yap',
@@ -935,8 +960,10 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
       );
     }
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
+    showSessionSnackBar(
+      context,
       SnackBar(content: Text('Mesaj ${_selected.length} kişiye gönderildi.')),
+      priority: SessionFeedbackPriority.low,
     );
   }
 

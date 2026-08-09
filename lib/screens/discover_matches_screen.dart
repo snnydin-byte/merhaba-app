@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/discover_service.dart';
 import '../theme/app_theme.dart';
 import 'chat_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Aktif Keşfet eşleşmeleri listesi (Batch E). Kalıcı sohbet yalnızca
 /// arkadaşlar arasında çalıştığı için, eski eşleşmeler önce buradaki
@@ -47,7 +48,8 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
   /// bir kez kaydedebiliyor, sunucu tarafında da bu şekilde (bkz.
   /// discoverStore.setWeMetFeedback).
   Future<void> _askWeMet(DateMatch match) async {
-    final met = await showDialog<bool>(
+    final met = await showSessionDialog<bool>(
+      deduplicationKey: 'discover_matches_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -77,10 +79,12 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
 
   void _openChat(DateMatch match) {
     if (!match.isFriend) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(
           content: Text('Mesajlaşmak için önce arkadaş ekle.'),
         ),
+        priority: SessionFeedbackPriority.normal,
       );
       return;
     }
@@ -111,22 +115,27 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
             )
             .toList();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         SnackBar(
             content: Text('${match.user.displayName} arkadaşlarına eklendi.')),
+        priority: SessionFeedbackPriority.low,
       );
     } catch (_) {
       if (mounted) {
         setState(() => _addingFriendIds.remove(match.matchId));
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           const SnackBar(content: Text('Arkadaş eklenemedi, tekrar dene.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     }
   }
 
   Future<void> _confirmUnmatch(DateMatch match) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'discover_matches_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Eşleşmeyi kaldır?'),
@@ -157,14 +166,18 @@ class _DiscoverMatchesScreenState extends State<DiscoverMatchesScreen> {
         _unmatchingIds.remove(match.matchId);
         _matches.removeWhere((item) => item.matchId == match.matchId);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Eşleşme kaldırıldı.')),
+        priority: SessionFeedbackPriority.high,
       );
     } catch (_) {
       if (mounted) {
         setState(() => _unmatchingIds.remove(match.matchId));
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           const SnackBar(content: Text('Eşleşme kaldırılamadı, tekrar dene.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     }

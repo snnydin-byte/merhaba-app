@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 
+import '../services/app_connection_state.dart';
 import '../services/auth_service.dart';
 import '../services/group_call_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/connection_status_banner.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Grup Eşleşme (3-8 kişi) ekranı - video_chat_screen.dart'ın grup eşiti.
 /// ESKİ mesh sürümünden FARKLI: kamera/mikrofon artık burada LiveKit
@@ -67,19 +70,25 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
     };
     _groupCall.onError = (message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
     _groupCall.onCallEnded = () {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Görüşme sona erdi - yalnız kaldın.')),
+        priority: SessionFeedbackPriority.normal,
       );
       Navigator.of(context).pop();
     };
     _groupCall.onAccountRestricted = (message) {
       if (!mounted) return;
-      showDialog<void>(
+      showSessionDialog<void>(
+        deduplicationKey: 'group_call_screen.dialog.1',
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
@@ -101,15 +110,20 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
     _groupCall.onReportSent = (_) {
       if (!mounted) return;
       setState(() => _reporting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Şikayetin alındı, teşekkürler.')),
+        priority: SessionFeedbackPriority.normal,
       );
     };
     _groupCall.onReportError = (message) {
       if (!mounted) return;
       setState(() => _reporting = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     _groupCall.connectAndFind(
@@ -133,12 +147,12 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
 
   void _toggleMic() {
     setState(() => _micOn = !_micOn);
-    _groupCall.room?.localParticipant?.setMicrophoneEnabled(_micOn);
+    _groupCall.setMicrophoneEnabled(_micOn);
   }
 
   void _toggleCam() {
     setState(() => _camOn = !_camOn);
-    _groupCall.room?.localParticipant?.setCameraEnabled(_camOn);
+    _groupCall.setCameraEnabled(_camOn);
   }
 
   void _switchCamera() {
@@ -186,11 +200,13 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
 
     if (!sent) {
       setState(() => _sendingMessage = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(
           content: Text(
               'Grup mesajı hazırlanıyor, birkaç saniye sonra tekrar dene.'),
         ),
+        priority: SessionFeedbackPriority.normal,
       );
       return;
     }
@@ -212,7 +228,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
   void _showReportSheet() {
     final participants = _groupCall.remoteParticipants.toList();
     if (participants.isEmpty) return;
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'group_call_screen.sheet.1',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       builder: (_) => SafeArea(
@@ -257,7 +274,8 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
       ('sahte-hesap', 'Sahte hesap'),
       ('diger', 'Diğer'),
     ];
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'group_call_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -309,6 +327,11 @@ class _GroupCallScreenState extends State<GroupCallScreen> {
           child: Column(
             children: [
               _buildStatusBar(),
+              const ConnectionStatusBanner(
+                channel: AppConnectionChannel.groupCall,
+                compact: true,
+                margin: EdgeInsets.fromLTRB(12, 0, 12, 6),
+              ),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),

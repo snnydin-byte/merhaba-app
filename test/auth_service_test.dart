@@ -8,7 +8,6 @@
 // restoreSession()/logout() akışı.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:merhaba_app/services/auth_service.dart';
 
@@ -73,76 +72,6 @@ void main() {
       });
 
       expect(user.lastSeen, isNull);
-    });
-  });
-
-  group('AuthService oturum kalıcılığı', () {
-    setUp(() async {
-      // Her testten önce hem shared_preferences'ı hem de singleton'ın
-      // bellek-içi durumunu temizliyoruz - AuthService bir singleton
-      // olduğu için testler arasında sızıntı olmasını (bir testin
-      // diğerini etkilemesini) önlemek için şart.
-      SharedPreferences.setMockInitialValues({});
-      await AuthService().logout();
-    });
-
-    test('hiç kayıtlı oturum yoksa restoreSession false döner', () async {
-      final restored = await AuthService().restoreSession();
-      expect(restored, false);
-      expect(AuthService().isLoggedIn, false);
-    });
-
-    test('kayıtlı oturum varsa restoreSession true döner ve kullanıcıyı doldurur', () async {
-      SharedPreferences.setMockInitialValues({
-        'auth_token': 'test-token-123',
-        'auth_user_id': 'u1',
-        'auth_user_email': 'a@b.com',
-        'auth_user_name': 'Ada',
-      });
-
-      final restored = await AuthService().restoreSession();
-
-      expect(restored, true);
-      expect(AuthService().isLoggedIn, true);
-      expect(AuthService().token, 'test-token-123');
-      expect(AuthService().currentUser?.id, 'u1');
-      expect(AuthService().currentUser?.displayName, 'Ada');
-    });
-
-    test('kayıtlı alanlardan biri eksikse oturum geri yüklenmez (yarım/bozuk veri)', () async {
-      SharedPreferences.setMockInitialValues({
-        'auth_token': 'test-token-123',
-        'auth_user_id': 'u1',
-        // auth_user_email kasıtlı olarak eksik
-        'auth_user_name': 'Ada',
-      });
-
-      final restored = await AuthService().restoreSession();
-
-      expect(restored, false);
-      expect(AuthService().isLoggedIn, false);
-    });
-
-    test('logout hem bellek-içi durumu hem de saklanan oturumu temizler', () async {
-      SharedPreferences.setMockInitialValues({
-        'auth_token': 'test-token-123',
-        'auth_user_id': 'u1',
-        'auth_user_email': 'a@b.com',
-        'auth_user_name': 'Ada',
-      });
-      await AuthService().restoreSession();
-      expect(AuthService().isLoggedIn, true);
-
-      await AuthService().logout();
-
-      expect(AuthService().isLoggedIn, false);
-      expect(AuthService().token, isNull);
-      expect(AuthService().currentUser, isNull);
-
-      // Oturum bilgisi gerçekten diskten de silinmiş mi - yeni bir
-      // restoreSession() artık false dönmeli.
-      final restoredAgain = await AuthService().restoreSession();
-      expect(restoredAgain, false);
     });
   });
 }

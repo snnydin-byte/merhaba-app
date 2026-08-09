@@ -12,8 +12,15 @@ import 'package:flutter/material.dart';
 /// olmasını beklemiyoruz. main.dart'ta MaterialApp'e verilir.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+/// Uygulama genelindeki snackbar ve MaterialBanner katmanlarını BuildContext
+/// taşımadan güvenli biçimde temizlemek/göstermek için kullanılır. Oturum
+/// kapanırken eski ekrana ait mesajların LoginScreen üzerinde kalmasını önler.
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 /// O an gösterilebilecek güncel bir BuildContext döner (varsa). Uygulama
 /// henüz hiç build edilmediyse ya da navigator hazır değilse null döner -
 /// çağıran taraf bu durumda sessizce vazgeçmeli (ör. uygulama daha açılışta
 /// splash ekranındayken bir soket olayı gelirse).
-BuildContext? get currentAppContext => navigatorKey.currentState?.overlay?.context;
+BuildContext? get currentAppContext =>
+    navigatorKey.currentState?.overlay?.context;

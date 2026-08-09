@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Yeni bir durum/hikaye paylaşma akışını başlatır (#71 anket maddesi) -
 /// "Metin durumu" (renkli arka plan + kısa metin) ya da "Fotoğraf durumu"
@@ -12,7 +13,8 @@ import '../theme/app_theme.dart';
 /// üzerinden - başarı/hata sunucudan asenkron gelir (bkz. onStoryCreateAck/
 /// onStoryError, çağıran ekran bunları dinlemeli).
 Future<void> showStoryCreatorSheet(BuildContext context) async {
-  final choice = await showModalBottomSheet<String>(
+  final choice = await showSessionModalBottomSheet<String>(
+    deduplicationKey: 'story_creator_sheet.sheet.1',
     context: context,
     backgroundColor: AppColors.surfaceElevated,
     shape: const RoundedRectangleBorder(
@@ -52,7 +54,8 @@ Future<void> showStoryCreatorSheet(BuildContext context) async {
 }
 
 Future<void> _createPhotoStory(BuildContext context) async {
-  final source = await showModalBottomSheet<ImageSource>(
+  final source = await showSessionModalBottomSheet<ImageSource>(
+    deduplicationKey: 'story_creator_sheet.sheet.2',
     context: context,
     backgroundColor: AppColors.surfaceElevated,
     shape: const RoundedRectangleBorder(
@@ -88,8 +91,10 @@ Future<void> _createPhotoStory(BuildContext context) async {
         source: source, maxWidth: 1280, imageQuality: 80);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Fotoğraf alınamadı, tekrar dene.')),
+        priority: SessionFeedbackPriority.normal,
       );
     }
     return;
@@ -99,7 +104,8 @@ Future<void> _createPhotoStory(BuildContext context) async {
   // Kısıtlı liste / yakın arkadaşlar (Batch F) - metin durumundaki
   // onay kutusuyla AYNI tercih, burada fotoğraf küçük bir onay diyaloğuyla
   // soruluyor (fotoğraf akışı zaten ayrı bir composer ekranı DEĞİL).
-  final closeFriendsOnly = await showDialog<bool>(
+  final closeFriendsOnly = await showSessionDialog<bool>(
+    deduplicationKey: 'story_creator_sheet.dialog.1',
     context: context,
     builder: (_) => AlertDialog(
       backgroundColor: AppColors.surfaceElevated,
@@ -123,8 +129,11 @@ Future<void> _createPhotoStory(BuildContext context) async {
   );
   if (closeFriendsOnly == null || !context.mounted) return;
 
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(const SnackBar(content: Text('Hikaye yükleniyor...')));
+  showSessionSnackBar(
+    context,
+    const SnackBar(content: Text('Hikaye yükleniyor...')),
+    priority: SessionFeedbackPriority.normal,
+  );
   try {
     final result = await MessagingService()
         .uploadChatMedia(File(picked.path), mimeType: 'image/jpeg');
@@ -136,8 +145,11 @@ Future<void> _createPhotoStory(BuildContext context) async {
       closeFriendsOnly: closeFriendsOnly,
     );
   } catch (e) {
-    messenger.showSnackBar(
+    if (!context.mounted) return;
+    showSessionSnackBar(
+      context,
       SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      priority: SessionFeedbackPriority.normal,
     );
   }
 }

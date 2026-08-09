@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/discover_service.dart';
 import '../theme/app_theme.dart';
 import 'chat_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// "Kim beğendi" listesi (Batch E, madde 72) - seni beğenen ama henüz
 /// eşleşmediğin (karşılık vermediğin) kişiler. Birine dokunup beğenirsen
@@ -31,11 +32,12 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
     setState(() => _loading = true);
     try {
       final likes = await _discover.fetchLikesMe();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _likes = likes;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -52,7 +54,8 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
         _processing.remove(entry.swipeId);
       });
       if (matchedUser != null) {
-        showDialog<void>(
+        showSessionDialog<void>(
+          deduplicationKey: 'discover_likes_me_screen.dialog.1',
           context: context,
           builder: (_) => AlertDialog(
             backgroundColor: AppColors.surfaceElevated,
@@ -80,8 +83,11 @@ class _DiscoverLikesMeScreenState extends State<DiscoverLikesMeScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         setState(() => _processing.remove(entry.swipeId));
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     } catch (_) {
       if (mounted) setState(() => _processing.remove(entry.swipeId));

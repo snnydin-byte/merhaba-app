@@ -1,0 +1,11 @@
+const fs = require('fs');
+const assert = require('assert');
+const router = fs.readFileSync('lib/services/push_interaction_router.dart', 'utf8');
+const resolver = fs.readFileSync('lib/services/push_deep_link_resolver.dart', 'utf8');
+assert(router.includes('ChatScreen(friend: friend)'));
+assert(router.includes('GroupChatScreen(group: group)'));
+assert(router.includes('LiveRoomScreen.viewer(roomId: roomId)'));
+assert(resolver.includes('fetchFriends()'));
+assert(resolver.includes('fetchGroups()'));
+assert(resolver.includes('PushFriendsFallbackTarget'));
+console.log('flutter-v60-push-deep-link: başarılı');

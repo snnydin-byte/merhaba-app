@@ -1,18 +1,25 @@
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'services/session_feedback_lifecycle.dart';
+import 'services/active_media_session_coordinator.dart';
 import 'services/auth_service.dart';
 import 'services/call_service.dart';
+import 'services/foreground_event_queue.dart';
 import 'services/messaging_service.dart';
+import 'services/socket_session_coordinator.dart';
 import 'services/navigation_service.dart';
+import 'services/orphan_media_cleanup_queue.dart';
 import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
 import 'utils/text_scale_notifier.dart';
 
 void main() {
+  var crashlyticsReady = false;
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     // FlutterError/Zone hataları aşağıda zaten yakalanıyordu ama yalnızca
@@ -28,6 +35,7 @@ void main() {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      crashlyticsReady = true;
       FlutterError.onError =
           FirebaseCrashlytics.instance.recordFlutterFatalError;
     } catch (err) {
@@ -35,30 +43,38 @@ void main() {
       // ağ/servis sorunuysa, Crashlytics olmadan devam ediyoruz - kilitlenip
       // uygulamayı hiç açtırmamak, hata raporlamadan mahrum kalmaktan çok
       // daha kötü olurdu.
-      // ignore: avoid_print
-      print('Crashlytics kurulamadı, hata raporlama devre dışı: $err');
+      if (kDebugMode) {
+        debugPrint('Crashlytics kurulamadı: $err');
+      }
     }
     final previousOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
-      // ignore: avoid_print
-      print(
-          'YAKALANAN HATA (FlutterError): ${details.exception}\n${details.stack}');
+      if (kDebugMode) {
+        debugPrint('FlutterError: ${details.exception}');
+      }
       previousOnError?.call(details);
     };
     // Bilerek await EDİLMİYOR - Firebase/push kurulumu splash ekranını
     // geciktirmesin diye arka planda ilerliyor. Firebase henüz
     // yapılandırılmadıysa (bkz. firebase_options.dart) zaten hemen, sessizce
     // döner - bkz. PushNotificationService.init() içindeki açıklama.
-    PushNotificationService().init();
+    unawaited(PushNotificationService().init());
+    SocketSessionCoordinator().initialize();
+    unawaited(OrphanMediaCleanupQueue().initialize(
+      discard: MessagingService().discardUploadedChatMedia,
+    ));
+    await SessionFeedbackLifecycle().initialize();
     runApp(const MerhabaApp());
   }, (error, stack) {
-    // ignore: avoid_print
-    print('YAKALANAN HATA (Zone): $error\n$stack');
-    // Firebase hiç başlatılamadıysa (yukarıdaki catch) bu çağrı sessizce
-    // no-op olur - FirebaseCrashlytics.instance kendi içinde bunu kontrol
-    // eder, burada ayrıca bir try/catch'e gerek yok.
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    if (kDebugMode) {
+      debugPrint('Zone error: $error');
+    }
+    if (crashlyticsReady) {
+      unawaited(
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
+      );
+    }
   });
 }
 
@@ -97,17 +113,29 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused) {
+      ForegroundEventQueue().setForeground(false);
       _backgroundedAt ??= DateTime.now();
+      unawaited(ActiveMediaSessionCoordinator().suspendAll());
+      return;
+    }
+    if (state == AppLifecycleState.detached) {
+      ForegroundEventQueue().setForeground(false);
+      ForegroundEventQueue().clear();
+      _backgroundedAt ??= DateTime.now();
+      unawaited(ActiveMediaSessionCoordinator().closeAll());
       return;
     }
     if (state == AppLifecycleState.resumed) {
+      ForegroundEventQueue().setForeground(true);
+      unawaited(ActiveMediaSessionCoordinator().resumeAll());
       final backgroundedAt = _backgroundedAt;
       _backgroundedAt = null;
-      if (backgroundedAt == null) return; // hiç arka plana atılmamıştı (yalnızca "inactive" geçişiydi)
+      if (backgroundedAt == null) {
+        return; // hiç arka plana atılmamıştı (yalnızca "inactive" geçişiydi)
+      }
       final backgroundedFor = DateTime.now().difference(backgroundedAt);
-      _reconnectPersistentServices(backgroundedFor: backgroundedFor);
+      unawaited(_resumeSessionAndReconnect(backgroundedFor: backgroundedFor));
     }
   }
 
@@ -144,6 +172,14 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
   /// hâlâ sorunsuz çalışıyor olabilecek görüşmeyi de kesintiye uğratır.
   static const _longBackgroundThreshold = Duration(seconds: 8);
 
+  Future<void> _resumeSessionAndReconnect(
+      {required Duration backgroundedFor}) async {
+    if (!AuthService().isLoggedIn) return;
+    await AuthService().refreshIfNeeded();
+    if (!mounted || !AuthService().isLoggedIn) return;
+    _reconnectPersistentServices(backgroundedFor: backgroundedFor);
+  }
+
   void _reconnectPersistentServices({required Duration backgroundedFor}) {
     if (!AuthService().isLoggedIn) return;
     final token = AuthService().token;
@@ -152,13 +188,16 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
     final wasLongBackground = backgroundedFor > _longBackgroundThreshold;
 
     final messaging = MessagingService();
-    if (wasLongBackground || !messaging.isConnected) {
-      messaging.reconnect(token);
-    }
-
     final call = CallService();
-    if (!call.isInActiveCall && (wasLongBackground || !call.isConnected)) {
-      call.reconnect(token);
+    final shouldReconnectMessaging =
+        wasLongBackground || !messaging.isConnected;
+    final shouldReconnectCall =
+        !call.isInActiveCall && (wasLongBackground || !call.isConnected);
+    if (shouldReconnectMessaging || shouldReconnectCall) {
+      SocketSessionCoordinator().reconnectPersistentServices(
+        reconnectMessaging: shouldReconnectMessaging,
+        reconnectCall: shouldReconnectCall,
+      );
     }
   }
 
@@ -176,18 +215,21 @@ class _MerhabaAppState extends State<MerhabaApp> with WidgetsBindingObserver {
       builder: (context, _, __) {
         return MaterialApp(
           navigatorKey: navigatorKey,
+          scaffoldMessengerKey: scaffoldMessengerKey,
           title: 'Merhaba',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
-          // Yazı boyutu kişiselleştirmesi (Batch G) - bkz. text_scale_notifier
-          // .dart'taki kapsam notu. AppColors'a dokunmuyor, yalnızca MediaQuery
-          // üzerinden metin ölçeğini değiştiriyor.
+          // Oturum değişiklikleri artık yalnızca kullanıcı verisine ihtiyaç
+          // duyan ekran/widget alt ağaçlarında dinleniyor. Böylece profil
+          // değişikliği bütün MaterialApp ve Navigator ağacını yenilemiyor.
           builder: (context, child) {
             return ValueListenableBuilder<double>(
               valueListenable: textScaleNotifier,
               builder: (context, scale, _) {
                 return MediaQuery(
-                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale),
+                  ),
                   child: child!,
                 );
               },

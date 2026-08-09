@@ -22,11 +22,23 @@ class _GroupsScreenState extends State<GroupsScreen> {
   bool _loading = true;
   String? _error;
 
-  String get _myId => AuthService().currentUser?.id ?? '';
+  String _myId = '';
+
+  void _syncSessionUser() {
+    final nextId = AuthService().sessionState.value.user?.id ?? '';
+    if (_myId == nextId) return;
+    if (mounted) {
+      setState(() => _myId = nextId);
+    } else {
+      _myId = nextId;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _myId = AuthService().sessionState.value.user?.id ?? '';
+    AuthService().sessionState.addListener(_syncSessionUser);
     _load();
     _wireCallbacks();
   }
@@ -65,6 +77,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_syncSessionUser);
     MessagingService().onGroupCreateAck = null;
     MessagingService().onGroupCreated = null;
     MessagingService().onGroupUpdated = null;
@@ -168,7 +181,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
               GradientButton(
                 height: 48,
                 onPressed: _openCreate,
-                child: Text('Grup Oluştur', style: AppText.button),
+                child: const Text('Grup Oluştur', style: AppText.button),
               ),
             ],
           ),
@@ -186,7 +199,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
       backgroundColor: AppColors.surfaceElevated,
       child: LayoutBuilder(
         builder: (context, constraints) => GridView.builder(
-          padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
+          padding: const EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: constraints.maxWidth >= 780
                 ? 4

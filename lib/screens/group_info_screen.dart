@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Grup bilgi/yönetim ekranı (Batch B) - üye listesi, admin atama (yalnızca
 /// sahibi), üye ekleme/çıkarma (adminler), yeniden adlandırma, duyuru kanalı
@@ -20,13 +21,26 @@ class GroupInfoScreen extends StatefulWidget {
 class _GroupInfoScreenState extends State<GroupInfoScreen> {
   late Group _group = widget.group;
 
-  String get _myId => AuthService().currentUser?.id ?? '';
+  String _myId = '';
+
+  void _syncSessionUser() {
+    final nextId = AuthService().sessionState.value.user?.id ?? '';
+    if (_myId == nextId) return;
+    if (mounted) {
+      setState(() => _myId = nextId);
+    } else {
+      _myId = nextId;
+    }
+  }
+
   bool get _isOwner => _group.isOwner(_myId);
   bool get _isAdmin => _group.isAdmin(_myId);
 
   @override
   void initState() {
     super.initState();
+    _myId = AuthService().sessionState.value.user?.id ?? '';
+    AuthService().sessionState.addListener(_syncSessionUser);
     MessagingService().onGroupUpdated = (group) {
       if (!mounted || group.id != _group.id) return;
       setState(() => _group = group);
@@ -37,13 +51,17 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
     };
     MessagingService().onGroupError = (clientId, message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
   }
 
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_syncSessionUser);
     MessagingService().onGroupUpdated = null;
     MessagingService().onGroupDeleted = null;
     MessagingService().onGroupError = null;
@@ -52,7 +70,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
   Future<void> _renameDialog() async {
     final controller = TextEditingController(text: _group.name);
-    final name = await showDialog<String>(
+    final name = await showSessionDialog<String>(
+      deduplicationKey: 'group_info_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -85,13 +104,16 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
         friends.where((f) => !_group.members.contains(f.id)).toList();
     if (!mounted) return;
     if (candidates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Eklenebilecek yeni bir arkadaşın yok.')),
+        priority: SessionFeedbackPriority.normal,
       );
       return;
     }
     final selected = <String>{};
-    final result = await showModalBottomSheet<bool>(
+    final result = await showSessionModalBottomSheet<bool>(
+      deduplicationKey: 'group_info_screen.sheet.1',
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surfaceElevated,
@@ -154,7 +176,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
   }
 
   Future<void> _confirmRemove(String memberId, String displayName) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'group_info_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -181,7 +204,8 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
 
   Future<void> _confirmLeaveOrDelete() async {
     final isOwner = _isOwner;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'group_info_screen.dialog.3',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -226,7 +250,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
       body: AppBackground(
         child: SafeArea(
           child: ListView(
-            padding: EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 16 + kToolbarHeight, 16, 16),
             children: [
               Center(
                 child: Column(
@@ -292,7 +316,7 @@ class _GroupInfoScreenState extends State<GroupInfoScreen> {
                     value: _group.announcementOnly,
                     onChanged: (v) => MessagingService()
                         .setGroupAnnouncementOnly(groupId: _group.id, value: v),
-                    activeColor: AppColors.primary,
+                    activeThumbColor: AppColors.primary,
                     contentPadding: EdgeInsets.zero,
                     title: Text('Duyuru kanalı',
                         style: TextStyle(

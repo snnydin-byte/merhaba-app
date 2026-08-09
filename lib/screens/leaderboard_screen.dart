@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../services/auth_service.dart';
 import '../services/gamification_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/auth_session_builder.dart';
 
 /// Liderlik tablosu (Batch G) - yalnızca isim/foto/seviye, hassas hiçbir
 /// alan YOK. Gölge yasaklı kullanıcılar sunucu tarafında zaten hiç dönmüyor.
@@ -29,12 +29,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     setState(() => _loading = true);
     try {
       final (entries, myRank) = await _service.fetchLeaderboard();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _entries = entries;
           _myRank = myRank;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -106,124 +107,134 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final myId = AuthService().currentUser?.id;
-    return Scaffold(
-      appBar: AppBar(
-          title: const Text('Liderlik Tablosu'),
-          backgroundColor: Colors.transparent,
-          elevation: 0),
-      body: AppBackground(
-        child: SafeArea(
-          child: _loading
-              ? Center(
-                  child: CircularProgressIndicator(color: AppColors.primary))
-              : Column(
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
-                      child: AppScreenIntro(
-                        icon: Icons.leaderboard_rounded,
-                        title: 'Topluluk sıralaması',
-                        subtitle: 'Seviyeni yükselt, zirveye yaklaş.',
-                      ),
-                    ),
-                    if (_entries.length >= 3) _buildPodium(),
-                    if (_myRank != null && !_entries.any((e) => e.id == myId))
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                        child: GlassCard(
-                          child: Row(
-                            children: [
-                              Text('#${_myRank!.rank}',
-                                  style: TextStyle(
-                                      color: AppColors.primaryLight,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text('Sen · Seviye ${_myRank!.level}',
-                                    style: TextStyle(
-                                        color: AppColors.textPrimary)),
-                              ),
-                              Text('${_myRank!.xp} XP',
-                                  style: TextStyle(color: AppColors.textMuted)),
-                            ],
+    return AuthSessionBuilder(
+      builder: (context, _, user) {
+        final myId = user?.id;
+        return Scaffold(
+          appBar: AppBar(
+              title: const Text('Liderlik Tablosu'),
+              backgroundColor: Colors.transparent,
+              elevation: 0),
+          body: AppBackground(
+            child: SafeArea(
+              child: _loading
+                  ? Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary))
+                  : Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
+                          child: AppScreenIntro(
+                            icon: Icons.leaderboard_rounded,
+                            title: 'Topluluk sıralaması',
+                            subtitle: 'Seviyeni yükselt, zirveye yaklaş.',
                           ),
                         ),
-                      ),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        // İlk 3 podyumda gösterildiği için listede tekrar
-                        // etmiyor.
-                        itemCount: _entries.length >= 3
-                            ? _entries.length - 3
-                            : _entries.length,
-                        itemBuilder: (_, i) {
-                          final entry =
-                              _entries[_entries.length >= 3 ? i + 3 : i];
-                          final isMe = entry.id == myId;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: isMe
-                                    ? AppColors.primary.withValues(alpha: 0.15)
-                                    : AppColors.surface,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.md),
-                                border: Border.all(
-                                    color: isMe
-                                        ? AppColors.primary
-                                        : AppColors.surfaceBorder),
-                              ),
+                        if (_entries.length >= 3) _buildPodium(),
+                        if (_myRank != null &&
+                            !_entries.any((e) => e.id == myId))
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: GlassCard(
                               child: Row(
                                 children: [
-                                  SizedBox(
-                                    width: 28,
-                                    child: Text('${entry.rank}',
-                                        style: TextStyle(
-                                            color: entry.rank <= 3
-                                                ? Colors.amber
-                                                : AppColors.textMuted,
-                                            fontWeight: FontWeight.bold)),
-                                  ),
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: AppColors.primary
-                                        .withValues(alpha: 0.25),
-                                    backgroundImage: entry.photoUrl != null
-                                        ? NetworkImage(entry.photoUrl!)
-                                        : null,
-                                    child: entry.photoUrl == null
-                                        ? Text(entry.displayName.isNotEmpty
-                                            ? entry.displayName[0].toUpperCase()
-                                            : '?')
-                                        : null,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(entry.displayName,
-                                        style: TextStyle(
-                                            color: AppColors.textPrimary,
-                                            fontWeight: FontWeight.w600)),
-                                  ),
-                                  Text('Sv. ${entry.level}',
+                                  Text('#${_myRank!.rank}',
                                       style: TextStyle(
-                                          color: AppColors.textMuted,
-                                          fontSize: 12)),
+                                          color: AppColors.primaryLight,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                        'Sen · Seviye ${_myRank!.level}',
+                                        style: TextStyle(
+                                            color: AppColors.textPrimary)),
+                                  ),
+                                  Text('${_myRank!.xp} XP',
+                                      style: TextStyle(
+                                          color: AppColors.textMuted)),
                                 ],
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            // İlk 3 podyumda gösterildiği için listede tekrar
+                            // etmiyor.
+                            itemCount: _entries.length >= 3
+                                ? _entries.length - 3
+                                : _entries.length,
+                            itemBuilder: (_, i) {
+                              final entry =
+                                  _entries[_entries.length >= 3 ? i + 3 : i];
+                              final isMe = entry.id == myId;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isMe
+                                        ? AppColors.primary
+                                            .withValues(alpha: 0.15)
+                                        : AppColors.surface,
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.md),
+                                    border: Border.all(
+                                        color: isMe
+                                            ? AppColors.primary
+                                            : AppColors.surfaceBorder),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 28,
+                                        child: Text('${entry.rank}',
+                                            style: TextStyle(
+                                                color: entry.rank <= 3
+                                                    ? Colors.amber
+                                                    : AppColors.textMuted,
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: AppColors.primary
+                                            .withValues(alpha: 0.25),
+                                        backgroundImage: entry.photoUrl != null
+                                            ? NetworkImage(entry.photoUrl!)
+                                            : null,
+                                        child: entry.photoUrl == null
+                                            ? Text(entry.displayName.isNotEmpty
+                                                ? entry.displayName[0]
+                                                    .toUpperCase()
+                                                : '?')
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(entry.displayName,
+                                            style: TextStyle(
+                                                color: AppColors.textPrimary,
+                                                fontWeight: FontWeight.w600)),
+                                      ),
+                                      Text('Sv. ${entry.level}',
+                                          style: TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -28,8 +28,14 @@ bool containsPersonalInfo(String text) {
 /// yalnızca en yaygın birkaç kalıbı yakalayan kaba bir liste - amaç
 /// göndereni bir an durup düşünmeye teşvik etmek.
 const List<String> _offensiveKeywords = [
-  'aptal', 'gerizekalı', 'salak', 'ahmak', 'geri zekalı',
-  'nefret ediyorum', 'seni öldür', 'geber',
+  'aptal',
+  'gerizekalı',
+  'salak',
+  'ahmak',
+  'geri zekalı',
+  'nefret ediyorum',
+  'seni öldür',
+  'geber',
 ];
 
 bool containsOffensiveLanguage(String text) {

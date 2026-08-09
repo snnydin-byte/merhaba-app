@@ -1,0 +1,10 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const messaging = fs.readFileSync('lib/services/messaging_service.dart', 'utf8');
+const chat = fs.readFileSync('lib/screens/chat_screen.dart', 'utf8');
+assert(messaging.includes('discardUploadedChatMedia'));
+assert(messaging.includes("'DELETE'"));
+assert(chat.includes('_discardUnsentUpload'));
+assert(chat.match(/await _discardUnsentUpload\(result\)/g).length >= 2);
+console.log('flutter-v71-orphan-media-cleanup: ok');

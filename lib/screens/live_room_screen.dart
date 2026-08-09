@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 
+import '../services/app_connection_state.dart';
 import '../services/auth_service.dart';
 import '../services/live_room_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/forced_navigation.dart';
+import '../widgets/connection_status_banner.dart';
+import 'live_room_list_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Canlı oda ekranı - host/co-host video ızgarası, izleyici sayacı, metin
 /// sohbeti. Host olarak açılırken [title] verilir; izleyici olarak katılırken
@@ -36,12 +41,24 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   List<LiveRoomViewer> _viewers = [];
   void Function(void Function())? _viewerSheetSetState;
   bool _friendRequestSent = false;
+  bool _accessRevoked = false;
 
   @override
   void initState() {
     super.initState();
     _wireCallbacks();
     _start();
+  }
+
+  void _leaveForLostAccess(String message) {
+    if (!mounted || _accessRevoked) return;
+    _accessRevoked = true;
+    _service.dispose();
+    navigateAfterAccessLoss(
+      context,
+      destination: (_) => const LiveRoomListScreen(),
+      message: message,
+    );
   }
 
   void _wireCallbacks() {
@@ -71,6 +88,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
         _ended = true;
         _status = 'Yayın sona erdi.';
       });
+      _leaveForLostAccess('Canlı yayın sona erdi.');
     };
     _service.onViewerList = (viewers) {
       if (!mounted) return;
@@ -86,34 +104,16 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
     };
     _service.onMuteChanged = (userId, muted) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         SnackBar(
             content: Text(
                 muted ? 'Yayıncı susturuldu.' : 'Yayıncının sesi açıldı.')),
+        priority: SessionFeedbackPriority.low,
       );
     };
     _service.onKicked = () {
-      if (!mounted) return;
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          backgroundColor: AppColors.surfaceElevated,
-          title: const Text('Yayından atıldın',
-              style: TextStyle(color: Colors.white)),
-          content: const Text('Host seni bu canlı yayından çıkardı.',
-              style: TextStyle(color: Colors.white70)),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).maybePop();
-              },
-              child: const Text('Tamam'),
-            ),
-          ],
-        ),
-      );
+      _leaveForLostAccess('Host seni bu canlı yayından çıkardı.');
     };
     _service.onFriendRequestReceived = (fromUserId, fromDisplayName) {
       if (!mounted) return;
@@ -123,29 +123,39 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       if (!mounted) return;
       setState(() => _friendRequestSent = false);
       final name = displayName ?? 'Kullanıcı';
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         SnackBar(
             content: Text(accepted
                 ? '$name artık arkadaşın!'
                 : '$name isteği reddetti.')),
+        priority: SessionFeedbackPriority.high,
       );
     };
     _service.onFriendRequestError = (message) {
       if (!mounted) return;
       setState(() => _friendRequestSent = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
     _service.onReportSent = (id) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Bildirimin alındı, incelenecek.')),
+        priority: SessionFeedbackPriority.normal,
       );
     };
     _service.onReportError = (message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
   }
 
@@ -180,7 +190,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   // AYNI görsel dil - PopScope ile geri tuşu engelleniyor ki istek
   // yanıtlanmadan diyalog kapanmasın (karşı taraf sonsuza dek beklemesin).
   void _showFriendRequestDialog(String fromDisplayName) {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'live_room_screen.dialog.1',
       context: context,
       barrierDismissible: false,
       builder: (_) => PopScope(
@@ -226,7 +237,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       ('sahte-hesap', 'Sahte hesap'),
       ('diger', 'Diğer'),
     ];
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'live_room_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -258,7 +270,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   }
 
   void _confirmKick(LiveRoomViewer viewer) {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'live_room_screen.dialog.3',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -287,7 +300,8 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   // liste geldiğinde (onViewerList) sheet'i canlı güncelleyebilmek için.
   void _openViewerList() {
     _service.requestViewerList();
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'live_room_screen.sheet.1',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       isScrollControlled: true,
@@ -394,9 +408,11 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                     break;
                   case 'friend-request':
                     _service.sendFriendRequest(viewer.userId);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    showSessionSnackBar(
+                      context,
                       const SnackBar(
                           content: Text('Arkadaşlık isteği gönderildi.')),
+                      priority: SessionFeedbackPriority.low,
                     );
                     break;
                   case 'report':
@@ -507,6 +523,11 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const ConnectionStatusBanner(
+              channel: AppConnectionChannel.liveRoom,
+              compact: true,
+              margin: EdgeInsets.fromLTRB(12, 8, 12, 0),
+            ),
             Expanded(child: _buildVideoStage()),
             if (_error != null)
               Padding(
@@ -698,7 +719,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
                     width: 42,
                     height: 42,
                     margin: const EdgeInsets.only(left: 8),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: AppGradients.warmSignal,
                     ),

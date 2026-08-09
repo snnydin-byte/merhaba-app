@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
-import '../services/call_service.dart';
-import '../services/call_ui_controller.dart';
-import '../services/messaging_service.dart';
-import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/warm_signal_mark.dart';
 import 'home_screen.dart';
@@ -35,33 +31,6 @@ class _SplashScreenState extends State<SplashScreen> {
     final hasStoredSession = await authService.restoreSession();
     if (hasStoredSession) {
       await authService.verifySession();
-      // Zaten girişli olarak açılıyorsa (uygulama daha önce kapatılmıştı,
-      // şimdi tekrar açıldı) push token'ı da hemen kaydetmeye çalışıyoruz -
-      // main.dart'taki PushNotificationService().init() bu noktada muhtemelen
-      // tamamlanmış (Firebase yapılandırıldıysa) ya da hâlâ sessizce
-      // devredışı (yapılandırılmadıysa, o zaman bu çağrı da no-op).
-      if (authService.isLoggedIn) {
-        // Push token kaydı (sunucuya ayrı bir HTTP isteği) mesajlaşma/arama
-        // soketlerinin açılmasından BAĞIMSIZ - burada await ETMEDEN
-        // (fire-and-forget) tetikliyoruz ki soket bağlantıları onun bitmesini
-        // beklemesin. Böylece gelen mesaj/arama davetlerinin dinlenmeye
-        // başlaması, push token kaydının (bazen yavaş olabilen FCM +
-        // sunucu round-trip'i) süresi kadar gecikmiyor.
-        // ignore: unawaited_futures
-        PushNotificationService().registerTokenWithServer();
-        // Mesajlaşma ve arama sinyal bağlantılarını burada, oturum
-        // doğrulanır doğrulanmaz BİR KEZ kuruyoruz - artık ekran bazlı
-        // değil, uygulama boyunca kalıcılar (bkz. messaging_service.dart,
-        // call_service.dart). CallUiController().wire() gelen arama
-        // davetlerini hangi ekranda olunursa olsun gösterebilmek için
-        // gerekli (bkz. call_ui_controller.dart).
-        final token = authService.token;
-        if (token != null) {
-          MessagingService().connectIfNeeded(token);
-          CallService().connectIfNeeded(token);
-          CallUiController().wire();
-        }
-      }
     }
 
     // Açılış animasyonunun en az 1600ms sürmesini garantiliyoruz ama bunu
@@ -112,11 +81,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 style: AppText.display.copyWith(letterSpacing: 6),
               ),
               const SizedBox(height: 48),
-              SizedBox(
+              const SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: const Color(0xFFFFB26B)),
+                    strokeWidth: 2.5, color: Color(0xFFFFB26B)),
               ),
             ],
           ),

@@ -9,6 +9,7 @@ import '../services/auth_service.dart';
 import '../services/call_ui_controller.dart';
 import '../services/webrtc_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3) - sunucudaki
 /// QUICK_REACTIONS kataloğuyla (server.js) BİREBİR aynı olmalı.
@@ -105,9 +106,9 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   // - true ise kamera düğmesi/önizlemesi hiç gösterilmez, toggleCamera()
   // için bir track olmadığından yanıltıcı olurdu.
   bool _hasCamera = true;
-  // _partnerDisplayName misafir eşleşmelerde null olur (misafirin adı
+  // _partnerDisplayName eski/eksik profil kayıtlarında null olabilir (ad
   // yok) - bu yüzden "eşleşmiş miyim" bilgisini AYRI bir bayrakla
-  // tutuyoruz, yoksa misafirle eşleşince isim alanı yanlışlıkla boş
+  // tutuyoruz, yoksa eksik profilde isim alanı yanlışlıkla boş
   // (eşleşme yokmuş gibi) görünür.
   bool _hasPartner = false;
   _FriendStatus _friendStatus = _FriendStatus.none;
@@ -137,7 +138,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   }
 
   void _showReactionPicker() {
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'video_chat_screen.sheet.1',
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => SafeArea(
@@ -218,7 +220,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     _webrtc.onPartnerLeft = () {
       if (!mounted) return;
       // "Tekrar eşleş" (GECE_GELISTIRME madde 2) - yalnızca karşı tarafın
-      // hesabı varsa anlamlı (misafirlere bir daha ulaşılamaz, bkz.
+      // hesabı ve kalıcı kimliği varsa anlamlıdır (bkz.
       // server.js lastPartnerByUser notu). Ayrılma anındaki değerleri
       // aşağıdaki setState SIFIRLAMADAN ÖNCE yakalıyoruz.
       final canRematch = _partnerHasAccount && _partnerDisplayName != null;
@@ -272,8 +274,10 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     _webrtc.onReportSent = (reportId) {
       if (!mounted) return;
       setState(() => _reportSending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Şikayetin alındı, teşekkür ederiz.')),
+        priority: SessionFeedbackPriority.normal,
       );
     };
 
@@ -281,8 +285,11 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     _webrtc.onReportError = (message) {
       if (!mounted) return;
       setState(() => _reportSending = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     // Hesabımız birden fazla şikayet nedeniyle rastgele eşleştirmeden
@@ -290,7 +297,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
     // ekranda kalıp boşuna eşleşme aramasın.
     _webrtc.onAccountRestricted = (message) {
       if (!mounted) return;
-      showDialog<void>(
+      showSessionDialog<void>(
+        deduplicationKey: 'video_chat_screen.dialog.1',
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
@@ -323,21 +331,26 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
         _friendStatus = accepted ? _FriendStatus.added : _FriendStatus.none;
       });
       final name = displayName ?? 'Kullanıcı';
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         SnackBar(
           content: Text(
             accepted ? '$name artık arkadaşın!' : '$name isteği reddetti.',
           ),
         ),
+        priority: SessionFeedbackPriority.high,
       );
     };
 
-    // Arkadaşlık isteği gönderilemedi (giriş yapılmamış, misafir, vb.).
+    // Arkadaşlık isteği gönderilemedi (oturum/erişim sorunu vb.).
     _webrtc.onFriendRequestError = (message) {
       if (!mounted) return;
       setState(() => _friendStatus = _FriendStatus.none);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     if (widget.textOnlyMode) {
@@ -393,7 +406,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   }
 
   void _showFriendRequestDialog(String fromDisplayName) {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'video_chat_screen.dialog.2',
       context: context,
       // Kullanıcı diyaloğu dışarı dokunarak ya da geri tuşuyla kapatırsa
       // sunucudaki bekleyen isteği YANITLAMADAN kapanır - istek gönderen
@@ -456,7 +470,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
       ('sahte-hesap', 'Sahte hesap'),
       ('diger', 'Diğer'),
     ];
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'video_chat_screen.dialog.3',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -595,7 +610,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   void _showIcebreakerSheet() {
     final shuffled = List<String>.of(icebreakerPrompts)..shuffle(Random());
     final picks = shuffled.take(4).toList();
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'video_chat_screen.sheet.2',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       shape: const RoundedRectangleBorder(
@@ -693,7 +709,8 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
 
   Future<void> _showSpeedRoundElapsedDialog() async {
     if (!mounted || !_connected) return;
-    final continueChat = await showDialog<bool>(
+    final continueChat = await showSessionDialog<bool>(
+      deduplicationKey: 'video_chat_screen.dialog.4',
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -812,7 +829,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
                                     children: [
                                       Flexible(
                                         child: Text(
-                                          _partnerDisplayName ?? 'Misafir',
+                                          _partnerDisplayName ?? 'Kullanıcı',
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
                                             color: Colors.white
@@ -1261,7 +1278,7 @@ class _VideoChatScreenState extends State<VideoChatScreen> {
   }
 
   /// Üst bardaki "Arkadaş Ekle" butonu. Yalnızca giriş yapılmışsa VE karşı
-  /// tarafın da bir hesabı varsa görünür - misafirler arkadaş
+  /// tarafın da geçerli bir hesabı varsa görünür - anonim kullanıcılar arkadaş
   /// ekleyemez/eklenemez, sunucu da bunu zaten reddeder ama butonu hiç
   /// göstermemek daha temiz bir kullanıcı deneyimi sağlıyor.
   Widget _buildFriendButton() {

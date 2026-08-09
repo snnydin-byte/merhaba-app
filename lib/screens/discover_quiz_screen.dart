@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/discover_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Uyumluluk anketi (Batch E, madde 75) - sabit 5 soru, gerçek bir ML modeli
 /// DEĞİL (bkz. discoverStore.js computeCompatibility notu). Cevaplar
@@ -23,9 +24,11 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
   bool _loading = true;
   bool _saving = false;
   int _page = 0;
+  bool _answersEdited = false;
 
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_handleSessionChanged);
     _pageController.dispose();
     super.dispose();
   }
@@ -33,13 +36,15 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
   @override
   void initState() {
     super.initState();
+    AuthService().sessionState.addListener(_handleSessionChanged);
     _load();
   }
 
   Future<void> _load() async {
     try {
       final questions = await _discover.fetchQuizQuestions();
-      final existing = AuthService().currentUser?.compatibilityAnswers ?? {};
+      final existing =
+          AuthService().sessionState.value.user?.compatibilityAnswers ?? {};
       if (mounted) {
         setState(() {
           _questions = questions;
@@ -52,17 +57,37 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
     }
   }
 
+  void _handleSessionChanged() {
+    if (_answersEdited || !mounted) return;
+    final latest =
+        AuthService().sessionState.value.user?.compatibilityAnswers ?? {};
+    setState(() {
+      _answers
+        ..clear()
+        ..addAll(latest);
+    });
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
       await AuthService().updateProfile(compatibilityAnswers: _answers);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Cevapların kaydedildi.')));
+        showSessionSnackBar(
+          context,
+          const SnackBar(content: Text('Cevapların kaydedildi.')),
+          priority: SessionFeedbackPriority.low,
+        );
         Navigator.of(context).pop();
       }
     } on AuthException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -73,12 +98,14 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
   // işaretlenince kısa bir gecikmeyle otomatik sıradaki soruya geçiyor -
   // kullanıcı "İleri" butonuna basmak zorunda kalmıyor.
   void _selectAnswer(String questionId, int optionIndex) {
+    _answersEdited = true;
     setState(() => _answers[questionId] = optionIndex);
     Future.delayed(const Duration(milliseconds: 220), () {
       if (!mounted) return;
       if (_page < _questions.length - 1) {
         _pageController.nextPage(
-            duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic);
       } else {
         setState(() => _page = _questions.length);
       }
@@ -97,7 +124,8 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
             if (_page > 0) {
               setState(() => _page--);
               _pageController.previousPage(
-                  duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOut);
             } else {
               Navigator.of(context).pop();
             }
@@ -109,7 +137,8 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
       body: AppBackground(
         child: SafeArea(
           child: _loading
-              ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+              ? Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))
               : _questions.isEmpty
                   ? Center(
                       child: Text('Anket şu an kullanılamıyor.',
@@ -129,12 +158,14 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
                                 child: Container(
                                   height: 5,
                                   margin: EdgeInsets.only(
-                                      right: i == _questions.length - 1 ? 0 : 6),
+                                      right:
+                                          i == _questions.length - 1 ? 0 : 6),
                                   decoration: BoxDecoration(
                                     color: done
                                         ? AppColors.secondary
                                         : AppColors.surfaceElevated,
-                                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.pill),
                                   ),
                                 ),
                               );
@@ -146,10 +177,13 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
                                 ? _buildSummaryPage()
                                 : PageView.builder(
                                     controller: _pageController,
-                                    physics: const NeverScrollableScrollPhysics(),
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
                                     itemCount: _questions.length,
-                                    onPageChanged: (i) => setState(() => _page = i),
-                                    itemBuilder: (_, i) => _buildQuestionPage(_questions[i]),
+                                    onPageChanged: (i) =>
+                                        setState(() => _page = i),
+                                    itemBuilder: (_, i) =>
+                                        _buildQuestionPage(_questions[i]),
                                   ),
                           ),
                         ],
@@ -180,14 +214,17 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
               onTap: () => _selectAnswer(q.id, i),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 decoration: BoxDecoration(
                   color: selected
                       ? AppColors.secondary.withValues(alpha: 0.12)
                       : AppColors.surface,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: selected ? AppColors.secondary : AppColors.surfaceBorder,
+                    color: selected
+                        ? AppColors.secondary
+                        : AppColors.surfaceBorder,
                     width: selected ? 2 : 1,
                   ),
                 ),
@@ -200,8 +237,9 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
                                   ? AppColors.textPrimary
                                   : AppColors.textSecondary,
                               fontSize: 15,
-                              fontWeight:
-                                  selected ? FontWeight.w700 : FontWeight.w400)),
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w400)),
                     ),
                     if (selected)
                       Icon(Icons.check_circle_rounded,
@@ -221,9 +259,11 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 56),
+          Icon(Icons.check_circle_rounded,
+              color: AppColors.secondary, size: 56),
           const SizedBox(height: 16),
-          Text('Tüm sorular cevaplandı!', style: AppText.heading.copyWith(fontSize: 20)),
+          Text('Tüm sorular cevaplandı!',
+              style: AppText.heading.copyWith(fontSize: 20)),
           const SizedBox(height: 24),
           GradientButton(
             onPressed: _saving ? null : _save,
@@ -231,7 +271,8 @@ class _DiscoverQuizScreenState extends State<DiscoverQuizScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Text('Kaydet', style: AppText.button),
           ),
         ],

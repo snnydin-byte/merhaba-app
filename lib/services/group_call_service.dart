@@ -4,6 +4,14 @@ import 'dart:convert';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
+import 'active_media_session_coordinator.dart';
+import 'app_connection_state.dart';
+import 'connection_error_classifier.dart';
+import 'socket_client_options.dart';
+import 'foreground_event_queue.dart';
+import 'event_deduplication_service.dart';
+import 'session_expiration_coordinator.dart';
+import 'connection_retry_controller.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
 /// Grup Eşleşme (3-8 kişi) - live_room_service.dart ile AYNI LiveKit (SFU)
@@ -23,6 +31,12 @@ class GroupCallService {
   String? _roomId;
   int? _targetSize;
   bool _disposed = false;
+  bool _micEnabled = true;
+  bool _cameraEnabled = true;
+  bool _backgroundSuspended = false;
+  String? _authToken;
+  late final ConnectionRetryAction _retryAction =
+      CallbackConnectionRetryAction(_retryConnection);
 
   String? get roomId => _roomId;
   int? get targetSize => _targetSize;
@@ -44,24 +58,86 @@ class GroupCallService {
     return name.isEmpty ? 'Sen' : name;
   }
 
+  Future<void> setMicrophoneEnabled(bool enabled) async {
+    _micEnabled = enabled;
+    if (!_backgroundSuspended) {
+      await _room?.localParticipant?.setMicrophoneEnabled(enabled);
+    }
+  }
+
+  Future<void> setCameraEnabled(bool enabled) async {
+    _cameraEnabled = enabled;
+    if (!_backgroundSuspended) {
+      await _room?.localParticipant?.setCameraEnabled(enabled);
+    }
+  }
+
+  Future<void> suspendMediaForBackground() async {
+    if (_backgroundSuspended) return;
+    _backgroundSuspended = true;
+    await _room?.localParticipant?.setCameraEnabled(false);
+    await _room?.localParticipant?.setMicrophoneEnabled(false);
+  }
+
+  Future<void> resumeMediaAfterBackground() async {
+    if (!_backgroundSuspended || _disposed) return;
+    _backgroundSuspended = false;
+    await _room?.localParticipant?.setCameraEnabled(_cameraEnabled);
+    await _room?.localParticipant?.setMicrophoneEnabled(_micEnabled);
+  }
+
   void connectAndFind({required int size, String? authToken}) {
+    _disposed = false;
+    ActiveMediaSessionCoordinator().register(
+      this,
+      closeForSessionExpiration,
+      suspend: suspendMediaForBackground,
+      resume: resumeMediaAfterBackground,
+    );
+    _authToken = authToken;
+    ConnectionRetryController().register(
+      AppConnectionChannel.groupCall,
+      _retryAction,
+    );
+    AppConnectionController().updateGroupCall(
+      SocketConnectionPhase.connecting,
+      message: 'Grup bağlantısı kuruluyor…',
+    );
     _socket?.disconnect();
     _socket?.dispose();
     _targetSize = size;
 
-    final optionBuilder = io.OptionBuilder()
-        .setTransports(['websocket'])
-        .disableAutoConnect()
-        .enableForceNew();
-    if (authToken != null) optionBuilder.setAuth({'token': authToken});
-    _socket = io.io(signalingServerUrl, optionBuilder.build());
+    _socket = io.io(
+      signalingServerUrl,
+      buildSocketClientOptions(authToken: authToken),
+    );
 
     _socket!.onConnect((_) {
+      AppConnectionController().updateGroupCall(
+        SocketConnectionPhase.connected,
+      );
       onStatusChange?.call('Grup aranıyor...');
       _socket!.emit('group-match-find', {'size': size});
     });
-    _socket!.onConnectError((_) {
-      onStatusChange?.call('Bağlantı hatası: sunucuya ulaşılamıyor.');
+    _socket!.onConnectError((error) {
+      final failure = classifyConnectionError(error);
+      if (failure.kind == ConnectionFailureKind.sessionExpired) {
+        unawaited(SessionExpirationCoordinator().handleExpiredSession());
+      }
+      AppConnectionController().updateGroupCall(
+        SocketConnectionPhase.error,
+        message: failure.message,
+        failureKind: failure.kind,
+        retryable: failure.retryable,
+      );
+      onStatusChange?.call(failure.message);
+    });
+    _socket!.onDisconnect((_) {
+      if (_disposed) return;
+      AppConnectionController().updateGroupCall(
+        SocketConnectionPhase.reconnecting,
+        message: 'Grup bağlantısı yenileniyor…',
+      );
     });
     _socket!.on('group-match-error', (data) {
       final map = data is Map ? Map<String, dynamic>.from(data) : const {};
@@ -69,23 +145,49 @@ class GroupCallService {
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
 
-    _socket!.on('group-match-joined', (data) async {
+    _socket!.on('group-match-joined', (data) {
+      final roomIdForDedup = data is Map ? data['roomId']?.toString() : null;
+      if (roomIdForDedup != null &&
+          !EventDeduplicationService().claim(
+            'group-match-joined:$roomIdForDedup',
+            ttl: const Duration(minutes: 2),
+          )) {
+        return;
+      }
       final map = Map<String, dynamic>.from(data as Map);
-      _roomId = map['roomId'] as String?;
-      _targetSize = map['targetSize'] as int? ?? _targetSize;
+      final roomId = map['roomId'] as String?;
+      final targetSize = map['targetSize'] as int? ?? _targetSize;
       final token = map['token'] as String;
       final livekitUrl = map['livekitUrl'] as String;
-      onStatusChange?.call('Gruba bağlanılıyor...');
-      try {
-        await _joinLiveKitRoom(livekitUrl, token);
+
+      Future<void> joinWhenVisible() async {
         if (_disposed) return;
-        await _room!.localParticipant?.setCameraEnabled(true);
-        await _room!.localParticipant?.setMicrophoneEnabled(true);
-        onStatusChange?.call('Grupta yayındasın.');
-        onUpdate?.call();
-      } catch (err) {
-        onError?.call('Gruba bağlanılamadı: $err');
+        _roomId = roomId;
+        _targetSize = targetSize;
+        onStatusChange?.call('Gruba bağlanılıyor...');
+        try {
+          await _joinLiveKitRoom(livekitUrl, token);
+          if (_disposed) return;
+          await _room!.localParticipant?.setCameraEnabled(true);
+          await _room!.localParticipant?.setMicrophoneEnabled(true);
+          onStatusChange?.call('Grupta yayındasın.');
+          onUpdate?.call();
+        } catch (err) {
+          onError?.call('Gruba bağlanılamadı: $err');
+        }
       }
+
+      final queue = ForegroundEventQueue();
+      if (!queue.isForeground.value) {
+        queue.enqueue(PendingForegroundEvent(
+          key: 'group-match-joined:${roomId ?? 'unknown'}',
+          expiresAt: DateTime.now().add(const Duration(minutes: 2)),
+          isStillValid: () => !_disposed && _socket?.connected == true,
+          action: joinWhenVisible,
+        ));
+        return;
+      }
+      unawaited(joinWhenVisible());
     });
 
     _socket!.on('account-restricted', (data) {
@@ -106,8 +208,19 @@ class GroupCallService {
     _socket!.connect();
   }
 
+  void _retryConnection() {
+    final size = _targetSize;
+    if (_disposed || size == null) return;
+    connectAndFind(size: size, authToken: _authToken);
+  }
+
   Future<void> _joinLiveKitRoom(String livekitUrl, String token) async {
-    _room = livekit.Room();
+    _room = livekit.Room(
+      roomOptions: const livekit.RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+      ),
+    );
     _roomListener = _room!.createListener();
     _roomListener!
       ..on<livekit.TrackSubscribedEvent>((_) => onUpdate?.call())
@@ -177,6 +290,9 @@ class GroupCallService {
 
   /// Odadan ayrılır ve YENİDEN kuyruğa girmez - ekran kapanırken kullanılır.
   void leaveRoom() {
+    AppConnectionController().updateGroupCall(
+      SocketConnectionPhase.disconnected,
+    );
     _socket?.emit('group-match-leave');
     _teardown();
   }
@@ -202,9 +318,42 @@ class GroupCallService {
     _roomId = null;
   }
 
-  void dispose() {
+  Future<void> closeForSessionExpiration() async {
     if (_disposed) return;
     _disposed = true;
+    ConnectionRetryController().unregister(
+      AppConnectionChannel.groupCall,
+      _retryAction,
+    );
+    _socket?.emit('group-match-leave');
+    _roomListener?.dispose();
+    _roomListener = null;
+    await _room?.disconnect();
+    await _room?.dispose();
+    _room = null;
+    _roomId = null;
+    _socket?.disconnect();
+    _socket?.dispose();
+    _socket = null;
+    onChatMessage = null;
+    AppConnectionController().updateGroupCall(
+      SocketConnectionPhase.disconnected,
+    );
+    _backgroundSuspended = false;
+    ActiveMediaSessionCoordinator().unregister(this);
+  }
+
+  void dispose() {
+    ActiveMediaSessionCoordinator().unregister(this);
+    if (_disposed) return;
+    AppConnectionController().updateGroupCall(
+      SocketConnectionPhase.disconnected,
+    );
+    _disposed = true;
+    ConnectionRetryController().unregister(
+      AppConnectionChannel.groupCall,
+      _retryAction,
+    );
     _teardown();
     _socket?.disconnect();
     _socket?.dispose();

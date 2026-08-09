@@ -1,0 +1,14 @@
+const fs = require('fs');
+const assert = require('assert');
+const screen = fs.readFileSync('lib/screens/push_deep_link_transition_screen.dart', 'utf8');
+const resolver = fs.readFileSync('lib/services/push_deep_link_resolver.dart', 'utf8');
+assert(screen.includes('_sessionStillValid'));
+assert(screen.includes('_appIsForeground'));
+assert(screen.includes('revalidatedTarget'));
+assert(screen.includes('PushDeepLinkFailureReason.appBackgrounded'));
+assert(screen.includes('PushDeepLinkFailureReason.sessionExpired'));
+assert(screen.includes('_sessionListenable.removeListener'));
+assert(screen.includes('_foregroundListenable.removeListener'));
+assert(resolver.includes('appBackgrounded'));
+assert(resolver.includes('sessionExpired'));
+console.log('flutter-v67-deep-link-final-guard: başarılı');

@@ -11,10 +11,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/stickers.dart';
 import '../services/auth_service.dart';
+import '../services/app_connection_state.dart';
 import '../services/friends_service.dart';
 import '../services/messaging_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/forced_navigation.dart';
+import '../utils/async_operation_guard.dart';
 import '../utils/message_safety.dart';
+import 'friends_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 enum _ChatMode { persistent, disappearing }
 
@@ -123,6 +128,9 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _connecting = true;
   String? _connectionError;
   bool _loadingHistory = true;
+  bool _loadingOlderHistory = false;
+  bool _hasMoreHistory = false;
+  String? _historyBefore;
   _ChatItem? _replyingTo;
 
   // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
@@ -141,6 +149,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _recordingTicker;
   Duration _recordingElapsed = Duration.zero;
   bool _uploadingAttachment = false;
+  final AsyncOperationGuard _attachmentGuard = AsyncOperationGuard();
+  final AsyncOperationGuard _sendGuard = AsyncOperationGuard();
 
   // Sesli mesaj oynatma - aynı anda tek bir mesaj çalınır, yenisine
   // basılınca öncekini durdurur (WhatsApp/Telegram'daki gibi).
@@ -186,7 +196,34 @@ class _ChatScreenState extends State<ChatScreen> {
   final List<ScheduledMessage> _scheduledForThisChat = [];
 
   int _clientIdCounter = 0;
-  String get _myId => AuthService().currentUser?.id ?? '';
+  String _myId = '';
+  bool _accessRevoked = false;
+
+  void _handleSessionChanged() {
+    final nextId = AuthService().sessionState.value.user?.id ?? '';
+    if (nextId == _myId) return;
+    if (!mounted) {
+      _myId = nextId;
+      return;
+    }
+    setState(() {
+      _myId = nextId;
+      if (_isNoteToSelf) _mode = _ChatMode.persistent;
+    });
+  }
+
+  void _handleConnectionChanged() {
+    final status = AppConnectionController().state.value.messaging;
+    if (!mounted) return;
+    _cancelConnectTimeout();
+    setState(() {
+      _connecting = status.isBusy;
+      _connectionError = status.phase == SocketConnectionPhase.error ||
+              status.phase == SocketConnectionPhase.disconnected
+          ? (status.message ?? 'Sunucuya bağlanılamadı.')
+          : null;
+    });
+  }
 
   List<_ChatItem> get _currentItems =>
       _mode == _ChatMode.persistent ? _persistentItems : _disappearingItems;
@@ -197,6 +234,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    _myId = AuthService().sessionState.value.user?.id ?? '';
+    AuthService().sessionState.addListener(_handleSessionChanged);
+    AppConnectionController().state.addListener(_handleConnectionChanged);
+    _scrollController.addListener(_handleHistoryScroll);
     if (_isNoteToSelf) _mode = _ChatMode.persistent;
     _setup();
   }
@@ -212,12 +253,20 @@ class _ChatScreenState extends State<ChatScreen> {
       // ekran açıldığında bağlantı büyük olasılıkla ZATEN kurulu olacak,
       // bu durumda 'connect' olayı bir daha ateşlenmeyeceği için durumu
       // burada elle senkronize ediyoruz.
-      if (_messaging.isConnected) {
+      final status = AppConnectionController().state.value.messaging;
+      if (status.isConnected) {
         setState(() {
           _connecting = false;
           _connectionError = null;
         });
       } else {
+        setState(() {
+          _connecting = status.isBusy;
+          _connectionError = status.phase == SocketConnectionPhase.error ||
+                  status.phase == SocketConnectionPhase.disconnected
+              ? status.message
+              : null;
+        });
         _startConnectTimeout();
       }
     } else {
@@ -247,25 +296,26 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  void _handleFriendAccessRevoked(String userId, String reason) {
+    if (!mounted || _accessRevoked || userId != widget.friend.id) return;
+    _accessRevoked = true;
+    _attachmentGuard.cancelCurrent();
+    _sendGuard.cancelCurrent();
+    _cancelPendingComposerOperations();
+    _messaging.activeConversationFriendId = null;
+    final message = reason == 'blocked'
+        ? 'Bu sohbet artık kullanılamıyor.'
+        : 'Arkadaşlık sona erdiği için sohbet kapatıldı.';
+    navigateAfterAccessLoss(
+      context,
+      destination: (_) => const FriendsScreen(),
+      message: message,
+    );
+  }
+
   void _wireMessagingCallbacks() {
-    _messaging.onConnected = () {
-      if (!mounted) return;
-      _cancelConnectTimeout();
-      setState(() {
-        _connecting = false;
-        _connectionError = null;
-      });
-    };
-
-    _messaging.onConnectError = (reason) {
-      if (!mounted) return;
-      _cancelConnectTimeout();
-      setState(() {
-        _connecting = false;
-        _connectionError = 'Sunucuya bağlanılamadı.';
-      });
-    };
-
+    // Socket taşıma durumu merkezi AppConnectionController üzerinden izlenir.
+    _messaging.onFriendAccessRevoked = _handleFriendAccessRevoked;
     _messaging.onPersistentMessageReceived = (message) {
       if (!mounted) return;
       if (message.fromId != widget.friend.id) return;
@@ -332,8 +382,11 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _findItem(_persistentItems, clientId)?.state = _SendState.failed;
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     _messaging.onMessageEdited = (message) {
@@ -380,8 +433,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     _messaging.onScheduleMessageError = (clientId, id, message) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     _messaging.onScheduleMessageCancelled = (id) {
@@ -403,8 +459,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _messaging.onScheduleMessageFailed = (id, message) {
       if (!mounted) return;
       setState(() => _scheduledForThisChat.removeWhere((s) => s.id == id));
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
 
     _messaging.onDisappearingMessageReceived = (message) {
@@ -433,8 +492,11 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _findItem(_disappearingItems, clientId)?.state = _SendState.failed;
       });
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     };
   }
 
@@ -456,21 +518,83 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _loadHistory() async {
     setState(() => _loadingHistory = true);
     try {
-      final history = await _friendsService.fetchConversation(widget.friend.id);
+      final page =
+          await _friendsService.fetchConversationPage(widget.friend.id);
       if (!mounted) return;
       setState(() {
         _persistentItems
           ..clear()
-          ..addAll(history
+          ..addAll(page.messages
               .map((m) => _ChatItem.fromMessage(m, isMe: m.fromId == _myId)));
+        _hasMoreHistory = page.hasMore;
+        _historyBefore = page.nextBefore;
         _loadingHistory = false;
       });
       _scrollToBottom();
-      // Sohbet açıldığında karşı taraftan gelen okunmamış tüm mesajlar
-      // "okundu" işaretlenir (#24 anket maddesi).
       if (!_isNoteToSelf) _messaging.markConversationRead(widget.friend.id);
     } catch (_) {
       if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
+  void _handleHistoryScroll() {
+    if (_mode != _ChatMode.persistent ||
+        !_hasMoreHistory ||
+        _loadingOlderHistory ||
+        !_scrollController.hasClients) {
+      return;
+    }
+    if (_scrollController.position.pixels <= 180) {
+      unawaited(_loadOlderHistory());
+    }
+  }
+
+  Future<void> _loadOlderHistory() async {
+    final before = _historyBefore;
+    if (before == null || !_hasMoreHistory || _loadingOlderHistory) return;
+    _loadingOlderHistory = true;
+    final oldExtent = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
+    final oldOffset =
+        _scrollController.hasClients ? _scrollController.position.pixels : 0.0;
+    try {
+      final page = await _friendsService.fetchConversationPage(
+        widget.friend.id,
+        before: before,
+      );
+      if (!mounted) return;
+      final existingIds = _persistentItems
+          .map((item) => item.serverId)
+          .whereType<String>()
+          .toSet();
+      final older = page.messages
+          .where((message) => !existingIds.contains(message.id))
+          .map((message) => _ChatItem.fromMessage(
+                message,
+                isMe: message.fromId == _myId,
+              ))
+          .toList();
+      setState(() {
+        _persistentItems.insertAll(0, older);
+        _hasMoreHistory = page.hasMore;
+        _historyBefore = page.nextBefore;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) return;
+        final newExtent = _scrollController.position.maxScrollExtent;
+        final target = oldOffset + (newExtent - oldExtent);
+        _scrollController.jumpTo(
+          target
+              .clamp(0.0, _scrollController.position.maxScrollExtent)
+              .toDouble(),
+        );
+      });
+    } catch (_) {
+      // Eski sayfanın yüklenememesi mevcut konuşmayı bozmaz; tekrar yukarı
+      // kaydırıldığında yeniden denenir.
+    } finally {
+      _loadingOlderHistory = false;
     }
   }
 
@@ -510,7 +634,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<bool?> _confirmSendAnyway(String title, String message) {
-    return showDialog<bool>(
+    return showSessionDialog<bool>(
+      deduplicationKey: 'chat_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -531,6 +656,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _send() async {
+    if (_accessRevoked) return;
+    final sendGeneration = _sendGuard.begin();
+    if (sendGeneration < 0) return;
     final text = _controller.text.trim();
     if (text.isEmpty || _connecting || _connectionError != null) return;
 
@@ -545,17 +673,27 @@ class _ChatScreenState extends State<ChatScreen> {
           'Mesajın bir telefon numarası veya adres içeriyor gibi görünüyor. '
               'Yine de göndermek istiyor musun?',
         );
-        if (proceed != true) return;
+        if (proceed != true ||
+            !_sendGuard.isActive(sendGeneration) ||
+            _accessRevoked) {
+          return;
+        }
       } else if (containsOffensiveLanguage(text)) {
         final proceed = await _confirmSendAnyway(
           'Bir an dur',
           'Bu mesaj sert bir dil içeriyor gibi görünüyor. Yine de göndermek '
               'istiyor musun?',
         );
-        if (proceed != true) return;
+        if (proceed != true ||
+            !_sendGuard.isActive(sendGeneration) ||
+            _accessRevoked) {
+          return;
+        }
       }
     }
-    if (!mounted) return;
+    if (!mounted || !_sendGuard.isActive(sendGeneration) || _accessRevoked) {
+      return;
+    }
 
     final clientId =
         'c${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';
@@ -601,6 +739,7 @@ class _ChatScreenState extends State<ChatScreen> {
       {required String kind,
       required Map<String, dynamic> meta,
       String caption = ''}) {
+    if (_accessRevoked || !mounted) return;
     final clientId =
         'c${_clientIdCounter++}_${DateTime.now().microsecondsSinceEpoch}';
     final item = _ChatItem(
@@ -624,7 +763,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showAttachmentSheet() {
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'chat_screen.sheet.1',
       context: context,
       backgroundColor: Colors.transparent,
       builder: (sheetContext) => _AttachmentSheet(
@@ -657,7 +797,8 @@ class _ChatScreenState extends State<ChatScreen> {
   /// MessagingService.scheduleMessage).
   Future<void> _openScheduleComposer() async {
     final textController = TextEditingController(text: _controller.text);
-    DateTime? picked = await showDialog<DateTime>(
+    DateTime? picked = await showSessionDialog<DateTime>(
+      deduplicationKey: 'chat_screen.dialog.2',
       context: context,
       builder: (dialogContext) => _ScheduleComposerDialog(
         textController: textController,
@@ -676,10 +817,12 @@ class _ChatScreenState extends State<ChatScreen> {
       sendAt: picked,
     );
     if (_controller.text.trim() == text) _controller.clear();
-    ScaffoldMessenger.of(context).showSnackBar(
+    showSessionSnackBar(
+      context,
       SnackBar(
           content:
               Text('Mesaj ${_formatScheduleTime(picked)} için planlandı.')),
+      priority: SessionFeedbackPriority.normal,
     );
   }
 
@@ -698,7 +841,8 @@ class _ChatScreenState extends State<ChatScreen> {
   /// Bu sohbete ait bekleyen zamanlanmış mesajların listesi - iptal etme
   /// imkanıyla birlikte.
   void _showScheduledSheet() {
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'chat_screen.sheet.2',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       isScrollControlled: true,
@@ -775,7 +919,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _openPollComposer() {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'chat_screen.dialog.3',
       context: context,
       builder: (dialogContext) => _PollComposerDialog(
         onSubmit: (question, options) {
@@ -788,7 +933,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _openStickerPicker() {
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'chat_screen.sheet.3',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       shape: const RoundedRectangleBorder(
@@ -859,7 +1005,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _sendViewOncePhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
+    if (_accessRevoked) return;
+    final operationGeneration = _attachmentGuard.begin();
+    if (operationGeneration < 0) return;
+    final source = await showSessionModalBottomSheet<ImageSource>(
+      deduplicationKey: 'chat_screen.sheet.4',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       shape: const RoundedRectangleBorder(
@@ -887,7 +1037,11 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
-    if (source == null) return;
+    if (source == null ||
+        !_attachmentGuard.isActive(operationGeneration) ||
+        _accessRevoked) {
+      return;
+    }
 
     final picker = ImagePicker();
     XFile? picked;
@@ -898,22 +1052,49 @@ class _ChatScreenState extends State<ChatScreen> {
       _showSnack('Fotoğraf alınamadı, tekrar dene.');
       return;
     }
-    if (picked == null) return;
+    if (picked == null ||
+        !_attachmentGuard.isActive(operationGeneration) ||
+        _accessRevoked) {
+      return;
+    }
 
+    if (!mounted ||
+        !_attachmentGuard.isActive(operationGeneration) ||
+        _accessRevoked) {
+      return;
+    }
     setState(() => _uploadingAttachment = true);
     try {
       final result = await _messaging.uploadChatMedia(File(picked.path),
           mimeType: 'image/jpeg');
-      if (!mounted) return;
+      if (!mounted ||
+          !_attachmentGuard.isActive(operationGeneration) ||
+          _accessRevoked) {
+        await _discardUnsentUpload(result);
+        return;
+      }
       _sendRich(kind: 'view_once_photo', meta: {'url': result['url']});
     } catch (e) {
-      if (mounted) _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted &&
+          _attachmentGuard.isActive(operationGeneration) &&
+          !_accessRevoked) {
+        _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
-      if (mounted) setState(() => _uploadingAttachment = false);
+      if (mounted && _attachmentGuard.isActive(operationGeneration)) {
+        setState(() => _uploadingAttachment = false);
+      }
     }
   }
 
+  Future<void> _discardUnsentUpload(Map<String, dynamic>? result) async {
+    final url = result?['url'];
+    if (url is! String || url.isEmpty) return;
+    await _messaging.discardUploadedChatMedia(url);
+  }
+
   Future<void> _startVoiceRecording() async {
+    if (_accessRevoked) return;
     if (!await _audioRecorder.hasPermission()) {
       _showSnack('Ses kaydı için mikrofon izni gerekiyor.');
       return;
@@ -934,10 +1115,13 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _stopVoiceRecordingAndSend({required bool cancel}) async {
+    final operationGeneration = _attachmentGuard.begin();
+    if (operationGeneration < 0) return;
     _recordingTicker?.cancel();
     _recordingTicker = null;
     final path = await _audioRecorder.stop();
     final duration = _recordingElapsed;
+    if (!mounted || !_attachmentGuard.isActive(operationGeneration)) return;
     setState(() {
       _isRecordingVoice = false;
       _recordingElapsed = Duration.zero;
@@ -951,15 +1135,26 @@ class _ChatScreenState extends State<ChatScreen> {
     try {
       final result =
           await _messaging.uploadChatMedia(File(path), mimeType: 'audio/mp4');
-      if (!mounted) return;
+      if (!mounted ||
+          !_attachmentGuard.isActive(operationGeneration) ||
+          _accessRevoked) {
+        await _discardUnsentUpload(result);
+        return;
+      }
       _sendRich(kind: 'voice', meta: {
         'url': result['url'],
         'durationMs': result['durationMs'] ?? duration.inMilliseconds,
       });
     } catch (e) {
-      if (mounted) _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted &&
+          _attachmentGuard.isActive(operationGeneration) &&
+          !_accessRevoked) {
+        _showSnack(e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
-      if (mounted) setState(() => _uploadingAttachment = false);
+      if (mounted && _attachmentGuard.isActive(operationGeneration)) {
+        setState(() => _uploadingAttachment = false);
+      }
     }
   }
 
@@ -992,7 +1187,8 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
     if (!mounted) return;
-    await showDialog<void>(
+    await showSessionDialog<void>(
+      deduplicationKey: 'chat_screen.dialog.4',
       context: context,
       barrierColor: Colors.black.withValues(alpha: 0.9),
       builder: (dialogContext) => GestureDetector(
@@ -1010,8 +1206,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showSessionSnackBar(
+      context,
+      SnackBar(content: Text(message)),
+      priority: SessionFeedbackPriority.normal,
+    );
   }
 
   Future<void> _openInMaps(double lat, double lng) async {
@@ -1027,7 +1226,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _startEdit(_ChatItem item) {
     final controller = TextEditingController(text: item.text);
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'chat_screen.dialog.5',
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -1060,7 +1260,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _confirmDelete(_ChatItem item) {
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'chat_screen.dialog.6',
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -1078,8 +1279,9 @@ class _ChatScreenState extends State<ChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              if (item.serverId != null)
+              if (item.serverId != null) {
                 _messaging.deleteMessage(item.serverId!);
+              }
             },
             child: Text('Sil', style: TextStyle(color: AppColors.danger)),
           ),
@@ -1096,7 +1298,8 @@ class _ChatScreenState extends State<ChatScreen> {
   /// sunucunun döndürdüğü "çeviri şu an yapılandırılmamış" mesajı gösterilir.
   Future<void> _translateMessage(_ChatItem item) async {
     final targetLang = Localizations.localeOf(context).languageCode;
-    showDialog<void>(
+    showSessionDialog<void>(
+      deduplicationKey: 'chat_screen.dialog.7',
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
@@ -1110,7 +1313,7 @@ class _ChatScreenState extends State<ChatScreen> {
               child: CircularProgressIndicator(
                   strokeWidth: 2, color: AppColors.primary),
             ),
-            SizedBox(width: 16),
+            const SizedBox(width: 16),
             Text('Çevriliyor...',
                 style: TextStyle(color: AppColors.textSecondary)),
           ],
@@ -1122,7 +1325,8 @@ class _ChatScreenState extends State<ChatScreen> {
           await AuthService().translateText(item.text, targetLang);
       if (!mounted) return;
       Navigator.pop(context);
-      showDialog<void>(
+      showSessionDialog<void>(
+        deduplicationKey: 'chat_screen.dialog.8',
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
@@ -1139,19 +1343,26 @@ class _ChatScreenState extends State<ChatScreen> {
     } on AuthException catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      showSessionSnackBar(
+        context,
+        SnackBar(content: Text(e.message)),
+        priority: SessionFeedbackPriority.normal,
+      );
     } catch (_) {
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Çeviri yapılamadı, tekrar dene.')));
+      showSessionSnackBar(
+        context,
+        const SnackBar(content: Text('Çeviri yapılamadı, tekrar dene.')),
+        priority: SessionFeedbackPriority.normal,
+      );
     }
   }
 
   void _showMessageActions(_ChatItem item) {
     if (item.deleted || item.serverId == null) return;
-    showModalBottomSheet<void>(
+    showSessionModalBottomSheet<void>(
+      deduplicationKey: 'chat_screen.sheet.5',
       context: context,
       backgroundColor: AppColors.surfaceElevated,
       shape: const RoundedRectangleBorder(
@@ -1244,8 +1455,30 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _cancelPendingComposerOperations() async {
+    _recordingTicker?.cancel();
+    _recordingTicker = null;
+    if (_isRecordingVoice) {
+      try {
+        await _audioRecorder.cancel();
+      } catch (_) {
+        try {
+          await _audioRecorder.stop();
+        } catch (_) {}
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _isRecordingVoice = false;
+      _recordingElapsed = Duration.zero;
+      _uploadingAttachment = false;
+    });
+  }
+
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_handleSessionChanged);
+    AppConnectionController().state.removeListener(_handleConnectionChanged);
     // MessagingService artık uygulama boyunca kalıcı (bkz. orada) - yalnızca
     // bu ekranın callback'lerini bırakıyoruz, ALTTAKI BAĞLANTIYA
     // dokunmuyoruz (böylece bu sohbetten çıkılsa bile başka bir yerden
@@ -1257,7 +1490,12 @@ class _ChatScreenState extends State<ChatScreen> {
     if (_iAmTyping) _messaging.sendTypingStop(widget.friend.id);
     _controller.dispose();
     _scrollController.dispose();
+    _attachmentGuard.close();
+    _sendGuard.close();
     _recordingTicker?.cancel();
+    if (_isRecordingVoice) {
+      _audioRecorder.cancel();
+    }
     _audioRecorder.dispose();
     _audioPlayer.dispose();
     // Kaybolan mesajlar zaten hiç sunucuya kaydedilmiyordu; ekrandan
@@ -1556,11 +1794,30 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
+    final showHistoryLoader = _mode == _ChatMode.persistent &&
+        (_hasMoreHistory || _loadingOlderHistory);
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      itemCount: items.length,
-      itemBuilder: (context, index) => _buildBubble(items[index]),
+      itemCount: items.length + (showHistoryLoader ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (showHistoryLoader && index == 0) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Center(
+              child: _loadingOlderHistory
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Daha eski mesajlar için yukarı kaydır'),
+            ),
+          );
+        }
+        final itemIndex = index - (showHistoryLoader ? 1 : 0);
+        return _buildBubble(items[itemIndex]);
+      },
     );
   }
 
@@ -2562,9 +2819,11 @@ class _ScheduleComposerDialogState extends State<_ScheduleComposerDialog> {
   void _submit() {
     if (widget.textController.text.trim().isEmpty || _picked == null) return;
     if (_picked!.isBefore(DateTime.now().add(const Duration(seconds: 55)))) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(
             content: Text('Gönderim zamanı en az 1 dakika sonrası olmalı.')),
+        priority: SessionFeedbackPriority.normal,
       );
       return;
     }

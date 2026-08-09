@@ -37,8 +37,8 @@ class _ConnectionMarkState extends State<ConnectionMark>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     );
-    final reduceMotion =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
     if (reduceMotion) {
       _controller.value = 1;
     } else {
@@ -83,8 +83,10 @@ class _ConnectionMarkPainter extends CustomPainter {
   // kavisler önce çizilir, dış düğümler kavis ucuna ulaşınca belirir,
   // orta düğüm ikisi birleşince belirir, oynat işaretleri en son solar.
   static const _archInterval = Interval(0.0, 0.55, curve: Curves.easeOut);
-  static const _outerNodeInterval = Interval(0.30, 0.60, curve: Curves.elasticOut);
-  static const _centerNodeInterval = Interval(0.45, 0.75, curve: Curves.elasticOut);
+  static const _outerNodeInterval =
+      Interval(0.30, 0.60, curve: Curves.elasticOut);
+  static const _centerNodeInterval =
+      Interval(0.45, 0.75, curve: Curves.elasticOut);
   static const _markerInterval = Interval(0.60, 1.0, curve: Curves.easeOut);
 
   @override
@@ -133,7 +135,8 @@ class _ConnectionMarkPainter extends CustomPainter {
     drawNode(const Offset(244, 140), _violet, t);
     final centerScale = _centerNodeInterval.transform(t);
     if (centerScale > 0) {
-      canvas.drawCircle(const Offset(148, 140), 14 * centerScale, Paint()..color = _turquoise);
+      canvas.drawCircle(const Offset(148, 140), 14 * centerScale,
+          Paint()..color = _turquoise);
     }
 
     final markerT = _markerInterval.transform(t).clamp(0.0, 1.0);
@@ -144,10 +147,13 @@ class _ConnectionMarkPainter extends CustomPainter {
         ..strokeWidth = 3
         ..isAntiAlias = true
         ..color = Colors.white.withValues(alpha: markerT);
-      canvas.drawCircle(const Offset(100, 104), 15 * (0.7 + 0.3 * markerT), ringPaint);
-      canvas.drawCircle(const Offset(196, 104), 15 * (0.7 + 0.3 * markerT), ringPaint);
+      canvas.drawCircle(
+          const Offset(100, 104), 15 * (0.7 + 0.3 * markerT), ringPaint);
+      canvas.drawCircle(
+          const Offset(196, 104), 15 * (0.7 + 0.3 * markerT), ringPaint);
 
-      final trianglePaint = Paint()..color = Colors.white.withValues(alpha: markerT);
+      final trianglePaint = Paint()
+        ..color = Colors.white.withValues(alpha: markerT);
       canvas.drawPath(
         Path()
           ..moveTo(92, 94)
@@ -168,5 +174,6 @@ class _ConnectionMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ConnectionMarkPainter oldDelegate) => oldDelegate.t != t;
+  bool shouldRepaint(covariant _ConnectionMarkPainter oldDelegate) =>
+      oldDelegate.t != t;
 }

@@ -1,0 +1,16 @@
+const fs = require('fs');
+const assert = require('assert');
+const auth = fs.readFileSync('lib/services/auth_service.dart', 'utf8');
+const model = fs.readFileSync('lib/services/session_end_progress.dart', 'utf8');
+const dialog = fs.readFileSync('lib/widgets/session_end_progress_dialog.dart', 'utf8');
+const profile = fs.readFileSync('lib/screens/profile_screen.dart', 'utf8');
+const settings = fs.readFileSync('lib/screens/settings_screen.dart', 'utf8');
+assert(model.includes('SessionEndProgressController'));
+assert(auth.includes("timeout(const Duration(seconds: 4))"));
+assert(auth.includes("timeout(const Duration(seconds: 5))"));
+assert(auth.includes('SessionEndPhase.cleaningMedia'));
+assert(dialog.includes('ValueListenableBuilder<SessionEndProgress>'));
+assert(dialog.includes('Güvenli çıkış yapılıyor'));
+assert(profile.includes('showSessionEndProgressDialog(context)'));
+assert(settings.includes('showSessionEndProgressDialog(context)'));
+console.log('flutter-v74-session-end-progress: successful');

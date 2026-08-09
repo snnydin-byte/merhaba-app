@@ -380,7 +380,8 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.groups_rounded, color: AppColors.primaryLight, size: 20),
+              Icon(Icons.groups_rounded,
+                  color: AppColors.primaryLight, size: 20),
               const SizedBox(width: 10),
               const Text(
                 'Kaç kişilik grup?',
@@ -408,7 +409,9 @@ class _GroupCallPreScreenState extends State<GroupCallPreScreen> {
         height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.white.withValues(alpha: 0.08),
+          color: selected
+              ? AppColors.primary
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Text(

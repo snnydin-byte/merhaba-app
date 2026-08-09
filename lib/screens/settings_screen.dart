@@ -1,26 +1,30 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
-import '../services/call_service.dart';
-import '../services/messaging_service.dart';
-import '../services/webrtc_service.dart';
+import '../services/match_preferences_repository.dart';
+import '../services/notification_preferences_repository.dart';
+import '../services/push_notification_service.dart';
+import '../services/session_navigation_coordinator.dart';
 import '../theme/app_theme.dart';
 import '../utils/text_scale_notifier.dart';
-import 'login_screen.dart';
+import '../widgets/session_end_progress_dialog.dart';
 import 'trusted_contacts_screen.dart';
+import 'feedback_diagnostics_screen.dart';
+import '../utils/session_transient_ui.dart';
 
 // GitHub Pages üzerinde barındırılan statik sayfalar (bkz. proje kökündeki
 // docs/ klasörü). Play Store yayını öncesi GERÇEK içerikle
-// (docs/privacy.html, docs/community-rules.html) doldurulup GitHub
+// (docs/privacy.html, docs/community-rules.html, docs/terms.html)
 // Pages'te yayınlanmış olmaları gerekiyor - bkz. KURULUM.md "Play Store
 // Yayın Hazırlığı" bölümü.
 const String privacyPolicyUrl =
     'https://snnydin-byte.github.io/merhaba-app/privacy.html';
 const String communityRulesUrl =
     'https://snnydin-byte.github.io/merhaba-app/community-rules.html';
+const String termsUrl = 'https://snnydin-byte.github.io/merhaba-app/terms.html';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,9 +34,13 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _notificationsPrefKey = 'notifications_enabled';
+  final MatchPreferencesRepository _matchPreferences =
+      MatchPreferencesRepository();
+  final NotificationPreferencesRepository _notificationPreferences =
+      NotificationPreferencesRepository();
 
   bool _notifications = true;
+  bool _savingNotifications = false;
   bool _loadingPrefs = true;
   bool _deletingAccount = false;
   // pubspec.yaml'daki gerçek sürüm numarasını okuyoruz - önceden burada
@@ -72,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Gizlilik ayarları (#39/#24 anket maddeleri) - SharedPreferences DEĞİL,
   // sunucuda hesaba bağlı olarak saklanır (bkz. AuthService.updateProfile).
-  // Misafir kullanıcılarda hiç hesap olmadığı için bu anahtarlar devre dışı.
+  // Oturum yokken hesap ayarları devre dışıdır.
   bool _hideOnlineStatus = false;
   bool _hideLastSeen = false;
   bool _readReceiptsEnabled = true;
@@ -87,14 +95,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    AuthService().sessionState.addListener(_syncPrivacyFromSession);
     _loadPrefs();
     _loadAppVersion();
   }
 
   @override
   void dispose() {
+    AuthService().sessionState.removeListener(_syncPrivacyFromSession);
     _countryFilterController.dispose();
     super.dispose();
+  }
+
+  AppUser? get _sessionUser => AuthService().sessionState.value.user;
+
+  bool get _isLoggedIn => AuthService().sessionState.value.isAuthenticated;
+
+  void _syncPrivacyFromSession() {
+    if (!mounted) return;
+    final user = _sessionUser;
+    final nextHideOnline = user?.hideOnlineStatus ?? false;
+    final nextHideLastSeen = user?.hideLastSeen ?? false;
+    final nextReadReceipts = user?.readReceiptsEnabled ?? true;
+    final nextDiscoverInvisible = user?.discoverInvisible ?? false;
+    final changed = _hideOnlineStatus != nextHideOnline ||
+        _hideLastSeen != nextHideLastSeen ||
+        _readReceiptsEnabled != nextReadReceipts ||
+        _discoverInvisible != nextDiscoverInvisible;
+    if (!changed && user != null) return;
+    setState(() {
+      _hideOnlineStatus = nextHideOnline;
+      _hideLastSeen = nextHideLastSeen;
+      _readReceiptsEnabled = nextReadReceipts;
+      _discoverInvisible = nextDiscoverInvisible;
+    });
   }
 
   Future<void> _loadAppVersion() async {
@@ -110,29 +144,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
+    final results = await Future.wait<Object>([
+      _notificationPreferences.loadEnabled(),
+      _matchPreferences.load(),
+    ]);
+    final notificationsEnabled = results[0] as bool;
+    final match = results[1] as MatchPreferences;
     if (!mounted) return;
-    final minAge = prefs.getInt(matchMinAgePrefKey);
-    final maxAge = prefs.getInt(matchMaxAgePrefKey);
     setState(() {
-      _notifications = prefs.getBool(_notificationsPrefKey) ?? true;
-      _genderFilter = prefs.getString(matchGenderFilterPrefKey) ?? 'herkes';
-      _ageRangeEnabled = minAge != null || maxAge != null;
+      _notifications = notificationsEnabled;
+      _genderFilter = match.genderFilter;
+      _ageRangeEnabled = match.ageRangeEnabled;
       _ageRange = RangeValues(
-        (minAge ?? 18).toDouble(),
-        (maxAge ?? 60).toDouble(),
+        (match.minAge ?? 18).toDouble(),
+        (match.maxAge ?? 60).toDouble(),
       );
-      _onlyVerified = prefs.getBool(matchOnlyVerifiedPrefKey) ?? false;
-      _countryFilterController.text =
-          prefs.getString(matchCountryFilterPrefKey) ?? '';
-      final maxDistanceKm = prefs.getInt(matchMaxDistanceKmPrefKey);
-      _proximityEnabled = maxDistanceKm != null;
-      _maxDistanceKm = (maxDistanceKm ?? 100).toDouble();
-      _textOnlyMode = prefs.getBool(matchTextOnlyPrefKey) ?? false;
-      _speedRoundMode = prefs.getBool(matchSpeedRoundPrefKey) ?? false;
-      _requireCommonInterest =
-          prefs.getBool(matchRequireCommonInterestPrefKey) ?? false;
-      final user = AuthService().currentUser;
+      _onlyVerified = match.onlyVerified;
+      _countryFilterController.text = match.countryFilter;
+      _proximityEnabled = match.proximityEnabled;
+      _maxDistanceKm = (match.maxDistanceKm ?? 100).toDouble();
+      _textOnlyMode = match.textOnly;
+      _speedRoundMode = match.speedRound;
+      _requireCommonInterest = match.requireCommonInterest;
+      final user = _sessionUser;
       if (user != null) {
         _hideOnlineStatus = user.hideOnlineStatus;
         _hideLastSeen = user.hideLastSeen;
@@ -143,32 +177,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  Future<void> _setHideOnlineStatus(bool value) async {
-    setState(() => _hideOnlineStatus = value);
-    await _savePrivacyField(hideOnlineStatus: value);
-  }
+  Future<void> _setHideOnlineStatus(bool value) => _savePrivacyField(
+        optimisticUpdate: () => _hideOnlineStatus = value,
+        rollback: () => _hideOnlineStatus = !value,
+        hideOnlineStatus: value,
+      );
 
-  Future<void> _setHideLastSeen(bool value) async {
-    setState(() => _hideLastSeen = value);
-    await _savePrivacyField(hideLastSeen: value);
-  }
+  Future<void> _setHideLastSeen(bool value) => _savePrivacyField(
+        optimisticUpdate: () => _hideLastSeen = value,
+        rollback: () => _hideLastSeen = !value,
+        hideLastSeen: value,
+      );
 
-  Future<void> _setReadReceiptsEnabled(bool value) async {
-    setState(() => _readReceiptsEnabled = value);
-    await _savePrivacyField(readReceiptsEnabled: value);
-  }
+  Future<void> _setReadReceiptsEnabled(bool value) => _savePrivacyField(
+        optimisticUpdate: () => _readReceiptsEnabled = value,
+        rollback: () => _readReceiptsEnabled = !value,
+        readReceiptsEnabled: value,
+      );
 
-  Future<void> _setDiscoverInvisible(bool value) async {
-    setState(() => _discoverInvisible = value);
-    await _savePrivacyField(discoverInvisible: value);
-  }
+  Future<void> _setDiscoverInvisible(bool value) => _savePrivacyField(
+        optimisticUpdate: () => _discoverInvisible = value,
+        rollback: () => _discoverInvisible = !value,
+        discoverInvisible: value,
+      );
 
-  Future<void> _savePrivacyField(
-      {bool? hideOnlineStatus,
-      bool? hideLastSeen,
-      bool? readReceiptsEnabled,
-      bool? discoverInvisible}) async {
-    setState(() => _savingPrivacy = true);
+  Future<void> _savePrivacyField({
+    required VoidCallback optimisticUpdate,
+    required VoidCallback rollback,
+    bool? hideOnlineStatus,
+    bool? hideLastSeen,
+    bool? readReceiptsEnabled,
+    bool? discoverInvisible,
+  }) async {
+    if (_savingPrivacy || !_isLoggedIn) return;
+
+    setState(() {
+      optimisticUpdate();
+      _savingPrivacy = true;
+    });
+
     try {
       await AuthService().updateProfile(
         hideOnlineStatus: hideOnlineStatus,
@@ -177,112 +224,191 @@ class _SettingsScreenState extends State<SettingsScreen> {
         discoverInvisible: discoverInvisible,
       );
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ayar kaydedilemedi, tekrar dene.')),
-        );
-      }
+      if (!mounted) return;
+      setState(rollback);
+      showSessionSnackBar(
+        context,
+        const SnackBar(
+            content: Text('Ayar kaydedilemedi; değişiklik geri alındı.')),
+        priority: SessionFeedbackPriority.high,
+      );
     } finally {
       if (mounted) setState(() => _savingPrivacy = false);
     }
   }
 
   Future<void> _setNotifications(bool value) async {
-    setState(() => _notifications = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_notificationsPrefKey, value);
-  }
-
-  Future<void> _setGenderFilter(String? value) async {
-    if (value == null) return;
-    setState(() => _genderFilter = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(matchGenderFilterPrefKey, value);
-  }
-
-  Future<void> _setOnlyVerified(bool value) async {
-    setState(() => _onlyVerified = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(matchOnlyVerifiedPrefKey, value);
-  }
-
-  Future<void> _setAgeRangeEnabled(bool value) async {
-    setState(() => _ageRangeEnabled = value);
-    final prefs = await SharedPreferences.getInstance();
-    if (value) {
-      await prefs.setInt(matchMinAgePrefKey, _ageRange.start.round());
-      await prefs.setInt(matchMaxAgePrefKey, _ageRange.end.round());
-    } else {
-      await prefs.remove(matchMinAgePrefKey);
-      await prefs.remove(matchMaxAgePrefKey);
+    if (_savingNotifications || value == _notifications) return;
+    final previous = _notifications;
+    setState(() {
+      _notifications = value;
+      _savingNotifications = true;
+    });
+    try {
+      await PushNotificationService().setEnabled(value);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _notifications = previous);
+      showSessionSnackBar(
+        context,
+        const SnackBar(
+          content: Text(
+            'Bildirim tercihi kaydedilemedi; değişiklik geri alındı.',
+          ),
+        ),
+        priority: SessionFeedbackPriority.high,
+      );
+    } finally {
+      if (mounted) setState(() => _savingNotifications = false);
     }
   }
 
+  Future<void> _setGenderFilter(String? value) async {
+    if (value == null || value == _genderFilter) return;
+    final previous = _genderFilter;
+    setState(() => _genderFilter = value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setGenderFilter(value),
+      rollback: () => _genderFilter = previous,
+    );
+  }
+
+  Future<void> _setOnlyVerified(bool value) async {
+    final previous = _onlyVerified;
+    setState(() => _onlyVerified = value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setOnlyVerified(value),
+      rollback: () => _onlyVerified = previous,
+    );
+  }
+
+  Future<void> _setAgeRangeEnabled(bool value) async {
+    final previous = _ageRangeEnabled;
+    setState(() => _ageRangeEnabled = value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setAgeRange(
+        enabled: value,
+        min: _ageRange.start.round(),
+        max: _ageRange.end.round(),
+      ),
+      rollback: () => _ageRangeEnabled = previous,
+    );
+  }
+
   Future<void> _setAgeRange(RangeValues values) async {
+    final previous = _ageRange;
     setState(() => _ageRange = values);
     if (!_ageRangeEnabled) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(matchMinAgePrefKey, values.start.round());
-    await prefs.setInt(matchMaxAgePrefKey, values.end.round());
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setAgeRange(
+        enabled: true,
+        min: values.start.round(),
+        max: values.end.round(),
+      ),
+      rollback: () => _ageRange = previous,
+    );
   }
 
   Future<void> _setCountryFilter(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      await prefs.remove(matchCountryFilterPrefKey);
-    } else {
-      await prefs.setString(matchCountryFilterPrefKey, trimmed);
+    try {
+      await _matchPreferences.setCountryFilter(value);
+    } catch (_) {
+      if (!mounted) return;
+      final persisted = await _matchPreferences.load();
+      if (!mounted) return;
+      _countryFilterController.text = persisted.countryFilter;
+      _showMatchPreferenceSaveError();
     }
   }
 
   Future<void> _setProximityEnabled(bool value) async {
+    final previous = _proximityEnabled;
     setState(() => _proximityEnabled = value);
-    final prefs = await SharedPreferences.getInstance();
-    if (value) {
-      await prefs.setInt(matchMaxDistanceKmPrefKey, _maxDistanceKm.round());
-    } else {
-      await prefs.remove(matchMaxDistanceKmPrefKey);
-    }
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setProximity(
+        enabled: value,
+        maxDistanceKm: _maxDistanceKm.round(),
+      ),
+      rollback: () => _proximityEnabled = previous,
+    );
   }
 
   Future<void> _setMaxDistanceKm(double value) async {
+    final previous = _maxDistanceKm;
     setState(() => _maxDistanceKm = value);
     if (!_proximityEnabled) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(matchMaxDistanceKmPrefKey, value.round());
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setProximity(
+        enabled: true,
+        maxDistanceKm: value.round(),
+      ),
+      rollback: () => _maxDistanceKm = previous,
+    );
   }
 
   Future<void> _setTextOnlyMode(bool value) async {
+    final previous = _textOnlyMode;
     setState(() => _textOnlyMode = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(matchTextOnlyPrefKey, value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setTextOnly(value),
+      rollback: () => _textOnlyMode = previous,
+    );
   }
 
   Future<void> _setSpeedRoundMode(bool value) async {
+    final previous = _speedRoundMode;
     setState(() => _speedRoundMode = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(matchSpeedRoundPrefKey, value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setSpeedRound(value),
+      rollback: () => _speedRoundMode = previous,
+    );
   }
 
   Future<void> _setRequireCommonInterest(bool value) async {
+    final previous = _requireCommonInterest;
     setState(() => _requireCommonInterest = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(matchRequireCommonInterestPrefKey, value);
+    await _saveMatchPreference(
+      save: () => _matchPreferences.setRequireCommonInterest(value),
+      rollback: () => _requireCommonInterest = previous,
+    );
+  }
+
+  Future<void> _saveMatchPreference({
+    required Future<void> Function() save,
+    required VoidCallback rollback,
+  }) async {
+    try {
+      await save();
+    } catch (_) {
+      if (!mounted) return;
+      setState(rollback);
+      _showMatchPreferenceSaveError();
+    }
+  }
+
+  void _showMatchPreferenceSaveError() {
+    showSessionSnackBar(
+      context,
+      const SnackBar(
+        content: Text('Eşleşme tercihi kaydedilemedi; değişiklik geri alındı.'),
+      ),
+      priority: SessionFeedbackPriority.high,
+    );
   }
 
   Future<void> _handleDeleteAccountTap() async {
     final authService = AuthService();
 
     if (!authService.isLoggedIn) {
-      showDialog<void>(
+      showSessionDialog<void>(
+        deduplicationKey: 'settings_screen.dialog.1',
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: AppColors.surfaceElevated,
           title: Text('Silinecek hesap yok',
               style: TextStyle(color: AppColors.textPrimary)),
           content: Text(
-            'Şu an misafir olarak geziniyorsun, silinecek bir hesabın yok.',
+            'Hesap işlemleri için yeniden giriş yapman gerekiyor.',
             style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
@@ -296,7 +422,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showSessionDialog<bool>(
+      deduplicationKey: 'settings_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -324,28 +451,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _deletingAccount = true);
+    showSessionEndProgressDialog(context);
     try {
       await authService.deleteAccount();
-      // Mesajlaşma/arama sinyal bağlantıları artık uygulama boyunca kalıcı
-      // (bkz. messaging_service.dart, call_service.dart) - hesap silinirken
-      // de gerçekten kapatmamız gerekiyor, bkz. profile_screen.dart _logout().
-      MessagingService().disconnectSocket();
-      CallService().disconnectSocket();
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
+      closeSessionEndProgressDialog(context);
+      await SessionNavigationCoordinator().resetToLogin();
     } on AuthException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        closeSessionEndProgressDialog(context);
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        closeSessionEndProgressDialog(context);
+        showSessionSnackBar(
+          context,
           const SnackBar(
               content: Text('Beklenmeyen bir hata oluştu, tekrar dene.')),
+          priority: SessionFeedbackPriority.high,
         );
       }
     } finally {
@@ -498,7 +626,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Çevrimiçi durumumu gizle',
                     subtitle: 'Arkadaşların çevrimiçi olduğunu göremez',
                     value: _hideOnlineStatus,
-                    onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                    onChanged: _isLoggedIn && !_savingPrivacy
                         ? _setHideOnlineStatus
                         : null,
                   ),
@@ -507,7 +635,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle:
                         'Arkadaşların son ne zaman çevrimiçi olduğunu göremez',
                     value: _hideLastSeen,
-                    onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                    onChanged: _isLoggedIn && !_savingPrivacy
                         ? _setHideLastSeen
                         : null,
                   ),
@@ -516,7 +644,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     subtitle:
                         'Kapatırsan mesajlarını okuduğun karşı tarafa gösterilmez',
                     value: _readReceiptsEnabled,
-                    onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                    onChanged: _isLoggedIn && !_savingPrivacy
                         ? _setReadReceiptsEnabled
                         : null,
                   ),
@@ -526,7 +654,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         'Açarsan başkalarının Keşfet akışında hiç görünmezsin '
                         '(sen yine de başkalarını görüp beğenebilirsin)',
                     value: _discoverInvisible,
-                    onChanged: AuthService().isLoggedIn && !_savingPrivacy
+                    onChanged: _isLoggedIn && !_savingPrivacy
                         ? _setDiscoverInvisible
                         : null,
                   ),
@@ -534,7 +662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _sectionTitle('Güvenlik ve destek'),
                   InkWell(
                     borderRadius: BorderRadius.circular(AppRadius.md),
-                    onTap: AuthService().isLoggedIn
+                    onTap: _isLoggedIn
                         ? () => Navigator.of(context).push(AppPageRoute(
                             builder: (_) => const TrustedContactsScreen()))
                         : null,
@@ -661,10 +789,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     title: 'Anlık bildirimler',
                     subtitle: 'Yeni mesaj ve eşleşme bildirimleri al',
                     value: _notifications,
-                    onChanged: _setNotifications,
+                    onChanged: _savingNotifications ? null : _setNotifications,
                   ),
                   const SizedBox(height: 24),
                   _sectionTitle('Uygulama ve hesap'),
+                  _navTile(
+                    icon: Icons.gavel_outlined,
+                    title: 'Kullanım Koşulları',
+                    onTap: () => _openUrl(termsUrl),
+                  ),
                   _navTile(
                     icon: Icons.description_outlined,
                     title: 'Topluluk Kuralları',
@@ -680,6 +813,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: 'Uygulama Hakkında',
                       subtitle:
                           _appVersion.isEmpty ? null : 'Sürüm $_appVersion'),
+                  if (kDebugMode)
+                    _navTile(
+                      icon: Icons.monitor_heart_outlined,
+                      title: 'Feedback Tanılama',
+                      subtitle: 'Aksiyon hata ve timeout sayaçları',
+                      onTap: () => Navigator.of(context).push(
+                        AppPageRoute(
+                          builder: (_) => const FeedbackDiagnosticsScreen(),
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   Center(
                     child: TextButton(
@@ -955,8 +1099,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final uri = Uri.parse(url);
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      showSessionSnackBar(
+        context,
         const SnackBar(content: Text('Sayfa açılamadı, tekrar dene.')),
+        priority: SessionFeedbackPriority.high,
       );
     }
   }

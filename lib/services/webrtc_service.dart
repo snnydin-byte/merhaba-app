@@ -3,25 +3,11 @@ import 'dart:convert';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-// Ayarlar ekranındaki eşleşme tercihi anahtarları - burada tanımlıyoruz ki
-// hem settings_screen.dart (yazan taraf) hem de bu servis (okuyan taraf)
-// aynı sabitleri paylaşsın, anahtar isimleri iki yerde ayrı ayrı yazılıp
-// birbirinden kayması riski olmasın.
-const String matchGenderFilterPrefKey =
-    'match_gender_filter'; // 'herkes' | 'erkek' | 'kadın'
-const String matchMinAgePrefKey = 'match_min_age'; // int, yoksa yok
-const String matchMaxAgePrefKey = 'match_max_age'; // int, yoksa yok
-const String matchOnlyVerifiedPrefKey = 'match_only_verified'; // bool
-// Batch C eşleştirme motoru genişletmeleri.
-const String matchCountryFilterPrefKey = 'match_country_filter'; // String? ülke kodu
-const String matchMaxDistanceKmPrefKey = 'match_max_distance_km'; // int, yoksa yok
-const String matchTextOnlyPrefKey = 'match_text_only'; // bool
-const String matchSpeedRoundPrefKey = 'match_speed_round'; // bool
-// GECE_GELISTIRME madde 4 - ilgi alanı etiketiyle eşleştirme.
-const String matchRequireCommonInterestPrefKey = 'match_require_common_interest'; // bool
+import 'active_media_session_coordinator.dart';
+import 'match_preferences_repository.dart';
+import 'socket_client_options.dart';
 
 /// Sunucunun adresi.
 ///
@@ -34,17 +20,20 @@ const String matchRequireCommonInterestPrefKey = 'match_require_common_interest'
 /// bir sonraki istekte ~30-60 saniye gecikmeyle "uyanır" (bu normal, veri
 /// kaybı OLMAZ çünkü kalıcı veri Firestore'da). Bu yüzden ilk bağlanma bazen
 /// biraz uzun sürebilir.
-const String signalingServerUrl = 'https://merhaba-signaling.onrender.com';
+const String signalingServerUrl = String.fromEnvironment(
+  'SIGNALING_SERVER_URL',
+  defaultValue: 'https://merhaba-signaling.onrender.com',
+);
 
 typedef OnRemoteStream = void Function(MediaStream stream);
 typedef OnLocalStream = void Function(MediaStream stream);
 typedef OnStatusChange = void Function(String status);
 
 /// Yeni bir eşleşme bulunduğunda tetiklenir. [partnerHasAccount], karşı
-/// tarafın gerçek bir hesabı olup olmadığını (misafir değil) bildirir -
+/// tarafın geçerli bir hesabı olup olmadığını bildirir -
 /// "Arkadaş Ekle" butonunu yalnızca bu true iken göstermek için kullanılır.
 /// [partnerDisplayName], karşı tarafın hesabı varsa adı - yoksa null
-/// (misafirlerin adı olmaz). [partnerVerified], karşı tarafın hesabı en az
+/// (eski eksik kayıtlarda ad olmayabilir). [partnerVerified], karşı tarafın hesabı en az
 /// 7 günlük olup olmadığını (basit "onaylı hesap" rozeti) bildirir.
 /// [partnerVoiceOnly], karşı tarafın "sesli-yalnız mod"da olup olmadığını
 /// (kamerası hiç yok/kapalı) bildirir - true ise ekran, hiç gelmeyecek bir
@@ -71,39 +60,53 @@ typedef OnFriendRequestResult = void Function(
     bool accepted, String? displayName);
 
 class WebRTCService {
+  io.Socket? _socket;
+  RTCPeerConnection? _peerConnection;
+  MediaStream? _localStream;
+  MediaStream? _remoteStream;
+  String? _partnerId;
+  bool _disposed = false;
+  bool _handlingOffer = false;
+  bool _handlingAnswer = false;
+  int _matchGeneration = 0;
+
+  OnRemoteStream? onRemoteStream;
+  OnLocalStream? onLocalStream;
+  OnStatusChange? onStatusChange;
+  OnMatchInfo? onMatchInfo;
+  OnFriendRequestReceived? onFriendRequestReceived;
+  OnFriendRequestResult? onFriendRequestResult;
+  void Function()? onPartnerLeft;
+  void Function(String message)? onChatMessage;
+  void Function(String emoji)? onReaction;
+  void Function(String message)? onFriendRequestError;
+  void Function(String reportId)? onReportSent;
+  void Function(String message)? onReportError;
+  void Function(String message)? onAccountRestricted;
+
+  Map<String, dynamic> _iceServers = {
+    'iceServers': [
+      {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
+    ],
+  };
+  Future<void>? _iceServersFuture;
+
+  bool _backgroundSuspended = false;
+  bool _resumeMic = false;
+  bool _resumeCamera = false;
+
   /// Ayarlar ekranında SharedPreferences'a kaydedilmiş eşleşme tercihlerini
   /// okuyup connectAndFindMatch()'in beklediği formatta döner. Hiçbir tercih
   /// kaydedilmemişse (ilk kurulum, ya da kullanıcı hiç değiştirmediyse) boş
   /// bir map döner - bu da sunucu tarafında "filtresiz eşleştirme" anlamına
   /// gelir.
   static Future<Map<String, dynamic>> loadMatchPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final result = <String, dynamic>{};
-    final gender = prefs.getString(matchGenderFilterPrefKey);
-    if (gender != null && gender != 'herkes') result['genderFilter'] = gender;
-    final minAge = prefs.getInt(matchMinAgePrefKey);
-    if (minAge != null) result['minAge'] = minAge;
-    final maxAge = prefs.getInt(matchMaxAgePrefKey);
-    if (maxAge != null) result['maxAge'] = maxAge;
-    final onlyVerified = prefs.getBool(matchOnlyVerifiedPrefKey);
-    if (onlyVerified == true) result['onlyVerified'] = true;
-    final country = prefs.getString(matchCountryFilterPrefKey);
-    if (country != null && country.isNotEmpty) result['countryFilter'] = country;
-    final textOnly = prefs.getBool(matchTextOnlyPrefKey);
-    if (textOnly == true) result['textOnly'] = true;
-    final speedRound = prefs.getBool(matchSpeedRoundPrefKey);
-    if (speedRound == true) result['speedRound'] = true;
-    final requireCommonInterest = prefs.getBool(matchRequireCommonInterestPrefKey);
-    if (requireCommonInterest == true) result['requireCommonInterest'] = true;
+    final preferences = await MatchPreferencesRepository().load();
+    final result = preferences.toServerMap();
 
-    // Yakınlık bazlı eşleştirme (Batch C) - konum sunucuya HER SEFERİNDE
-    // canlı olarak gönderilir (bkz. server.js passesProximityFilter), asla
-    // profile kaydedilmez. Konum alınamazsa (izin yok/GPS kapalı/zaman
-    // aşımı) maxDistanceKm'i SESSİZCE atlıyoruz - sunucu myLat/myLng
-    // olmadan zaten bu filtreyi uygulayamıyor, kullanıcıyı burada bir
-    // hatayla durdurmanın (bu metot bir BuildContext'e sahip değil) bir
-    // faydası yok, filtresiz eşleştirmeye devam etmesi daha iyi.
-    final maxDistanceKm = prefs.getInt(matchMaxDistanceKmPrefKey);
+    // Konum yalnızca eşleşme başlatılırken okunur; kalıcı profile yazılmaz.
+    final maxDistanceKm = preferences.maxDistanceKm;
     if (maxDistanceKm != null) {
       try {
         var permission = await Geolocator.checkPermission();
@@ -114,86 +117,19 @@ class WebRTCService {
             permission != LocationPermission.deniedForever;
         if (hasPermission && await Geolocator.isLocationServiceEnabled()) {
           final position = await Geolocator.getCurrentPosition(
-            locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+            locationSettings:
+                const LocationSettings(accuracy: LocationAccuracy.low),
           ).timeout(const Duration(seconds: 10));
           result['maxDistanceKm'] = maxDistanceKm;
           result['myLat'] = position.latitude;
           result['myLng'] = position.longitude;
         }
       } catch (_) {
-        // Konum alınamadı - maxDistanceKm hiç eklenmedi, filtresiz devam.
+        // Konum alınamazsa diğer tercihlerle eşleşmeye devam edilir.
       }
     }
     return result;
   }
-
-  io.Socket? _socket;
-  RTCPeerConnection? _peerConnection;
-  MediaStream? _localStream;
-  MediaStream? _remoteStream;
-
-  String? _partnerId;
-
-  // _handleOffer() içinde eşzamanlı/art arda 'offer' sinyalleri gelirse
-  // createAnswer()'ın peer connection "have-remote-offer"da değilken
-  // çağrılmasını (WEBRTC_CREATE_ANSWER_ERROR: "cannot create an answer in
-  // a state other than have-remote-offer or have-local-pranswer" - canlı
-  // olarak gözlemlenen çökme) engellemek için bir yeniden-girebilirlik
-  // (reentrancy) kilidi - bkz. _handleOffer().
-  bool _handlingOffer = false;
-
-  // _handleAnswer() için AYNI GEREKÇEYLE bir kilit - canlı testte gözlemlenen
-  // WEBRTC_SET_REMOTE_DESCRIPTION_ERROR ("Called in wrong state: stable")
-  // çökmesi bunun eksikliğinden kaynaklanıyordu, bkz. _handleAnswer().
-  bool _handlingAnswer = false;
-
-  // 'matched' event'i, kullanıcı art arda hızlı eşleştirilirse (ör. iki
-  // taraf da neredeyse aynı anda "sıradaki kişi"ye basıp hemen yeniden
-  // eşleştirildiğinde) kısa aralıklarla birden fazla kez gelebilir. Her
-  // gelişte bu sayaç artırılır - bir 'matched' işleyicisi kendi await'leri
-  // sırasında (ör. _createPeerConnection() TURN bilgisini beklerken) DAHA
-  // YENİ bir 'matched' event'i tarafından geçersiz kılınırsa, kendi
-  // sayacının artık güncel olmadığını görüp durur - aksi halde iki farklı
-  // eşleşmenin sinyalleri (offer/answer) karışıp WebRTC'nin "Called in
-  // wrong state" hatasını fırlatmasına yol açıyordu.
-  int _matchGeneration = 0;
-
-  // getUserMedia() izin diyaloğu kullanıcı yanıt verene kadar uzun sürebilir.
-  // Bu sırada ekran kapanıp dispose() çağrılırsa, izin sonunda gelince artık
-  // var olmayan bir ekran için kamera/mikrofon akışını açık bırakmamak
-  // (kaynak sızıntısı) için bu bayrağı kontrol ediyoruz.
-  bool _disposed = false;
-
-  OnRemoteStream? onRemoteStream;
-  OnLocalStream? onLocalStream;
-  OnStatusChange? onStatusChange;
-  void Function(String text)? onChatMessage;
-  void Function(String emoji)? onReaction;
-  void Function()? onPartnerLeft;
-  OnMatchInfo? onMatchInfo;
-  OnFriendRequestReceived? onFriendRequestReceived;
-  OnFriendRequestResult? onFriendRequestResult;
-  void Function(String message)? onFriendRequestError;
-  void Function(String reportId)? onReportSent;
-  void Function(String message)? onReportError;
-  void Function(String message)? onAccountRestricted;
-
-  // Varsayılan (yalnızca STUN) liste - sunucudan TURN bilgisi alınamazsa
-  // (ör. sunucuda TURN yapılandırılmamışsa ya da /turn-credentials isteği
-  // zaman aşımına uğrarsa) bu listeyle devam ediyoruz, böylece aynı Wi-Fi
-  // gibi STUN'un yeterli olduğu durumlarda hiçbir şey bozulmuyor.
-  Map<String, dynamic> _iceServers = {
-    'iceServers': [
-      {'urls': 'stun:stun.l.google.com:19302'},
-      {'urls': 'stun:stun1.l.google.com:19302'},
-    ]
-  };
-
-  // connectAndFindMatch() çağrıldığında arka planda başlatılır - eşleşme
-  // bulunup peer connection kurulana kadar genelde tamamlanmış olur, bu
-  // yüzden gerçek bağlantı kurulumunu geciktirmez. Sunucudan güncel TURN
-  // sunucu bilgisini (varsa) çeker - bkz. _refreshIceServers().
-  Future<void>? _iceServersFuture;
 
   /// Sunucunun /turn-credentials ucundan güncel ICE sunucu listesini çeker.
   /// Sunucuda TURN yapılandırılmamışsa, sunucu zaten yalnızca STUN listesi
@@ -201,11 +137,12 @@ class WebRTCService {
   /// ulaşılamıyor, zaman aşımı vb.) varsayılan STUN listesiyle sessizce
   /// devam ediyoruz - bu, TURN'ün "iyileştirme" olduğu, olmazsa olmaz
   /// olmadığı anlamına gelir.
-  Future<void> _refreshIceServers() async {
+  Future<void> _refreshIceServers(String authToken) async {
     try {
-      final response = await http
-          .get(Uri.parse('$signalingServerUrl/turn-credentials'))
-          .timeout(const Duration(seconds: 20));
+      final response = await http.get(
+        Uri.parse('$signalingServerUrl/turn-credentials'),
+        headers: {'Authorization': 'Bearer $authToken'},
+      ).timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) return;
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final servers = data['iceServers'] as List<dynamic>?;
@@ -266,6 +203,13 @@ class WebRTCService {
   /// sorunu) önceki çalışan akış kaybolmaz.
   Future<void> initLocalMedia(
       {required OnLocalStream onLocal, bool audioOnly = false}) async {
+    _disposed = false;
+    ActiveMediaSessionCoordinator().register(
+      this,
+      dispose,
+      suspend: suspendMediaForBackground,
+      resume: resumeMediaAfterBackground,
+    );
     onLocalStream = onLocal;
     final mediaConstraints = {
       'audio': true,
@@ -299,17 +243,28 @@ class WebRTCService {
   // filtre tüm oturum boyunca geçerli kalsın.
   Map<String, dynamic>? _matchPreferences;
 
-  /// [authToken] verilirse (giriş yapmış kullanıcı), sunucuya bağlanırken
-  /// kimlik doğrulaması için gönderilir - böylece sunucu bu socket'in
-  /// arkasında gerçek bir hesap olduğunu bilir ve arkadaşlık isteklerine
-  /// izin verir. Misafir kullanıcılar için null geçilebilir; video sohbetin
-  /// temel özellikleri hesap gerektirmez.
+  /// [authToken] zorunludur. Sunucu v108 itibarıyla yalnızca giriş yapmış
+  /// ve doğum tarihiyle 18+ doğrulamasını tamamlamış hesapların random-match
+  /// socket bağlantısını kabul eder.
   ///
   /// [matchPreferences] Ayarlar ekranından gelen eşleşme tercihleri
   /// (`genderFilter`, `minAge`, `maxAge`, `onlyVerified`) - verilmezse
   /// sunucu varsayılan (filtresiz) eşleştirme yapar.
   void connectAndFindMatch(
       {String? authToken, Map<String, dynamic>? matchPreferences}) {
+    if (authToken == null || authToken.isEmpty) {
+      onStatusChange?.call(
+        'Rastgele eşleşme için giriş yapmış ve 18+ doğrulamasını tamamlamış olmalısın.',
+      );
+      return;
+    }
+    _disposed = false;
+    ActiveMediaSessionCoordinator().register(
+      this,
+      dispose,
+      suspend: suspendMediaForBackground,
+      resume: resumeMediaAfterBackground,
+    );
     // ÖNCEDEN burada, önceki bir _socket varsa (ör. pre_call_screen.dart'ta
     // izin reddedilip kullanıcı izni sonradan verip _retry() akışını
     // tekrar tetiklediğinde - bu servis aynı ekranda ikinci kez
@@ -333,19 +288,21 @@ class WebRTCService {
     // Soket bağlantısıyla PARALEL olarak TURN bilgisini almaya başlıyoruz -
     // eşleşme genelde bundan daha uzun sürdüğü için _createPeerConnection()
     // çağrıldığında bu iş çoktan bitmiş olur.
-    _iceServersFuture = _refreshIceServers();
-    final optionBuilder = io.OptionBuilder()
-        .setTransports(['websocket'])
-        .disableAutoConnect()
-        .enableForceNew();
-    if (authToken != null) {
-      optionBuilder.setAuth({'token': authToken});
-    }
-    _socket = io.io(signalingServerUrl, optionBuilder.build());
+    _iceServersFuture = _refreshIceServers(authToken);
+    _socket = io.io(
+      signalingServerUrl,
+      buildSocketClientOptions(authToken: authToken),
+    );
 
     _socket!.onConnect((_) {
-      onStatusChange?.call('Bağlandı, eşleşme aranıyor...');
-      _socket!.emit('find-match', _matchPreferences);
+      final partnerId = _partnerId;
+      if (partnerId != null) {
+        onStatusChange?.call('Bağlantı geri yükleniyor...');
+        _socket!.emit('match-resume', {'partnerId': partnerId});
+      } else {
+        onStatusChange?.call('Bağlandı, eşleşme aranıyor...');
+        _socket!.emit('find-match', _matchPreferences);
+      }
     });
 
     _socket!.onConnectError((err) {
@@ -473,7 +430,7 @@ class WebRTCService {
     });
 
     // Arkadaşlık isteği gönderilemedi (ör. giriş yapılmamış, karşı taraf
-    // misafir, zaten arkadaşsınız).
+    // oturum geçersiz, zaten arkadaşsınız).
     _socket!.on('friend-request-error', (data) {
       try {
         final map = Map<String, dynamic>.from(data as Map);
@@ -634,8 +591,10 @@ class WebRTCService {
       // createAnswer() yalnızca have-remote-offer ya da have-local-pranswer
       // durumundayken geçerlidir - aksi halde tam da canlı test sırasında
       // gözlemlenen WEBRTC_CREATE_ANSWER_ERROR çökmesi oluşuyordu.
-      if (pc.signalingState != RTCSignalingState.RTCSignalingStateHaveRemoteOffer &&
-          pc.signalingState != RTCSignalingState.RTCSignalingStateHaveLocalPrAnswer) {
+      if (pc.signalingState !=
+              RTCSignalingState.RTCSignalingStateHaveRemoteOffer &&
+          pc.signalingState !=
+              RTCSignalingState.RTCSignalingStateHaveLocalPrAnswer) {
         return;
       }
       final answer = await pc.createAnswer();
@@ -720,6 +679,34 @@ class WebRTCService {
     _socket?.emit('report-user', {'reason': reason, 'note': note});
   }
 
+  Future<void> suspendMediaForBackground() async {
+    if (_backgroundSuspended) return;
+    final audio = _localStream?.getAudioTracks() ?? <MediaStreamTrack>[];
+    final video = _localStream?.getVideoTracks() ?? <MediaStreamTrack>[];
+    _resumeMic = audio.any((track) => track.enabled);
+    _resumeCamera = video.any((track) => track.enabled);
+    for (final track in audio) {
+      track.enabled = false;
+    }
+    for (final track in video) {
+      track.enabled = false;
+    }
+    _backgroundSuspended = true;
+  }
+
+  Future<void> resumeMediaAfterBackground() async {
+    if (!_backgroundSuspended || _disposed) return;
+    for (final track
+        in _localStream?.getAudioTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = _resumeMic;
+    }
+    for (final track
+        in _localStream?.getVideoTracks() ?? <MediaStreamTrack>[]) {
+      track.enabled = _resumeCamera;
+    }
+    _backgroundSuspended = false;
+  }
+
   void sendChatMessage(String text) {
     _socket?.emit('chat-message', {'text': text});
   }
@@ -732,12 +719,14 @@ class WebRTCService {
   }
 
   void toggleMic(bool enabled) {
+    _resumeMic = enabled;
     _localStream?.getAudioTracks().forEach((track) {
       track.enabled = enabled;
     });
   }
 
   void toggleCamera(bool enabled) {
+    _resumeCamera = enabled;
     _localStream?.getVideoTracks().forEach((track) {
       track.enabled = enabled;
     });
@@ -765,6 +754,8 @@ class WebRTCService {
   }
 
   void dispose() {
+    _backgroundSuspended = false;
+    ActiveMediaSessionCoordinator().unregister(this);
     _disposed = true;
     _cleanupPeerConnection();
     _localStream?.getTracks().forEach((track) => track.stop());

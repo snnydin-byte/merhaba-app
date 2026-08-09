@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/session_transient_ui.dart';
 
 /// Güvenilir kişiler + panik butonu + buluşma detayı paylaşma (Batch F).
 /// Noonlight gibi ÜÇÜNCÜ TARAF bir acil durum servisi YOK (backlog'daki
@@ -20,15 +21,57 @@ class TrustedContactsScreen extends StatefulWidget {
 }
 
 class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
-  final List<TrustedContact> _contacts =
-      List.of(AuthService().currentUser?.trustedContacts ?? const []);
+  final List<TrustedContact> _contacts = [];
+  String? _sessionUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncContactsFromSession(force: true);
+    AuthService().sessionState.addListener(_handleSessionChanged);
+  }
+
+  void _handleSessionChanged() => _syncContactsFromSession();
+
+  void _syncContactsFromSession({bool force = false}) {
+    final user = AuthService().sessionState.value.user;
+    if (!force && user?.id == _sessionUserId) {
+      final next = user?.trustedContacts ?? const <TrustedContact>[];
+      if (_sameContacts(_contacts, next)) return;
+    }
+    _sessionUserId = user?.id;
+    final next = List<TrustedContact>.of(
+      user?.trustedContacts ?? const <TrustedContact>[],
+    );
+    if (!mounted) {
+      _contacts
+        ..clear()
+        ..addAll(next);
+      return;
+    }
+    setState(() {
+      _contacts
+        ..clear()
+        ..addAll(next);
+    });
+  }
+
+  bool _sameContacts(List<TrustedContact> a, List<TrustedContact> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].name != b[i].name || a[i].phone != b[i].phone) return false;
+    }
+    return true;
+  }
+
   bool _saving = false;
   bool _locating = false;
 
   Future<void> _addContact() async {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
-    final added = await showDialog<bool>(
+    final added = await showSessionDialog<bool>(
+      deduplicationKey: 'trusted_contacts_screen.dialog.1',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -66,8 +109,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     if (name.isEmpty || phone.isEmpty) return;
     if (_contacts.length >= 5) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('En fazla 5 güvenilir kişi ekleyebilirsin.')));
+        showSessionSnackBar(
+          context,
+          const SnackBar(
+              content: Text('En fazla 5 güvenilir kişi ekleyebilirsin.')),
+          priority: SessionFeedbackPriority.normal,
+        );
       }
       return;
     }
@@ -85,9 +132,13 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     try {
       await AuthService().updateTrustedContacts(_contacts);
     } on AuthException catch (e) {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) {
+        showSessionSnackBar(
+          context,
+          SnackBar(content: Text(e.message)),
+          priority: SessionFeedbackPriority.normal,
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -121,8 +172,10 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       await launchUrl(uri);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           SnackBar(content: Text('${contact.name} aranamadı.')),
+          priority: SessionFeedbackPriority.normal,
         );
       }
     }
@@ -138,9 +191,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
       await launchUrl(uri);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        showSessionSnackBar(
+          context,
           SnackBar(
               content: Text('${contact.name} için SMS uygulaması açılamadı.')),
+          priority: SessionFeedbackPriority.high,
         );
       }
     }
@@ -152,8 +207,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
   /// gönderir) - `sms:` şeması güvenilir şekilde tek alıcı destekliyor.
   Future<void> _triggerPanic() async {
     if (_contacts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
+      showSessionSnackBar(
+        context,
+        const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')),
+        priority: SessionFeedbackPriority.normal,
+      );
       return;
     }
     final locationText = await _locationSnippet();
@@ -167,7 +225,8 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
 
   Future<void> _shareMeetingDetails() async {
     final controller = TextEditingController();
-    final details = await showDialog<String>(
+    final details = await showSessionDialog<String>(
+      deduplicationKey: 'trusted_contacts_screen.dialog.2',
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
@@ -193,8 +252,11 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     );
     if (details == null || details.isEmpty || !mounted) return;
     if (_contacts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')));
+      showSessionSnackBar(
+        context,
+        const SnackBar(content: Text('Önce en az bir güvenilir kişi ekle.')),
+        priority: SessionFeedbackPriority.normal,
+      );
       return;
     }
     final locationText = await _locationSnippet();
@@ -203,6 +265,12 @@ class _TrustedContactsScreenState extends State<TrustedContactsScreen> {
     for (final contact in _contacts) {
       await _sendToContact(contact, body);
     }
+  }
+
+  @override
+  void dispose() {
+    AuthService().sessionState.removeListener(_handleSessionChanged);
+    super.dispose();
   }
 
   @override
