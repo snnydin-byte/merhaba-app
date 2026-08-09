@@ -25,12 +25,23 @@ class _SplashScreenState extends State<SplashScreen> {
     final minSplashDuration =
         Future.delayed(const Duration(milliseconds: 1600));
 
-    // Cihazda saklı bir oturum varsa sunucudan doğrula (token süresi dolmuş
-    // olabilir). Sunucuya ulaşılamazsa cihazdaki oturumla devam edilir -
-    // bkz. AuthService.verifySession.
-    final hasStoredSession = await authService.restoreSession();
-    if (hasStoredSession) {
-      await authService.verifySession();
+    try {
+      // Platform storage veya ağ katmanı başlangıçta yanıt vermezse splash
+      // ekranını sonsuza kadar açık bırakma. Saklı oturum okunamazsa güvenli
+      // varsayım signed-out durumudur; kullanıcı login ekranından devam eder.
+      final hasStoredSession = await authService
+          .restoreSession()
+          .timeout(const Duration(seconds: 12));
+      if (hasStoredSession) {
+        await authService.verifySession().timeout(const Duration(seconds: 12));
+      }
+    } catch (error, stackTrace) {
+      debugPrint('Splash oturum başlangıcı tamamlanamadı: $error');
+      FlutterError.reportError(FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'splash session bootstrap',
+      ));
     }
 
     // Açılış animasyonunun en az 1600ms sürmesini garantiliyoruz ama bunu
