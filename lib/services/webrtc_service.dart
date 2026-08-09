@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -93,6 +94,7 @@ class WebRTCService {
     ],
   };
   Future<void>? _iceServersFuture;
+  Timer? _heartbeatTimer;
 
   bool _backgroundSuspended = false;
   bool _resumeMic = false;
@@ -276,6 +278,15 @@ class WebRTCService {
     // açabiliyordu. messaging_service.dart/call_service.dart'taki
     // connectIfNeeded() ile aynı desen: yeni soket kurmadan önce eskisini
     // düzgünce kapatıyoruz.
+    // Bu metot kullanıcı tarafından başlatılan YENİ bir aramadır (ilk arama
+    // veya "Tekrar Dene"). Önceki partner kimliği korunursa yeni socket
+    // onConnect içinde find-match yerine match-resume yollar ve süresi dolmuş
+    // peer connection'ın tek taraflı görüntüsünde kalır. Transport'un kendi
+    // otomatik reconnect'i bu metoda uğramadığı için aktif görüşme resume
+    // davranışı korunur.
+    _matchGeneration++;
+    _partnerId = null;
+    _cleanupPeerConnection();
     _socket?.disconnect();
     _socket?.dispose();
     // "Sesli-yalnız mod" seçiliyse (bkz. hasCamera/initLocalMedia notu) bunu
@@ -297,6 +308,14 @@ class WebRTCService {
     );
 
     _socket!.onConnect((_) {
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+        if (_socket?.connected == true) {
+          _socket?.emit('client-heartbeat', <String, dynamic>{
+            'sentAt': DateTime.now().millisecondsSinceEpoch,
+          });
+        }
+      });
       final partnerId = _partnerId;
       if (partnerId != null) {
         onStatusChange?.call('Bağlantı geri yükleniyor...');
@@ -308,6 +327,7 @@ class WebRTCService {
     });
 
     _socket!.onConnectError((err) {
+      if (kDebugMode) debugPrint('WebRTC socket connect_error: $err');
       onStatusChange?.call('Bağlantı hatası: sunucuya ulaşılamıyor.');
     });
 
@@ -780,6 +800,8 @@ class WebRTCService {
     _backgroundSuspended = false;
     ActiveMediaSessionCoordinator().unregister(this);
     _disposed = true;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _cleanupPeerConnection();
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream?.dispose();
