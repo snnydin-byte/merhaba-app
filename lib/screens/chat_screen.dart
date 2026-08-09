@@ -21,6 +21,12 @@ import '../utils/message_safety.dart';
 import 'friends_screen.dart';
 import '../utils/session_transient_ui.dart';
 
+// Ücretli Google Translation servisi yapılandırılmadan kullanıcıya kırık bir
+// eylem göstermeyiz. API anahtarı Render'a eklendiğinde release derlemesi
+// --dart-define=TRANSLATION_ENABLED=true ile açılabilir.
+const bool _translationEnabled =
+    bool.fromEnvironment('TRANSLATION_ENABLED', defaultValue: false);
+
 enum _ChatMode { persistent, disappearing }
 
 /// Bir tek "iyimser" (optimistic) mesaj öğesi - gönderilirken hemen listeye
@@ -1402,7 +1408,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 setState(() => _replyingTo = item);
               },
             ),
-            if (item.kind == 'text')
+            if (_translationEnabled && item.kind == 'text')
               ListTile(
                 leading: Icon(Icons.translate_rounded,
                     color: AppColors.textSecondary),
