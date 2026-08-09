@@ -4,11 +4,10 @@
 /// az kırılgandır.
 Map<String, dynamic> buildSocketClientOptions({String? authToken}) {
   return <String, dynamic>{
-    // Prefer WebSocket, but retain Engine.IO polling as a connection fallback.
-    // Mobile networks and reverse proxies can leave a WebSocket half-open;
-    // reconnect attempts must not be limited to a single transport forever.
-    'transports': <String>['websocket', 'polling'],
-    'upgrade': true,
+    // socket_io_client'ın Dart VM/Flutter uygulaması WebSocket transportuyla
+    // çalışır. Polling'i ikinci transport olarak eklemek Android'de bazı yeni
+    // Manager örneklerini "Sunucuya bağlanılıyor" durumunda bırakabiliyor.
+    'transports': <String>['websocket'],
     'autoConnect': false,
     'forceNew': true,
     'reconnection': true,

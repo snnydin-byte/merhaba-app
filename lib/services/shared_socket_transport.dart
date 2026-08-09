@@ -21,6 +21,7 @@ class SharedSocketTransport {
   bool _closedByOwner = false;
   String? _authToken;
   Timer? _reconnectTimer;
+  Timer? _heartbeatTimer;
   int _reconnectAttempt = 0;
 
   io.Socket? get socket => _socket;
@@ -44,6 +45,7 @@ class SharedSocketTransport {
       _reconnectAttempt = 0;
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
+      _startHeartbeat(created);
     });
     created.onDisconnect((reason) {
       if (!identical(_socket, created) || _closedByOwner) return;
@@ -56,6 +58,18 @@ class SharedSocketTransport {
     });
     _socket = created;
     return created;
+  }
+
+  void _startHeartbeat(io.Socket expectedSocket) {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (_closedByOwner || !identical(_socket, expectedSocket)) return;
+      if (expectedSocket.connected) {
+        expectedSocket.emit('client-heartbeat', <String, dynamic>{
+          'sentAt': DateTime.now().millisecondsSinceEpoch,
+        });
+      }
+    });
   }
 
   void _scheduleReconnect(io.Socket expectedSocket) {
@@ -119,6 +133,8 @@ class SharedSocketTransport {
     _authToken = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     _reconnectAttempt = 0;
     final current = _socket;
     _socket = null;
