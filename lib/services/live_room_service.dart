@@ -80,6 +80,7 @@ class LiveRoomService {
   String? _authToken;
   String? _createTitle;
   bool _retryAsHost = false;
+  bool _signalingSessionEstablished = false;
   late final ConnectionRetryAction _retryAction =
       CallbackConnectionRetryAction(_retryConnection);
   // Host'tan bağımsız, host'un sonradan atadığı bir yetki - bkz. server.js
@@ -162,11 +163,25 @@ class LiveRoomService {
     });
     _socket!.on('live-room-error', (data) {
       final map = socketEventMap(data);
+      if (map['code'] == 'LIVE_ROOM_ACCESS_LOST') {
+        onRoomEnded?.call();
+        return;
+      }
       onError
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
     _socket!.on('live-room-ended', (_) {
       onRoomEnded?.call();
+    });
+    _socket!.on('live-room-resumed', (data) {
+      final map = socketEventMap(data);
+      final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
+      _roomId = roomInfo['id'] as String?;
+      _hostUserId = roomInfo['hostUserId'] as String?;
+      _signalingSessionEstablished = true;
+      onStatusChange?.call(
+          _retryAsHost ? 'Canlı yayındasın.' : 'Canlı yayını izliyorsun.');
+      onUpdate?.call();
     });
     _socket!.on('live-room-viewer-count', (data) {
       final map = socketEventMap(data);
@@ -365,7 +380,11 @@ class LiveRoomService {
     onStatusChange?.call('Canlı oda oluşturuluyor...');
 
     _socket!.onConnect((_) {
-      _socket!.emit('live-room-create', {'title': title ?? ''});
+      if (_signalingSessionEstablished && _roomId != null) {
+        _socket!.emit('live-room-resume', {'roomId': _roomId});
+      } else {
+        _socket!.emit('live-room-create', {'title': title ?? ''});
+      }
     });
 
     _socket!.on('live-room-created', (data) async {
@@ -373,6 +392,7 @@ class LiveRoomService {
       final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
       _roomId = roomInfo['id'] as String?;
       _hostUserId = roomInfo['hostUserId'] as String?;
+      _signalingSessionEstablished = true;
       final token = map['token'] as String;
       final livekitUrl = map['livekitUrl'] as String;
       try {
@@ -415,13 +435,18 @@ class LiveRoomService {
     onStatusChange?.call('Canlı odaya katılınıyor...');
 
     _socket!.onConnect((_) {
-      _socket!.emit('live-room-join', {'roomId': roomId});
+      if (_signalingSessionEstablished) {
+        _socket!.emit('live-room-resume', {'roomId': roomId});
+      } else {
+        _socket!.emit('live-room-join', {'roomId': roomId});
+      }
     });
 
     _socket!.on('live-room-joined', (data) async {
       final map = socketEventMap(data);
       final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
       _hostUserId = roomInfo['hostUserId'] as String?;
+      _signalingSessionEstablished = true;
       final token = map['token'] as String;
       final livekitUrl = map['livekitUrl'] as String;
       try {
