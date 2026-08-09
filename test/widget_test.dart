@@ -31,7 +31,7 @@ void main() {
       // alıp bekleyen Timer'ın/Future zincirinin tamamlanmasına izin
       // veriyoruz; bu noktada ekran zaten değişmiş olabilir ama yukarıdaki
       // asıl assertion'lar ondan ÖNCE zaten çalıştı.
-      await tester.pump(const Duration(milliseconds: 1700));
+      await tester.pump(const Duration(seconds: 13));
     },
   );
 }

@@ -125,7 +125,7 @@ class AuthRepository {
       final response = await _apiClient.get(
         '/auth/me',
         token: token,
-        timeout: const Duration(seconds: 5),
+        timeout: const Duration(seconds: 10),
       );
       if (response.statusCode == 401 ||
           response.statusCode == 403 ||

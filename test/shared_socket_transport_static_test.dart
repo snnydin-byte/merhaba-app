@@ -15,6 +15,7 @@ void main() {
     expect(messaging, isNot(contains('io.io(')));
     expect(call, isNot(contains('io.io(')));
     expect(shared, contains('io.Socket? _socket'));
-    expect(shared, contains('return _socket = io.io('));
+    expect(shared, contains('final created = io.io('));
+    expect(shared, contains('_socket = created;'));
   });
 }

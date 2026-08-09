@@ -4,7 +4,11 @@
 /// az kırılgandır.
 Map<String, dynamic> buildSocketClientOptions({String? authToken}) {
   return <String, dynamic>{
-    'transports': <String>['websocket'],
+    // Prefer WebSocket, but retain Engine.IO polling as a connection fallback.
+    // Mobile networks and reverse proxies can leave a WebSocket half-open;
+    // reconnect attempts must not be limited to a single transport forever.
+    'transports': <String>['websocket', 'polling'],
+    'upgrade': true,
     'autoConnect': false,
     'forceNew': true,
     'reconnection': true,

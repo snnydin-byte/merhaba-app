@@ -8,7 +8,7 @@ void main() {
 
     expect(source, contains(".timeout(const Duration(seconds: 12))"));
     expect(source, contains('catch (error, stackTrace)'));
-    expect(source, contains("library: 'splash session bootstrap'"));
+    expect(source, contains('debugPrintStack(stackTrace: stackTrace)'));
     expect(source, contains('Navigator.of(context).pushReplacement'));
   });
 }
