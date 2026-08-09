@@ -12,7 +12,7 @@ import 'connection_error_classifier.dart';
 import 'orphan_media_cleanup_queue.dart';
 import 'session_expiration_coordinator.dart';
 import 'push_notification_service.dart';
-import 'socket_client_options.dart';
+import 'shared_socket_transport.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
 /// Kalıcı bir sohbet mesajı (sunucuda saklanır - bkz.
@@ -490,21 +490,25 @@ class MessagingService {
   /// splash_screen.dart VE login_screen.dart).
   void connectIfNeeded(String authToken) {
     if (_socket != null && (_socket!.connected || _connecting)) return;
+    if (_socket != null) {
+      _connecting = true;
+      AppConnectionController().updateMessaging(
+        SocketConnectionPhase.connecting,
+        message: 'Mesajlaşma sunucusuna bağlanılıyor…',
+      );
+      SharedSocketTransport().connect(authToken);
+      return;
+    }
     // Önceki bir bağlanma denemesi başarısız olup kalıcı olarak koptuysa
     // (ne bağlı ne de bağlanma sürecinde) burada eski socket'i bırakmadan
     // yenisini kurmuş oluruz - önce onu düzgünce kapatıyoruz.
-    _socket?.disconnect();
-    _socket?.dispose();
     _connecting = true;
     AppConnectionController().updateMessaging(
       SocketConnectionPhase.connecting,
       message: 'Mesajlaşma sunucusuna bağlanılıyor…',
     );
 
-    _socket = io.io(
-      signalingServerUrl,
-      buildSocketClientOptions(authToken: authToken),
-    );
+    _socket = SharedSocketTransport().socketFor(authToken);
 
     _socket!.onConnect((_) {
       _connecting = false;
@@ -544,14 +548,17 @@ class MessagingService {
       // ignore: avoid_print
       print('MessagingService bağlantı koptu, sebep: $reason');
       AppConnectionController().updateMessaging(
-        _suppressNextDisconnectNotice
+        _suppressNextDisconnectNotice ||
+                SharedSocketTransport().isPlannedReconnect
             ? SocketConnectionPhase.reconnecting
             : SocketConnectionPhase.disconnected,
-        message: _suppressNextDisconnectNotice
+        message: _suppressNextDisconnectNotice ||
+                SharedSocketTransport().isPlannedReconnect
             ? 'Mesajlaşma bağlantısı yenileniyor…'
             : 'Mesajlaşma bağlantısı kesildi.',
       );
-      if (_suppressNextDisconnectNotice) {
+      if (_suppressNextDisconnectNotice ||
+          SharedSocketTransport().isPlannedReconnect) {
         // Bu, reconnect()'in KENDİ tetiklediği planlı bir kopma - kullanıcıya
         // yanlış alarm göstermiyoruz (bkz. sınıf üstündeki alan notu).
         _suppressNextDisconnectNotice = false;
@@ -1046,7 +1053,7 @@ class MessagingService {
       }
     });
 
-    _socket!.connect();
+    SharedSocketTransport().connect(authToken);
   }
 
   /// Mevcut bağlantı gerçekten çalışıyor mu bilinmiyorsa (ör. uygulama arka
@@ -1067,11 +1074,8 @@ class MessagingService {
       SocketConnectionPhase.reconnecting,
       message: 'Mesajlaşma bağlantısı yenileniyor…',
     );
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _connecting = false;
-    connectIfNeeded(authToken);
+    _connecting = true;
+    SharedSocketTransport().reconnect(authToken);
   }
 
   /// "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - chat_screen.dart
@@ -1551,8 +1555,7 @@ class MessagingService {
   /// - kalıcı bağlantıyı tamamen kapatır.
   void disconnectSocket() {
     detachScreenCallbacks();
-    _socket?.disconnect();
-    _socket?.dispose();
+    SharedSocketTransport().disconnect();
     _socket = null;
     _connecting = false;
     AppConnectionController().updateMessaging(

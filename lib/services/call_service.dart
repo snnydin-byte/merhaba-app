@@ -11,7 +11,7 @@ import 'active_media_session_coordinator.dart';
 import 'app_connection_state.dart';
 import 'connection_error_classifier.dart';
 import 'session_expiration_coordinator.dart';
-import 'socket_client_options.dart';
+import 'shared_socket_transport.dart';
 
 typedef OnRemoteStream = void Function(MediaStream stream);
 typedef OnLocalStream = void Function(MediaStream stream);
@@ -191,11 +191,18 @@ class CallService {
   void connectIfNeeded(String authToken) {
     _lastAuthToken = authToken;
     if (_socket != null && (_socket!.connected || _connecting)) return;
+    if (_socket != null) {
+      _connecting = true;
+      AppConnectionController().updateCall(
+        SocketConnectionPhase.connecting,
+        message: 'Arama sunucusuna bağlanılıyor…',
+      );
+      SharedSocketTransport().connect(authToken);
+      return;
+    }
     // Önceki bir bağlanma denemesi başarısız olup kalıcı olarak koptuysa
     // (ne bağlı ne de bağlanma sürecinde) burada eski socket'i bırakmadan
     // yenisini kurmuş oluruz - önce onu düzgünce kapatıyoruz.
-    _socket?.disconnect();
-    _socket?.dispose();
     _connecting = true;
     AppConnectionController().updateCall(
       SocketConnectionPhase.connecting,
@@ -205,10 +212,7 @@ class CallService {
     // Soket bağlantısıyla paralel olarak TURN bilgisini almaya başlıyoruz -
     // bkz. webrtc_service.dart'taki aynı mantık.
     _iceServersFuture = _refreshIceServers();
-    _socket = io.io(
-      signalingServerUrl,
-      buildSocketClientOptions(authToken: authToken),
-    );
+    _socket = SharedSocketTransport().socketFor(authToken);
 
     _socket!.onConnect((_) {
       _connecting = false;
@@ -241,14 +245,17 @@ class CallService {
       // ignore: avoid_print
       print('CallService bağlantı koptu, sebep: $reason');
       AppConnectionController().updateCall(
-        _suppressNextDisconnectNotice
+        _suppressNextDisconnectNotice ||
+                SharedSocketTransport().isPlannedReconnect
             ? SocketConnectionPhase.reconnecting
             : SocketConnectionPhase.disconnected,
-        message: _suppressNextDisconnectNotice
+        message: _suppressNextDisconnectNotice ||
+                SharedSocketTransport().isPlannedReconnect
             ? 'Arama bağlantısı yenileniyor…'
             : 'Arama bağlantısı kesildi.',
       );
-      if (_suppressNextDisconnectNotice) {
+      if (_suppressNextDisconnectNotice ||
+          SharedSocketTransport().isPlannedReconnect) {
         _suppressNextDisconnectNotice = false;
         return;
       }
@@ -360,7 +367,7 @@ class CallService {
       }
     });
 
-    _socket!.connect();
+    SharedSocketTransport().connect(authToken);
   }
 
   /// Mevcut bağlantı gerçekten çalışıyor mu bilinmiyorsa (ör. uygulama arka
@@ -373,11 +380,8 @@ class CallService {
       SocketConnectionPhase.reconnecting,
       message: 'Arama bağlantısı yenileniyor…',
     );
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
-    _connecting = false;
-    connectIfNeeded(authToken);
+    _connecting = true;
+    SharedSocketTransport().reconnect(authToken);
   }
 
   void inviteToCall({required String friendId, required String callType}) {
@@ -802,8 +806,7 @@ class CallService {
   /// - kalıcı sinyal bağlantısını tamamen kapatır.
   void disconnectSocket() {
     endCallSession();
-    _socket?.disconnect();
-    _socket?.dispose();
+    SharedSocketTransport().disconnect();
     _socket = null;
     _connecting = false;
     AppConnectionController().updateCall(

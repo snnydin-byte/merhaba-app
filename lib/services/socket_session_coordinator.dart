@@ -57,11 +57,16 @@ class SocketSessionCoordinator {
 
     final callWasActive = _dependencies.call.isInActiveCall;
     if (_activeToken != null) {
+      // Messaging and call signaling share one physical socket. Preserve it
+      // during an access-token refresh while WebRTC media is active.
+      if (callWasActive && nextToken != null) {
+        _activeToken = nextToken;
+        return;
+      }
       _dependencies.messaging.disconnect();
-      // Access token yenilenmesi devam eden bir WebRTC görüşmesini kesmemeli.
-      // Aktif call socket'i mevcut handshake yetkisiyle görüşme sonuna kadar
-      // kalır; sonraki bağlantıda yeni token kullanılır.
-      if (!callWasActive) _dependencies.call.disconnect();
+      // Logout must also close an active call; no authenticated transport may
+      // remain alive after the user session is gone.
+      _dependencies.call.disconnect();
     }
 
     _activeToken = nextToken;

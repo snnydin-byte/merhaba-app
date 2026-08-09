@@ -54,6 +54,32 @@ void main() {
     expect(messaging.connectedTokens, ['same-token']);
     expect(call.connectedTokens, ['same-token']);
   });
+  test('active call token refresh preserves the shared socket', () {
+    final auth = _FakeAuthSession();
+    final messaging = _FakeSocketClient();
+    final call = _FakeCallSocketClient();
+    final coordinator = SocketSessionCoordinator();
+    coordinator.setDependenciesForTesting(SocketSessionDependencies(
+      authSession: auth,
+      messaging: messaging,
+      call: call,
+      callUi: _FakeCallUi(),
+    ));
+    coordinator.initialize();
+
+    auth.set(_session('token-a', 'user-a'));
+    call.isInActiveCall = true;
+    auth.set(_session('token-b', 'user-a'));
+
+    expect(messaging.disconnectCount, 0);
+    expect(call.disconnectCount, 0);
+    expect(messaging.connectedTokens, ['token-a']);
+    expect(call.connectedTokens, ['token-a']);
+
+    auth.set(const AuthSessionState.signedOut());
+    expect(messaging.disconnectCount, 1);
+    expect(call.disconnectCount, 1);
+  });
 }
 
 AuthSessionState _session(String token, String userId) =>
