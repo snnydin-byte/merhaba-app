@@ -93,7 +93,13 @@ class AuthService {
 
     final verification = await _authRepository.verifySession(token);
     if (verification.isUnauthorized) {
-      if (_refreshToken != null && await refreshSession()) return true;
+      if (_refreshToken != null) {
+        if (await refreshSession()) return true;
+        // refreshSession only clears the local session when the server
+        // definitively rejects the refresh token. Keep an offline session
+        // when a timeout/network error leaves the current token intact.
+        if (this.token != null) return true;
+      }
       await logout();
       return false;
     }
