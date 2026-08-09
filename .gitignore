@@ -37,6 +37,11 @@ migrate_working_dir/
 /coverage/
 **/flutter/ephemeral/
 **/Flutter/ephemeral/
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/Runner/GeneratedPluginRegistrant.h
+/ios/Runner/GeneratedPluginRegistrant.m
+/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 /ios/Pods/
 /macos/Pods/
 
