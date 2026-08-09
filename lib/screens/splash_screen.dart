@@ -37,11 +37,7 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     } catch (error, stackTrace) {
       debugPrint('Splash oturum başlangıcı tamamlanamadı: $error');
-      FlutterError.reportError(FlutterErrorDetails(
-        exception: error,
-        stack: stackTrace,
-        library: 'splash session bootstrap',
-      ));
+      debugPrintStack(stackTrace: stackTrace);
     }
 
     // Açılış animasyonunun en az 1600ms sürmesini garantiliyoruz ama bunu

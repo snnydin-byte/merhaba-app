@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'auth_exception.dart';
@@ -14,13 +15,16 @@ class AuthApiClient {
   Future<http.Response> get(
     String path, {
     String? token,
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     try {
       return await _client
           .get(Uri.parse('$baseUrl$path'), headers: _headers(token: token))
           .timeout(timeout);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AuthApiClient GET $path failed: $error\n$stackTrace');
+      }
       throw _connectionException();
     }
   }
@@ -29,7 +33,7 @@ class AuthApiClient {
     String path, {
     required Map<String, dynamic> body,
     String? token,
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     try {
       return await _client
@@ -39,7 +43,10 @@ class AuthApiClient {
             body: jsonEncode(body),
           )
           .timeout(timeout);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AuthApiClient POST $path failed: $error\n$stackTrace');
+      }
       throw _connectionException();
     }
   }
@@ -48,7 +55,7 @@ class AuthApiClient {
     String path, {
     required Map<String, dynamic> body,
     String? token,
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     try {
       return await _client
@@ -58,7 +65,10 @@ class AuthApiClient {
             body: jsonEncode(body),
           )
           .timeout(timeout);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AuthApiClient PUT $path failed: $error\n$stackTrace');
+      }
       throw _connectionException();
     }
   }
@@ -66,13 +76,16 @@ class AuthApiClient {
   Future<http.Response> delete(
     String path, {
     String? token,
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 12),
   }) async {
     try {
       return await _client
           .delete(Uri.parse('$baseUrl$path'), headers: _headers(token: token))
           .timeout(timeout);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AuthApiClient DELETE $path failed: $error\n$stackTrace');
+      }
       throw _connectionException();
     }
   }
@@ -92,7 +105,10 @@ class AuthApiClient {
         ..files.addAll(files);
       final streamed = await _client.send(request).timeout(timeout);
       return http.Response.fromStream(streamed);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('AuthApiClient $method $path failed: $error\n$stackTrace');
+      }
       throw _connectionException();
     }
   }

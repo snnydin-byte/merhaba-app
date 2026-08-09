@@ -57,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final response = await http
           .get(Uri.parse('$signalingServerUrl/status'))
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
 
