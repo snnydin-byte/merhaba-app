@@ -13,6 +13,7 @@ import 'orphan_media_cleanup_queue.dart';
 import 'session_expiration_coordinator.dart';
 import 'push_notification_service.dart';
 import 'shared_socket_transport.dart';
+import 'socket_event_payload.dart';
 import 'webrtc_service.dart' show signalingServerUrl;
 
 /// Kalıcı bir sohbet mesajı (sunucuda saklanır - bkz.
@@ -571,7 +572,7 @@ class MessagingService {
     // "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6).
     _socket!.on('typing-start', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final fromId = map['fromId'] as String?;
         if (fromId != null) onTypingStart?.call(fromId);
       } catch (e) {
@@ -581,7 +582,7 @@ class MessagingService {
     });
     _socket!.on('typing-stop', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final fromId = map['fromId'] as String?;
         if (fromId != null) onTypingStop?.call(fromId);
       } catch (e) {
@@ -593,7 +594,7 @@ class MessagingService {
     // Eşleşme (Dating) katmanı - Batch E.
     _socket!.on('discover-matched', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final matchId = map['matchId'] as String?;
         final userJson = map['user'] as Map<String, dynamic>?;
         if (matchId == null || userJson == null) return;
@@ -609,7 +610,7 @@ class MessagingService {
     });
     _socket!.on('discover-match-expired', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final matchId = map['matchId'] as String?;
         if (matchId != null) onDiscoverMatchExpired?.call(matchId);
       } catch (e) {
@@ -619,7 +620,7 @@ class MessagingService {
     });
     _socket!.on('selfie-verification-reviewed', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onSelfieVerificationReviewed?.call(map['approved'] as bool? ?? false);
       } catch (e) {
         // ignore: avoid_print
@@ -629,7 +630,7 @@ class MessagingService {
 
     _socket!.on('friend-access-revoked', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final userId = map['userId'] as String?;
         if (userId == null || userId.isEmpty) return;
         onFriendAccessRevoked?.call(
@@ -644,7 +645,7 @@ class MessagingService {
 
     _socket!.on('persistent-message-received', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final message = PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
         onPersistentMessageReceived?.call(message);
@@ -669,7 +670,7 @@ class MessagingService {
 
     _socket!.on('persistent-message-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final message = PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
         onPersistentMessageAck?.call(map['clientId'] as String, message);
@@ -681,7 +682,7 @@ class MessagingService {
 
     _socket!.on('persistent-message-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onPersistentMessageError?.call(
           map['clientId'] as String? ?? '',
           map['message'] as String? ?? 'Mesaj gönderilemedi.',
@@ -694,7 +695,7 @@ class MessagingService {
 
     _socket!.on('message-edited', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onMessageEdited?.call(PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -705,7 +706,7 @@ class MessagingService {
 
     _socket!.on('message-deleted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onMessageDeleted?.call(PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -716,7 +717,7 @@ class MessagingService {
 
     _socket!.on('message-reacted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onMessageReacted?.call(PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -727,7 +728,7 @@ class MessagingService {
 
     _socket!.on('message-pinned', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onMessagePinned?.call(PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -738,7 +739,7 @@ class MessagingService {
 
     _socket!.on('message-updated', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onMessageUpdated?.call(PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -749,7 +750,7 @@ class MessagingService {
 
     _socket!.on('conversation-read', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final ids =
             (map['messageIds'] as List).map((e) => e as String).toList();
         onConversationRead?.call(ids, DateTime.parse(map['readAt'] as String));
@@ -761,7 +762,7 @@ class MessagingService {
 
     _socket!.on('schedule-message-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final item = ScheduledMessage.fromJson(
             Map<String, dynamic>.from(map['item'] as Map));
         onScheduleMessageAck?.call(map['clientId'] as String, item);
@@ -773,7 +774,7 @@ class MessagingService {
 
     _socket!.on('schedule-message-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onScheduleMessageError?.call(
           map['clientId'] as String?,
           map['id'] as String?,
@@ -787,7 +788,7 @@ class MessagingService {
 
     _socket!.on('schedule-message-cancelled', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onScheduleMessageCancelled?.call(map['id'] as String);
       } catch (e) {
         // ignore: avoid_print
@@ -797,7 +798,7 @@ class MessagingService {
 
     _socket!.on('schedule-message-fired', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final message = PersistentMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
         onScheduleMessageFired?.call(map['id'] as String, message);
@@ -809,7 +810,7 @@ class MessagingService {
 
     _socket!.on('schedule-message-failed', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onScheduleMessageFailed?.call(
           map['id'] as String,
           map['message'] as String? ?? 'Planlanan mesaj gönderilemedi.',
@@ -822,7 +823,7 @@ class MessagingService {
 
     _socket!.on('story-create-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final story =
             Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
         onStoryCreateAck?.call(map['clientId'] as String, story);
@@ -834,7 +835,7 @@ class MessagingService {
 
     _socket!.on('story-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onStoryError?.call(
           map['clientId'] as String?,
           map['message'] as String? ?? 'Hikaye paylaşılamadı.',
@@ -847,7 +848,7 @@ class MessagingService {
 
     _socket!.on('story-new', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final story =
             Story.fromJson(Map<String, dynamic>.from(map['story'] as Map));
         onNewStory?.call(story, map['fromDisplayName'] as String? ?? 'Biri');
@@ -859,7 +860,7 @@ class MessagingService {
 
     _socket!.on('story-viewed', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onStoryViewed?.call(
           map['storyId'] as String,
           map['viewerId'] as String,
@@ -874,7 +875,7 @@ class MessagingService {
 
     _socket!.on('story-deleted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onStoryDeleted?.call(map['storyId'] as String);
       } catch (e) {
         // ignore: avoid_print
@@ -884,7 +885,7 @@ class MessagingService {
 
     _socket!.on('story-removed', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onStoryRemoved?.call(map['storyId'] as String);
       } catch (e) {
         // ignore: avoid_print
@@ -894,7 +895,7 @@ class MessagingService {
 
     _socket!.on('group-create-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final group =
             Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
         onGroupCreateAck?.call(map['clientId'] as String, group);
@@ -906,7 +907,7 @@ class MessagingService {
 
     _socket!.on('group-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupError?.call(
           map['clientId'] as String?,
           map['message'] as String? ?? 'Grup işlemi başarısız.',
@@ -919,7 +920,7 @@ class MessagingService {
 
     _socket!.on('group-created', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final group =
             Group.fromJson(Map<String, dynamic>.from(map['group'] as Map));
         onGroupCreated?.call(
@@ -932,7 +933,7 @@ class MessagingService {
 
     _socket!.on('group-updated', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupUpdated?.call(
             Group.fromJson(Map<String, dynamic>.from(map['group'] as Map)));
       } catch (e) {
@@ -943,7 +944,7 @@ class MessagingService {
 
     _socket!.on('group-removed-you', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupRemovedYou?.call(map['groupId'] as String);
       } catch (e) {
         // ignore: avoid_print
@@ -953,7 +954,7 @@ class MessagingService {
 
     _socket!.on('group-deleted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupDeleted?.call(map['groupId'] as String);
       } catch (e) {
         // ignore: avoid_print
@@ -963,7 +964,7 @@ class MessagingService {
 
     _socket!.on('group-message-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final message = GroupMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
         onGroupMessageAck?.call(map['clientId'] as String, message);
@@ -975,7 +976,7 @@ class MessagingService {
 
     _socket!.on('group-message-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupMessageError?.call(
           map['clientId'] as String?,
           map['message'] as String? ?? 'Mesaj gönderilemedi.',
@@ -988,7 +989,7 @@ class MessagingService {
 
     _socket!.on('group-message-received', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final message = GroupMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map));
         onGroupMessageReceived?.call(
@@ -1001,7 +1002,7 @@ class MessagingService {
 
     _socket!.on('group-message-deleted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onGroupMessageDeleted?.call(GroupMessage.fromJson(
             Map<String, dynamic>.from(map['message'] as Map)));
       } catch (e) {
@@ -1012,7 +1013,7 @@ class MessagingService {
 
     _socket!.on('disappearing-message-received', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onDisappearingMessageReceived?.call(DisappearingMessage(
           id: map['id'] as String,
           fromId: map['fromId'] as String,
@@ -1028,7 +1029,7 @@ class MessagingService {
 
     _socket!.on('disappearing-message-ack', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onDisappearingMessageAck?.call(
           map['clientId'] as String,
           map['id'] as String,
@@ -1042,7 +1043,7 @@ class MessagingService {
 
     _socket!.on('disappearing-message-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onDisappearingMessageError?.call(
           map['clientId'] as String? ?? '',
           map['message'] as String? ?? 'Mesaj iletilemedi.',

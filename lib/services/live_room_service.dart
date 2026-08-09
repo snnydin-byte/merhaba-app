@@ -7,6 +7,7 @@ import 'active_media_session_coordinator.dart';
 import 'app_connection_state.dart';
 import 'connection_error_classifier.dart';
 import 'socket_client_options.dart';
+import 'socket_event_payload.dart';
 import 'foreground_event_queue.dart';
 import 'event_deduplication_service.dart';
 import 'session_expiration_coordinator.dart';
@@ -160,7 +161,7 @@ class LiveRoomService {
       );
     });
     _socket!.on('live-room-error', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onError
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
@@ -168,12 +169,12 @@ class LiveRoomService {
       onRoomEnded?.call();
     });
     _socket!.on('live-room-viewer-count', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final count = map['viewerCount'] as int?;
       if (count != null) onViewerCountChanged?.call(count);
     });
     _socket!.on('live-room-chat-message', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final sentAtRaw = map['sentAt'] as String?;
       onChatMessage?.call(LiveRoomChatMessage(
         fromUserId: (map['fromUserId'] as String?) ?? '',
@@ -185,7 +186,7 @@ class LiveRoomService {
       ));
     });
     _socket!.on('live-room-viewer-list', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final rawViewers = (map['viewers'] as List<dynamic>?) ?? [];
       final viewers = rawViewers.map((v) {
         final vm = Map<String, dynamic>.from(v as Map);
@@ -200,7 +201,7 @@ class LiveRoomService {
       onViewerList?.call(viewers);
     });
     _socket!.on('live-room-moderator-changed', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final userId = map['userId'] as String?;
       final isMod = (map['isModerator'] as bool?) ?? false;
       if (userId == null) return;
@@ -211,7 +212,7 @@ class LiveRoomService {
       onModeratorChanged?.call(userId, isMod);
     });
     _socket!.on('live-room-mute-changed', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final userId = map['userId'] as String?;
       final muted = (map['muted'] as bool?) ?? false;
       if (userId != null) onMuteChanged?.call(userId, muted);
@@ -231,7 +232,7 @@ class LiveRoomService {
           )) {
         return;
       }
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       final fromUserId = (map['fromUserId'] as String?) ?? '';
       final fromDisplayName =
           (map['fromDisplayName'] as String?) ?? 'Kullanıcı';
@@ -255,21 +256,21 @@ class LiveRoomService {
       deliver();
     });
     _socket!.on('friend-request-result', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onFriendRequestResult?.call(
           (map['accepted'] as bool?) ?? false, map['displayName'] as String?);
     });
     _socket!.on('friend-request-error', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onFriendRequestError
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
     _socket!.on('report-user-sent', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onReportSent?.call((map['id'] as String?) ?? '');
     });
     _socket!.on('report-user-error', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onReportError
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
@@ -368,7 +369,7 @@ class LiveRoomService {
     });
 
     _socket!.on('live-room-created', (data) async {
-      final map = Map<String, dynamic>.from(data as Map);
+      final map = socketEventMap(data);
       final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
       _roomId = roomInfo['id'] as String?;
       _hostUserId = roomInfo['hostUserId'] as String?;
@@ -418,7 +419,7 @@ class LiveRoomService {
     });
 
     _socket!.on('live-room-joined', (data) async {
-      final map = Map<String, dynamic>.from(data as Map);
+      final map = socketEventMap(data);
       final roomInfo = Map<String, dynamic>.from(map['room'] as Map);
       _hostUserId = roomInfo['hostUserId'] as String?;
       final token = map['token'] as String;

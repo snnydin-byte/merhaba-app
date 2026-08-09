@@ -8,6 +8,7 @@ import 'active_media_session_coordinator.dart';
 import 'app_connection_state.dart';
 import 'connection_error_classifier.dart';
 import 'socket_client_options.dart';
+import 'socket_event_payload.dart';
 import 'foreground_event_queue.dart';
 import 'event_deduplication_service.dart';
 import 'session_expiration_coordinator.dart';
@@ -140,7 +141,7 @@ class GroupCallService {
       );
     });
     _socket!.on('group-match-error', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onError
           ?.call((map['message'] as String?) ?? 'Bilinmeyen bir hata oluştu.');
     });
@@ -154,7 +155,7 @@ class GroupCallService {
           )) {
         return;
       }
-      final map = Map<String, dynamic>.from(data as Map);
+      final map = socketEventMap(data);
       final roomId = map['roomId'] as String?;
       final targetSize = map['targetSize'] as int? ?? _targetSize;
       final token = map['token'] as String;
@@ -191,16 +192,16 @@ class GroupCallService {
     });
 
     _socket!.on('account-restricted', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onAccountRestricted
           ?.call((map['message'] as String?) ?? 'Hesabın incelemeye alındı.');
     });
     _socket!.on('report-user-sent', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onReportSent?.call((map['id'] as String?) ?? '');
     });
     _socket!.on('report-user-error', (data) {
-      final map = data is Map ? Map<String, dynamic>.from(data) : const {};
+      final map = socketEventMap(data);
       onReportError
           ?.call((map['message'] as String?) ?? 'Şikayet gönderilemedi.');
     });

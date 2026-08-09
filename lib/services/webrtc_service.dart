@@ -8,6 +8,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'active_media_session_coordinator.dart';
 import 'match_preferences_repository.dart';
 import 'socket_client_options.dart';
+import 'socket_event_payload.dart';
 
 /// Sunucunun adresi.
 ///
@@ -320,7 +321,7 @@ class WebRTCService {
         // üstündeki _matchGeneration notu).
         _cleanupPeerConnection();
 
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final partnerId = map['partnerId'] as String?;
         final isInitiator = map['isInitiator'] as bool? ?? false;
         _partnerId = partnerId;
@@ -355,7 +356,7 @@ class WebRTCService {
 
     _socket!.on('signal', (data) async {
       try {
-        final outer = Map<String, dynamic>.from(data as Map);
+        final outer = socketEventMap(data);
         final fromId = outer['fromId'] as String?;
         final payload = Map<String, dynamic>.from(outer['data'] as Map);
         if (fromId != _partnerId) return;
@@ -378,7 +379,7 @@ class WebRTCService {
     // Görüşme içi hızlı tepkiler (GECE_GELISTIRME madde 3).
     _socket!.on('call-reaction', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         final emoji = map['emoji'] as String?;
         if (emoji != null) onReaction?.call(emoji);
       } catch (e) {
@@ -395,7 +396,7 @@ class WebRTCService {
 
     _socket!.on('chat-message', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onChatMessage?.call(map['text'] as String? ?? '');
       } catch (e) {
         // ignore: avoid_print
@@ -406,7 +407,7 @@ class WebRTCService {
     // Karşı taraf bize arkadaşlık isteği gönderdi.
     _socket!.on('friend-request-received', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onFriendRequestReceived
             ?.call(map['fromDisplayName'] as String? ?? 'Biri');
       } catch (e) {
@@ -418,7 +419,7 @@ class WebRTCService {
     // Gönderdiğimiz ya da bize gelen isteğin sonucu belli oldu.
     _socket!.on('friend-request-result', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onFriendRequestResult?.call(
           map['accepted'] as bool? ?? false,
           map['displayName'] as String?,
@@ -433,7 +434,7 @@ class WebRTCService {
     // oturum geçersiz, zaten arkadaşsınız).
     _socket!.on('friend-request-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onFriendRequestError?.call(
             map['message'] as String? ?? 'Arkadaşlık isteği gönderilemedi.');
       } catch (e) {
@@ -445,7 +446,7 @@ class WebRTCService {
     // Şikayet başarıyla kaydedildi.
     _socket!.on('report-user-sent', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onReportSent?.call(map['id'] as String? ?? '');
       } catch (e) {
         // ignore: avoid_print
@@ -456,7 +457,7 @@ class WebRTCService {
     // Şikayet gönderilemedi (ör. o an bir eşleşme yok).
     _socket!.on('report-user-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onReportError
             ?.call(map['message'] as String? ?? 'Şikayet gönderilemedi.');
       } catch (e) {
@@ -471,7 +472,7 @@ class WebRTCService {
     // gönderir).
     _socket!.on('account-restricted', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         onAccountRestricted?.call(
           map['message'] as String? ?? 'Hesabın incelemeye alındı.',
         );

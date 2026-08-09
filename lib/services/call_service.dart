@@ -12,6 +12,7 @@ import 'app_connection_state.dart';
 import 'connection_error_classifier.dart';
 import 'session_expiration_coordinator.dart';
 import 'shared_socket_transport.dart';
+import 'socket_event_payload.dart';
 
 typedef OnRemoteStream = void Function(MediaStream stream);
 typedef OnLocalStream = void Function(MediaStream stream);
@@ -277,7 +278,7 @@ class CallService {
         _cleanupPeerConnection();
         _peerConnectionStarted = false;
 
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         _clearPendingIncomingInvite();
         _sessionActive = true;
         ActiveMediaSessionCoordinator().register(
@@ -299,7 +300,7 @@ class CallService {
 
     _socket!.on('signal', (data) async {
       try {
-        final outer = Map<String, dynamic>.from(data as Map);
+        final outer = socketEventMap(data);
         final fromId = outer['fromId'] as String?;
         final payload = Map<String, dynamic>.from(outer['data'] as Map);
         if (fromId != _partnerId) return;
@@ -325,7 +326,7 @@ class CallService {
 
     _socket!.on('call-invite-received', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         // ignore: avoid_print
         print(
             'CallService: call-invite-received alındı -> $map (onCallInviteReceived ${onCallInviteReceived == null ? "BAĞLI DEĞİL" : "bağlı"})');
@@ -357,7 +358,7 @@ class CallService {
 
     _socket!.on('call-invite-error', (data) {
       try {
-        final map = Map<String, dynamic>.from(data as Map);
+        final map = socketEventMap(data);
         _clearPendingIncomingInvite();
         onCallInviteError
             ?.call(map['message'] as String? ?? 'Arama başlatılamadı.');

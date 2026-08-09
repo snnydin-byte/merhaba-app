@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         setState(() {
-          _onlineCount = data['onlineCount'] as int?;
+          _onlineCount = parseOnlineCount(data);
           _serverReachable = _onlineCount != null;
         });
       } else {

@@ -93,4 +93,20 @@ void main() {
       );
     });
   });
+
+  group('parseOnlineCount', () {
+    test('prefers the unique online user count', () {
+      expect(parseOnlineCount({'onlineCount': 3, 'socketCount': 8}), 3);
+    });
+
+    test('accepts the legacy socket count during rollout', () {
+      expect(parseOnlineCount({'socketCount': 2}), 2);
+    });
+
+    test('rejects missing, invalid, and negative counts', () {
+      expect(parseOnlineCount({}), isNull);
+      expect(parseOnlineCount({'onlineCount': '2'}), isNull);
+      expect(parseOnlineCount({'onlineCount': -1}), isNull);
+    });
+  });
 }

@@ -12,6 +12,13 @@ String onlineCountLabel(int? count) {
   return '$count kişi çevrimiçi';
 }
 
+/// Yeni sunucu sözleşmesindeki benzersiz kullanıcı sayısını okur. Geçiş
+/// sırasında eski `/status` yanıtlarındaki socketCount alanını da kabul eder.
+int? parseOnlineCount(Map<String, dynamic> data) {
+  final value = data['onlineCount'] ?? data['socketCount'];
+  return value is num && value >= 0 ? value.toInt() : null;
+}
+
 /// Arkadaş listesindeki bir kişi için çevrimiçi/son görülme metnini üretir
 /// (bkz. friends_screen.dart). [now] test edilebilirlik için dışarıdan
 /// verilir - gerçek kullanımda DateTime.now() geçilir (bkz. çağıran taraf).

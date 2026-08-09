@@ -90,7 +90,10 @@ class AppUser {
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
-        email: json['email'] as String,
+        // Sunucu, başka bir kullanıcının herkese açık profilinde e-posta
+        // adresini bilerek göndermez. Keşfet/eşleşme profilleri bu yüzden
+        // `email` alanı olmadan da güvenle ayrıştırılabilmelidir.
+        email: json['email'] as String? ?? '',
         displayName: json['displayName'] as String,
         bio: json['bio'] as String? ?? '',
         gender: json['gender'] as String?,
