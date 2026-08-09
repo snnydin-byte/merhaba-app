@@ -381,7 +381,11 @@ class CallService {
       message: 'Arama bağlantısı yenileniyor…',
     );
     _connecting = true;
-    SharedSocketTransport().reconnect(authToken);
+    final reconnectStarted = SharedSocketTransport().reconnect(authToken);
+    if (!reconnectStarted) {
+      _suppressNextDisconnectNotice = false;
+      _connecting = !(_socket?.connected ?? false);
+    }
   }
 
   void inviteToCall({required String friendId, required String callType}) {

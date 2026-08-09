@@ -1075,7 +1075,11 @@ class MessagingService {
       message: 'Mesajlaşma bağlantısı yenileniyor…',
     );
     _connecting = true;
-    SharedSocketTransport().reconnect(authToken);
+    final reconnectStarted = SharedSocketTransport().reconnect(authToken);
+    if (!reconnectStarted) {
+      _suppressNextDisconnectNotice = false;
+      _connecting = !(_socket?.connected ?? false);
+    }
   }
 
   /// "Yazıyor..." göstergesi (GECE_GELISTIRME madde 6) - chat_screen.dart

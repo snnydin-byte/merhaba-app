@@ -38,13 +38,13 @@ class SharedSocketTransport {
     if (!current.connected) current.connect();
   }
 
-  void reconnect(String authToken) {
+  bool reconnect(String authToken) {
     final current = socketFor(authToken);
     final now = DateTime.now();
     final last = _lastReconnectAt;
     if (last != null &&
         now.difference(last) < const Duration(milliseconds: 500)) {
-      return;
+      return false;
     }
     _lastReconnectAt = now;
     _plannedReconnect = true;
@@ -54,6 +54,7 @@ class SharedSocketTransport {
     Future<void>.delayed(const Duration(seconds: 1), () {
       _plannedReconnect = false;
     });
+    return true;
   }
 
   void disconnect() {
