@@ -1,5 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:merhaba_app/services/auth_api_client.dart';
+import 'package:merhaba_app/services/auth_dependencies.dart';
 import 'package:merhaba_app/services/auth_service.dart';
+import 'package:merhaba_app/services/google_auth_provider.dart';
 import 'package:merhaba_app/services/session_storage.dart';
 
 class MemorySessionStorage implements SessionStorage {
@@ -44,6 +49,37 @@ void main() {
 
     expect(await auth.restoreSession(), isFalse);
     expect(auth.isLoggedIn, isFalse);
+  });
+
+  test('geçici refresh ağ hatası yerel oturumu silmez', () async {
+    final storage = MemorySessionStorage()
+      ..value = const StoredSession(
+        token: 'expired-access-token',
+        refreshToken: 'refresh-token',
+        userId: 'u-offline',
+        email: 'offline@example.com',
+        displayName: 'Offline',
+      );
+    final client = AuthApiClient(
+      baseUrl: 'https://example.test',
+      client: MockClient((request) async {
+        if (request.url.path == '/auth/me') {
+          return http.Response('{"error":"expired"}', 401);
+        }
+        throw Exception('offline');
+      }),
+    );
+    final auth = AuthService()
+      ..setDependenciesForTesting(AuthDependencies.fromCore(
+        sessionStorage: storage,
+        apiClient: client,
+        googleAuthProvider: GoogleSignInProvider(),
+      ));
+
+    expect(await auth.restoreSession(), isTrue);
+    expect(await auth.verifySession(), isTrue);
+    expect(auth.isLoggedIn, isTrue);
+    expect(storage.value, isNotNull);
   });
 
   test('oturum notifier giriş ve çıkış değişikliklerini atomik yayınlar',

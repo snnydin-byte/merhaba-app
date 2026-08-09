@@ -94,7 +94,6 @@ class WebRTCService {
     ],
   };
   Future<void>? _iceServersFuture;
-  Timer? _heartbeatTimer;
 
   bool _backgroundSuspended = false;
   bool _resumeMic = false;
@@ -308,14 +307,6 @@ class WebRTCService {
     );
 
     _socket!.onConnect((_) {
-      _heartbeatTimer?.cancel();
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 20), (_) {
-        if (_socket?.connected == true) {
-          _socket?.emit('client-heartbeat', <String, dynamic>{
-            'sentAt': DateTime.now().millisecondsSinceEpoch,
-          });
-        }
-      });
       final partnerId = _partnerId;
       if (partnerId != null) {
         onStatusChange?.call('Bağlantı geri yükleniyor...');
@@ -800,8 +791,6 @@ class WebRTCService {
     _backgroundSuspended = false;
     ActiveMediaSessionCoordinator().unregister(this);
     _disposed = true;
-    _heartbeatTimer?.cancel();
-    _heartbeatTimer = null;
     _cleanupPeerConnection();
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream?.dispose();
