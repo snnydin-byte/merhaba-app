@@ -946,24 +946,50 @@ class _BroadcastComposerSheetState extends State<_BroadcastComposerSheet> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty || _selected.isEmpty) return;
+    if (text.isEmpty || _selected.isEmpty || _sending) return;
     setState(() => _sending = true);
     final messaging = MessagingService();
+    final selected = _selected.toList(growable: false);
+    final failed = <String>[];
     var counter = 0;
-    for (final friendId in _selected) {
-      messaging.sendPersistentMessage(
-        toId: friendId,
-        text: text,
-        clientId: 'bcast_${DateTime.now().microsecondsSinceEpoch}_${counter++}',
-      );
+    final batchId = DateTime.now().microsecondsSinceEpoch;
+    for (final friendId in selected) {
+      try {
+        await messaging.sendPersistentMessageAwaitingAck(
+          toId: friendId,
+          text: text,
+          clientId: 'bcast_${batchId}_${counter++}',
+        );
+      } catch (_) {
+        failed.add(friendId);
+      }
     }
-    Navigator.pop(context);
+    if (!mounted) return;
+    final delivered = selected.length - failed.length;
+    if (failed.isEmpty) {
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Mesaj $delivered kişiye teslim edildi.')),
+      );
+      return;
+    }
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(failed);
+      _sending = false;
+    });
     showSessionSnackBar(
       context,
-      SnackBar(content: Text('Mesaj ${_selected.length} kişiye gönderildi.')),
-      priority: SessionFeedbackPriority.low,
+      SnackBar(
+        content: Text(delivered == 0
+            ? 'Mesaj teslim edilemedi. Bağlantıyı kontrol edip tekrar dene.'
+            : '$delivered kişiye teslim edildi, ${failed.length} kişiye ulaşmadı.'),
+      ),
+      priority: SessionFeedbackPriority.normal,
     );
   }
 

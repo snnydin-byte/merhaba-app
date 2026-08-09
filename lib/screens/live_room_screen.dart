@@ -42,6 +42,7 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
   void Function(void Function())? _viewerSheetSetState;
   bool _friendRequestSent = false;
   bool _accessRevoked = false;
+  bool _leaving = false;
 
   @override
   void initState() {
@@ -456,87 +457,102 @@ class _LiveRoomScreenState extends State<LiveRoomScreen> {
 
   @override
   void dispose() {
-    _service.leaveRoom();
     _service.dispose();
     _chatController.dispose();
     super.dispose();
   }
 
+  Future<void> _leaveAndClose() async {
+    if (_leaving) return;
+    _leaving = true;
+    await _service.leaveRoom();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundDeep,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _leaveAndClose();
+      },
+      child: Scaffold(
         backgroundColor: AppColors.backgroundDeep,
-        foregroundColor: AppColors.textPrimary,
-        surfaceTintColor: Colors.transparent,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(widget.isHost ? 'Canlı yayınım' : 'Canlı yayın',
-                style: AppText.subheading.copyWith(fontSize: 17)),
-            Text(
-              _ended ? 'yayın sona erdi' : 'toplulukla canlı bağlantı',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 11),
-            ),
-          ],
-        ),
-        actions: [
-          if (_viewerCount > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Center(
-                child: PillBadge(
-                  label: '$_viewerCount',
-                  color: AppColors.secondary,
-                  icon: Icons.visibility_rounded,
+        appBar: AppBar(
+          backgroundColor: AppColors.backgroundDeep,
+          foregroundColor: AppColors.textPrimary,
+          surfaceTintColor: Colors.transparent,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.isHost ? 'Canlı yayınım' : 'Canlı yayın',
+                  style: AppText.subheading.copyWith(fontSize: 17)),
+              Text(
+                _ended ? 'yayın sona erdi' : 'toplulukla canlı bağlantı',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ],
+          ),
+          actions: [
+            if (_viewerCount > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Center(
+                  child: PillBadge(
+                    label: '$_viewerCount',
+                    color: AppColors.secondary,
+                    icon: Icons.visibility_rounded,
+                  ),
                 ),
               ),
-            ),
-          // İzleyici listesi/moderasyon paneli - yalnızca host/co-host/
-          // moderatöre görünür (bkz. LiveRoomService.canModerate).
-          if (_service.canModerate)
-            IconButton(
-              tooltip: 'İzleyiciler',
-              icon: const Icon(Icons.groups_outlined, color: Colors.white),
-              onPressed: _openViewerList,
-            ),
-          // Yayına izleyici olarak katılan biri host'a arkadaşlık isteği
-          // gönderebilsin - video_chat_screen.dart'taki 1'e1 "Arkadaş Ekle"
-          // butonuyla AYNI görsel dil.
-          if (!widget.isHost && AuthService().isLoggedIn && !_friendRequestSent)
-            IconButton(
-              tooltip: 'Arkadaş Ekle',
-              onPressed: _sendFriendRequestToHost,
-              icon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    shape: BoxShape.circle),
-                child: const Icon(Icons.person_add_alt_1_rounded,
-                    size: 18, color: Colors.white),
+            // İzleyici listesi/moderasyon paneli - yalnızca host/co-host/
+            // moderatöre görünür (bkz. LiveRoomService.canModerate).
+            if (_service.canModerate)
+              IconButton(
+                tooltip: 'İzleyiciler',
+                icon: const Icon(Icons.groups_outlined, color: Colors.white),
+                onPressed: _openViewerList,
               ),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const ConnectionStatusBanner(
-              channel: AppConnectionChannel.liveRoom,
-              compact: true,
-              margin: EdgeInsets.fromLTRB(12, 8, 12, 0),
-            ),
-            Expanded(child: _buildVideoStage()),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text(_error!,
-                    style: const TextStyle(color: Colors.redAccent)),
+            // Yayına izleyici olarak katılan biri host'a arkadaşlık isteği
+            // gönderebilsin - video_chat_screen.dart'taki 1'e1 "Arkadaş Ekle"
+            // butonuyla AYNI görsel dil.
+            if (!widget.isHost &&
+                AuthService().isLoggedIn &&
+                !_friendRequestSent)
+              IconButton(
+                tooltip: 'Arkadaş Ekle',
+                onPressed: _sendFriendRequestToHost,
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.person_add_alt_1_rounded,
+                      size: 18, color: Colors.white),
+                ),
               ),
-            _buildChatBar(),
           ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              const ConnectionStatusBanner(
+                channel: AppConnectionChannel.liveRoom,
+                compact: true,
+                margin: EdgeInsets.fromLTRB(12, 8, 12, 0),
+              ),
+              Expanded(child: _buildVideoStage()),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Text(_error!,
+                      style: const TextStyle(color: Colors.redAccent)),
+                ),
+              _buildChatBar(),
+            ],
+          ),
         ),
       ),
     );

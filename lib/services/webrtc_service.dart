@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -717,6 +718,27 @@ class WebRTCService {
   /// sessizce yok sayar (bkz. video_chat_screen.dart quickReactions).
   void sendReaction(String emoji) {
     _socket?.emit('call-reaction', {'emoji': emoji});
+  }
+
+  Future<bool> leaveMatch(
+      {Duration timeout = const Duration(seconds: 3)}) async {
+    final socket = _socket;
+    if (socket == null || !socket.connected) return false;
+    final completer = Completer<bool>();
+    socket.emitWithAck(
+      'leave-match',
+      const <String, dynamic>{},
+      ack: (data) {
+        if (completer.isCompleted) return;
+        final map = socketEventMap(data);
+        completer.complete(map['ok'] == true);
+      },
+    );
+    try {
+      return await completer.future.timeout(timeout);
+    } on TimeoutException {
+      return false;
+    }
   }
 
   void toggleMic(bool enabled) {
